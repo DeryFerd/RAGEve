@@ -163,8 +163,8 @@
 /* ── Auto-ingest options ────────────────────────────── */
 .ingestOpts {
   padding: 14px 16px;
-  background: rgba(79, 110, 247, 0.025);
-  border-top: 1px solid rgba(79, 110, 247, 0.15);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -241,7 +241,7 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(79,110,247,0.06) 0%, rgba(79,110,247,0.03) 100%);
+  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
   border-bottom: 1px solid var(--border);
 }
 .previewIcon {
@@ -278,14 +278,14 @@
   border: 1px solid transparent;
 }
 .sourceBadgeOrange {
-  background: rgba(255,136,0,0.1);
-  color: #ff8800;
-  border-color: rgba(255,136,0,0.25);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 .sourceBadgeBlue {
-  background: rgba(79,110,247,0.1);
-  color: #4f6ef7;
-  border-color: rgba(79,110,247,0.25);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 .sourceBadgeGray {
   background: var(--bg-tertiary);
@@ -299,7 +299,7 @@
   align-items: center;
   gap: 20px;
   padding: 10px 16px;
-  background: rgba(0,0,0,0.015);
+  background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
@@ -428,7 +428,7 @@
   color: var(--text-secondary);
   font-family: var(--font-mono);
 }
-.colText { border-color: rgba(79,110,247,0.3); color: var(--accent); }
+.colText { border: 1px solid var(--border); color: var(--text-primary); }
 .colType {
   font-size: 9px;
   text-transform: uppercase;
@@ -445,9 +445,9 @@
 /* Config hint */
 .configHint {
   font-size: 11px;
-  color: var(--warning);
-  background: var(--warning-muted);
-  border: 1px solid rgba(245,166,35,0.2);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 8px 12px;
   line-height: 1.5;
@@ -486,8 +486,8 @@
   flex-shrink: 0;
   animation: pulse 1.4s ease-in-out infinite;
 }
-.progressDotDone { background: var(--success); animation: none; }
-.progressDotError { background: var(--error); animation: none; }
+.progressDotDone { background: var(--text-muted); animation: none; }
+.progressDotError { background: var(--text-primary); animation: none; }
 .progressDotCancelled { background: var(--text-muted); animation: none; }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -512,8 +512,8 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.progressPctDone { color: var(--success); font-weight: 600; }
-.progressPctError { color: var(--error); }
+.progressPctDone { color: var(--text-muted); font-weight: 600; }
+.progressPctError { color: var(--text-primary); font-weight: 600; }
 
 .progressBarWrap {
   height: 6px;
@@ -522,7 +522,7 @@
 }
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), rgba(79,110,247,0.7));
+  background: var(--accent);
   border-radius: 0 var(--radius-full) var(--radius-full) 0;
   transition: width 0.5s ease;
 }
@@ -531,8 +531,8 @@
     -45deg,
     transparent 0px,
     transparent 6px,
-    rgba(79,110,247,0.25) 6px,
-    rgba(79,110,247,0.25) 12px
+    rgba(255,255,255,0.15) 6px,
+    rgba(255,255,255,0.15) 12px
   );
   background-size: 28px 28px;
   animation: shimmer 0.9s linear infinite;
@@ -541,8 +541,8 @@
   0%   { background-position: 0 0; }
   100% { background-position: 28px 0; }
 }
-.progressFillSuccess { background: var(--success); animation: none; }
-.progressFillError   { background: var(--error); animation: none; }
+.progressFillSuccess { background: var(--text-muted); animation: none; }
+.progressFillError   { background: var(--text-primary); animation: none; }
 
 .progressBytes {
   display: flex;
@@ -557,14 +557,15 @@
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.5;
-  background: rgba(0,0,0,0.02);
+  background: var(--bg-tertiary);
 }
 .progressError {
   padding: 8px 16px;
   font-size: 11px;
-  color: var(--error);
-  background: var(--error-muted);
-  border-top: 1px solid rgba(242,95,92,0.15);
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--text-primary);
 }
 .progressCta {
   display: flex;
@@ -573,7 +574,7 @@
   gap: 8px;
   padding: 10px 16px;
   border-top: 1px solid var(--border);
-  background: rgba(0,0,0,0.015);
+  background: var(--bg-tertiary);
   flex-wrap: wrap;
 }
 .ctaTitle {
@@ -680,7 +681,7 @@
 /* Ingest panel */
 .ingestPanel {
   border-top: 1px solid var(--border);
-  background: rgba(79,110,247,0.025);
+  background: var(--bg-tertiary);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
@@ -738,25 +739,25 @@
   white-space: nowrap;
 }
 .localBadgeIndexed {
-  background: var(--success-muted);
-  color: var(--success);
-  border-color: rgba(61,214,140,0.25);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
 .localBadgeIngestNow {
-  background: var(--accent-muted);
-  color: var(--accent);
-  border-color: rgba(79,110,247,0.25);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border);
   cursor: pointer;
   font-family: var(--font-sans);
 }
 .localBadgeIngestNow:hover {
-  background: rgba(79,110,247,0.2);
+  background: var(--bg-hover);
 }
 
 /* Result card (completed ingest) */
 .resultCard {
-  border-top: 1px solid rgba(61,214,140,0.2);
-  background: rgba(61,214,140,0.04);
+  border-top: 1px solid var(--border);
+  background: var(--bg-tertiary);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -771,7 +772,7 @@
 .resultTitle {
   font-size: 12px;
   font-weight: 600;
-  color: var(--success);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -814,10 +815,10 @@
 /* Config hint */
 .configHintRow {
   padding: 8px 16px;
-  background: var(--warning-muted);
-  border-top: 1px solid rgba(245,166,35,0.2);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
   font-size: 11px;
-  color: var(--warning);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -847,9 +848,9 @@
 .searchToggleActive {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-text);
 }
-.searchToggleActive:hover { background: var(--accent-hover); color: #fff; }
+.searchToggleActive:hover { background: var(--accent-hover); color: var(--accent-text); }
 
 /* Search icon */
 .searchIcon {
@@ -956,8 +957,16 @@
 .previewTabBadge { margin-left: 4px; font-size: 10px; opacity: 0.7; }
 
 /* Source badges */
-.sourceBadgeBlue { background: rgba(79,110,247,0.1); color: #4f6ef7; border-color: rgba(79,110,247,0.25); }
-.sourceBadgeOrange { background: rgba(255,136,0,0.1); color: #ff8800; border-color: rgba(255,136,0,0.25); }
+.sourceBadgeBlue {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.sourceBadgeOrange {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
 
 /* ── Zone 2: Action Bar ─────────────────────────────────────────────────── */
 
@@ -1170,7 +1179,7 @@
 /* Ingest options panel inside the card */
 .libraryCardIngestPanel {
   border-top: 1px solid var(--border);
-  background: rgba(79, 110, 247, 0.025);
+  background: var(--bg-tertiary);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -1213,13 +1222,13 @@
   color: var(--text-primary);
 }
 .libraryFilterTabActive {
-  background: var(--accent-muted);
-  border-color: rgba(79, 110, 247, 0.25);
-  color: var(--accent);
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-primary);
   font-weight: 500;
 }
 .libraryFilterTabActive:hover {
-  background: rgba(79, 110, 247, 0.15);
+  background: var(--bg-active);
 }
 
 /* Count badges inside filter tabs and header */
@@ -1251,11 +1260,11 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--accent-muted);
-  border: 1px solid rgba(79, 110, 247, 0.2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: 12px;
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: 500;
 }
 .bannerDot {

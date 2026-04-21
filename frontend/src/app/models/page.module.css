@@ -65,11 +65,12 @@
 
 .errorBanner {
   padding: var(--space-3) var(--space-4);
-  background-color: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  color: var(--error);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* ── Sections ─────────────────────────────────────────────────────────── */
@@ -215,15 +216,15 @@
 }
 
 .badgeEmbed {
-  background-color: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
+  background-color: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 
 .badgeChat {
-  background-color: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  background-color: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 
 .badgePossible {

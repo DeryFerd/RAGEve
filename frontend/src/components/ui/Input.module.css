@@ -42,7 +42,7 @@
 }
 
 .input.error {
-  border-color: var(--error);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .textarea {
@@ -57,5 +57,6 @@
 }
 
 .hint.errorText {
-  color: var(--error);
+  color: var(--text-primary);
+  font-weight: 600;
 }

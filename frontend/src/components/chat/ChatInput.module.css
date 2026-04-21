@@ -114,17 +114,17 @@
 }
 
 .toggle input:checked + .toggleTrack {
-  background-color: rgba(59, 130, 246, 0.2);
-  border-color: rgba(59, 130, 246, 0.5);
+  background-color: var(--bg-hover);
+  border-color: var(--border);
 }
 
 .toggle input:checked + .toggleTrack::after {
   transform: translateX(16px);
-  background-color: #3b82f6;
+  background-color: var(--accent);
 }
 
 .toggle input:focus-visible + .toggleTrack {
-  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline: 2px solid var(--border-focus);
   outline-offset: 2px;
 }
 
@@ -203,12 +203,12 @@
 .gearBtnActive {
   color: var(--accent);
   border-color: var(--accent);
-  background-color: rgba(59, 130, 246, 0.08);
+  background-color: var(--bg-hover);
 }
 
 .gearBtnActive:hover {
   color: var(--accent);
-  background-color: rgba(59, 130, 246, 0.14);
+  background-color: var(--bg-active);
 }
 
 /* ── Ollama quick refresh row ─────────────────────────────────────────────── */

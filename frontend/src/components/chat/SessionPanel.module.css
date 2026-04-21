@@ -63,8 +63,8 @@
 }
 
 .sessionItem.active {
-  background: var(--accent-muted);
-  border-left-color: var(--accent);
+  background: var(--bg-active);
+  border-left-color: var(--text-primary);
 }
 
 .sessionItemContent {
@@ -104,5 +104,7 @@
 }
 
 .deleteBtn:hover {
-  color: var(--error);
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+  font-weight: 700;
 }

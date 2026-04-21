@@ -191,8 +191,8 @@
 }
 
 .removeFileBtn:hover {
-  color: var(--error);
-  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 .uploadHint {
@@ -286,9 +286,9 @@
 }
 
 .cancelBtn:hover {
-  color: var(--error);
-  border-color: var(--error);
-  background-color: rgba(239, 68, 68, 0.08);
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+  background-color: var(--bg-hover);
 }
 
 /* Dataset cards */

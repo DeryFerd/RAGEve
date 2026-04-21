@@ -1,6 +1,7 @@
 /* ============================================================
-   Design Tokens — CSS Custom Properties
-   Theme: dark (default), light (via [data-theme="light"])
+   Design Tokens — Pure Monochrome Theme
+   Black background (#000000) with white text (#ffffff)
+   Grayscale only for hierarchy and depth
    ============================================================ */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
@@ -41,75 +42,44 @@
   --transition-slow: 350ms ease;
 
   /* ── Shadows ────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.7);
 }
 
-/* ── Dark theme (default) ─────────────────────────────────── */
+/* ── Monochrome Theme — Pure Black & White ─────────────────── */
 [data-theme="dark"] {
-  --bg-primary: #0c0e14;
-  --bg-secondary: #12151e;
-  --bg-tertiary: #1a1e2e;
-  --bg-elevated: #1f2438;
-  --bg-hover: #252a40;
-  --bg-active: #2c3250;
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #111111;
+  --bg-elevated: #151515;
+  --bg-hover: #1a1a1a;
+  --bg-active: #1f1f1f;
 
-  --border: #2a2f47;
-  --border-subtle: #1f2438;
-  --border-focus: #4f6ef7;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(255, 255, 255, 0.5);
 
-  --text-primary: #e8ecf5;
-  --text-secondary: #8a94ad;
-  --text-muted: #555f7a;
-  --text-inverse: #0c0e14;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --text-inverse: #000000;
 
-  --accent: #4f6ef7;
-  --accent-hover: #6b85ff;
-  --accent-muted: rgba(79, 110, 247, 0.15);
-  --accent-text: #ffffff;
+  /* Accent (primary interactive elements) */
+  --accent: #ffffff;
+  --accent-hover: rgba(255, 255, 255, 0.9);
+  --accent-muted: rgba(255, 255, 255, 0.1);
+  --accent-text: #000000;
 
-  --success: #3dd68c;
-  --success-muted: rgba(61, 214, 140, 0.12);
-  --warning: #f5a623;
-  --warning-muted: rgba(245, 166, 35, 0.12);
-  --error: #f25f5c;
-  --error-muted: rgba(242, 95, 92, 0.12);
-  --info: #4f6ef7;
-  --info-muted: rgba(79, 110, 247, 0.12);
-}
-
-/* ── Light theme ───────────────────────────────────────────── */
-[data-theme="light"] {
-  --bg-primary: #f5f6fa;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #eef0f6;
-  --bg-elevated: #ffffff;
-  --bg-hover: #eceef5;
-  --bg-active: #e2e5f0;
-
-  --border: #d8dce8;
-  --border-subtle: #eef0f6;
-  --border-focus: #4f6ef7;
-
-  --text-primary: #1a1e2e;
-  --text-secondary: #555f7a;
-  --text-muted: #8a94ad;
-  --text-inverse: #ffffff;
-
-  --accent: #4f6ef7;
-  --accent-hover: #3a57e5;
-  --accent-muted: rgba(79, 110, 247, 0.1);
-  --accent-text: #ffffff;
-
-  --success: #22a06b;
-  --success-muted: rgba(34, 160, 107, 0.1);
-  --warning: #c47d00;
-  --warning-muted: rgba(196, 125, 0, 0.1);
-  --error: #d93025;
-  --error-muted: rgba(217, 48, 37, 0.1);
-  --info: #4f6ef7;
-  --info-muted: rgba(79, 110, 247, 0.1);
+  /* Semantic status colors — mapped to grayscale */
+  --success: var(--text-primary);
+  --success-muted: var(--bg-tertiary);
+  --warning: var(--text-primary);
+  --warning-muted: var(--bg-tertiary);
+  --error: var(--text-primary);
+  --error-muted: var(--bg-elevated);
+  --info: var(--text-primary);
+  --info-muted: var(--bg-tertiary);
 }
 
 /* ── Global resets ─────────────────────────────────────────── */

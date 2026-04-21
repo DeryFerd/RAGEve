@@ -38,7 +38,7 @@ const fmtSize = (bytes: number) => {
 };
 
 const scoreColor = (s: number) =>
-  s > 0.85 ? "var(--success)" : s > 0.7 ? "var(--warning)" : "var(--error)";
+  s > 0.85 ? "var(--text-primary)" : s > 0.7 ? "var(--text-secondary)" : "var(--text-muted)";
 
 // ── Ingest Progress Card ─────────────────────────────────────────────────────
 
@@ -61,9 +61,9 @@ function IngestProgressCard({
 }: IngestProgressCardProps) {
   const st = ingestStatus;
   return (
-    <div className={styles.resultCard} style={{ borderLeft: "3px solid #3b82f6" }}>
+    <div className={styles.resultCard} style={{ borderLeft: "3px solid var(--accent)" }}>
       <div className={styles.resultHeader}>
-        <div className={styles.resultTitle} style={{ color: "#3b82f6" }}>
+        <div className={styles.resultTitle} style={{ color: "var(--text-primary)" }}>
           &#x25B2; Ingesting {datasetId}
         </div>
         <Button

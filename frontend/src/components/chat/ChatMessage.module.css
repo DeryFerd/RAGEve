@@ -23,12 +23,13 @@
 }
 
 .userAvatar {
-  background-color: var(--accent);
-  color: #fff;
+  background-color: #ffffff;
+  color: #000000;
+  border: 1px solid var(--border);
 }
 
 .assistantAvatar {
-  background-color: var(--bg-elevated);
+  background-color: var(--bg-tertiary);
   border: 1px solid var(--border);
   color: var(--text-secondary);
 }
@@ -42,8 +43,8 @@
 }
 
 .user .bubble {
-  background-color: var(--accent);
-  color: #fff;
+  background-color: #ffffff;
+  color: #000000;
   border-bottom-right-radius: var(--radius-sm);
 }
 

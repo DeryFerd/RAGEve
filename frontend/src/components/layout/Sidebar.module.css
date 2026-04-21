@@ -74,8 +74,9 @@
 }
 
 .navItem.active {
-  background-color: var(--accent-muted);
-  color: var(--accent);
+  background-color: var(--bg-active);
+  color: var(--text-primary);
+  border-left: 2px solid var(--text-primary);
 }
 
 .navIcon {

@@ -29,47 +29,49 @@
   cursor: not-allowed;
 }
 
-/* Primary */
+/* Primary — Solid white, black text (highest emphasis) */
 .primary {
-  background-color: var(--accent);
-  color: var(--accent-text);
-  border-color: var(--accent);
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
 }
 .primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.9);
 }
 
-/* Secondary */
+/* Secondary — Transparent with white border */
 .secondary {
-  background-color: var(--bg-elevated);
-  color: var(--text-primary);
-  border-color: var(--border);
+  background-color: transparent;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 .secondary:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  border-color: var(--border-focus);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* Ghost */
+/* Ghost — Transparent, white text */
 .ghost {
   background-color: transparent;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.7);
   border-color: transparent;
 }
 .ghost:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
 }
 
-/* Danger */
+/* Danger — White border, white text, bold */
 .danger {
-  background-color: var(--error);
-  color: #fff;
-  border-color: var(--error);
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
 }
 .danger:hover:not(:disabled) {
-  background-color: #e03030;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: #ffffff;
 }
 
 /* Sizes */

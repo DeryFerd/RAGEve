@@ -19,28 +19,37 @@
 }
 
 .accent {
-  background-color: var(--accent-muted);
-  color: var(--accent);
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  font-weight: 600;
 }
 
 .success {
-  background-color: var(--success-muted);
-  color: var(--success);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 .warning {
-  background-color: var(--warning-muted);
-  color: var(--warning);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px dashed var(--border);
 }
 
 .error {
-  background-color: var(--error-muted);
-  color: var(--error);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  font-weight: 600;
 }
 
 .info {
-  background-color: var(--info-muted);
-  color: var(--info);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .muted {
