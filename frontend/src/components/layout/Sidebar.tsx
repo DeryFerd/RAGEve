@@ -10,50 +10,35 @@ const NAV_ITEMS = [
     href: "/models",
     label: "Models",
     icon: (
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="2" width="6" height="14" rx="1.5" />
-        <rect x="10" y="2" width="6" height="14" rx="1.5" />
-      </svg>
+      <img src="/ollama.png" alt="Models" className={styles.navIcon} />
     ),
   },
   {
     href: "/datasets",
     label: "Datasets",
     icon: (
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="2" y="3" width="14" height="12" rx="2" />
-        <path d="M5 7h8M5 10h5" />
-      </svg>
+      <img src="/datasets.png" alt="Datasets" className={styles.navIcon} />
     ),
   },
   {
     href: "/huggingface",
     label: "HuggingFace",
     icon: (
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="9" cy="9" r="7" />
-        <path d="M6 12c1.5-1 2-2 3-3s1.5-2 3-3" />
-        <circle cx="9" cy="5" r="1" fill="currentColor" />
-      </svg>
+      <img src="/huggingface.png" alt="HuggingFace" className={styles.navIcon} />
     ),
   },
   {
     href: "/agents",
     label: "Agents",
     icon: (
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <circle cx="9" cy="6" r="3" />
-        <path d="M4 16c0-2.8 2.2-5 5-5s5 2.2 5 5" />
-      </svg>
+      <img src="/agent.png" alt="Chat" className={styles.navIcon} />
     ),
   },
   {
     href: "/chat",
     label: "Chat",
     icon: (
-      <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M3 3h12v9H10l-3 3V12H3V3z" />
-      </svg>
+      <img src="/chat.png" alt="Chat" className={styles.navIcon} />
     ),
   },
 ];
