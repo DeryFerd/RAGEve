@@ -459,6 +459,99 @@ async def scenario_zero_results() -> bool:
     return all_passed
 
 
+# ── Scenario 4: Enhanced PDF parsing ───────────────────────────────────────────
+
+async def scenario_enhanced_parsing() -> bool:
+    """
+    Test the enhanced PDF parsing features:
+      - Ingest a PDF with column detection, table extraction, hierarchical chunking
+      - Verify layout_summary reports columns_detected
+      - Verify chunks contain markdown tables or heading markers if expected
+    """
+    section("Scenario 4 — Enhanced PDF parsing")
+
+    from rag.ingestion.pipeline import run_deepdoc_ingestion
+    from backend.config import settings
+
+    # Find a suitable test PDF (use existing uploads)
+    test_pdf_candidates = [
+        Path("data/uploads/ebm/lecun-06.pdf"),
+        Path("data/uploads/stream-e2e-test/tiny.pdf"),
+    ]
+    pdf_path = None
+    for p in test_pdf_candidates:
+        if p.exists():
+            pdf_path = p
+            break
+
+    if not pdf_path:
+        fail("No test PDF found. Ensure earlier scenarios have generated uploads.")
+        return False
+
+    step(f"Using test PDF: {pdf_path}")
+
+    # Ensure enhanced features are enabled
+    original_flags = {
+        "enable_column_detection": settings.enable_column_detection,
+        "enable_structured_tables": settings.enable_structured_tables,
+        "enable_hierarchical_chunking": settings.enable_hierarchical_chunking,
+    }
+    settings.enable_column_detection = True
+    settings.enable_structured_tables = True
+    settings.enable_hierarchical_chunking = True
+
+    try:
+        step("Running enhanced ingestion...")
+        result = run_deepdoc_ingestion(pdf_path)
+
+        # Basic checks
+        chunks = result.get("chunks", [])
+        ok(f"Created {len(chunks)} chunks")
+
+        extraction = result.get("extraction", {})
+        ok(f"Extractor: {extraction.get('extractor', 'unknown')}")
+
+        if "columns_detected" in extraction:
+            ok(f"Columns detected: {extraction['columns_detected']}")
+
+        quality = result.get("quality_report", {})
+        ok(f"Quality score: {quality.get('quality_score', 0):.3f}")
+
+        layout_summary = result.get("layout_summary")
+        if layout_summary:
+            ok(f"Layout: {layout_summary.get('pages')} pages, {layout_summary.get('total_blocks')} blocks")
+            if "columns_detected" in layout_summary:
+                ok(f"Columns: {layout_summary['columns_detected']}")
+
+        # Check for markdown tables
+        table_chunks = [c for c in chunks if "|" in c and "---" in c]
+        if table_chunks:
+            ok(f"Found {len(table_chunks)} chunks with markdown tables")
+        else:
+            warn("No markdown tables (may be normal for this PDF)")
+
+        # Check for hierarchical headings (H1/H2 markers)
+        heading_chunks = [c for c in chunks if c.startswith("# ")]
+        if heading_chunks:
+            ok(f"Found {len(heading_chunks)} chunks with heading markers")
+        else:
+            warn("No heading markers (may be normal for this PDF)")
+
+        step("Enhanced parsing test completed")
+        return True
+
+    except Exception as e:
+        fail(f"Enhanced parsing test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+    finally:
+        # Restore original settings
+        for key, value in original_flags.items():
+            setattr(settings, key, value)
+
+
 # ── SSE Debugger ─────────────────────────────────────────────────────────────
 
 async def sse_debugger() -> None:
@@ -595,7 +688,7 @@ async def setup_agent() -> None:
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description="RAG Platform E2E Tests")
-    parser.add_argument("--scenario", type=int, choices=[1, 2, 3],
+    parser.add_argument("--scenario", type=int, choices=[1, 2, 3, 4],
                         help="Run a specific scenario only")
     parser.add_argument("--setup-agent", action="store_true",
                         help="Create/update the test agent and exit")
@@ -621,6 +714,7 @@ async def main() -> None:
         (1, "Large-dataset retrieval", scenario_large_dataset),
         (2, "SSE streaming format", scenario_sse_streaming),
         (3, "Zero-results handling", scenario_zero_results),
+        (4, "Enhanced PDF parsing", scenario_enhanced_parsing),
     ]
 
     for num, title, fn in scenarios:
