@@ -49,6 +49,22 @@ class Settings(BaseSettings):
     default_chunk_overlap: int = 180
     default_max_tokens_per_chunk: int = 500
 
+    # Enhanced PDF parsing features (deep document parsing)
+    enable_column_detection: bool = True
+    enable_structured_tables: bool = True
+    enable_hierarchical_chunking: bool = True
+    enable_reading_order_optimization: bool = True
+
+    # Column detection tuning
+    column_histogram_bins: int = 50
+    column_peak_threshold: float = 0.3
+    column_min_gap: float = 20.0  # points
+
+    # pdfplumber options
+    pdfplumber_table_strategy: str = "text"  # "text", "lines", or "explicit"
+    pdfplumber_snap_tolerance: float = 3.0
+    pdfplumber_join_tolerance: float = 3.0
+
     # Upload limits
     max_upload_bytes: int = 500 * 1024 * 1024      # 500 MB per file
     max_dataset_bytes: int = 100 * 1024 ** 3      # 100 GB per dataset
