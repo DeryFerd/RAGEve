@@ -79,13 +79,13 @@ cd RAGEve
 ## 🔥 Latest Updates
 
 - **2026-04-22** Enhanced PDF parsing — column detection, structured table extraction, hierarchical chunking, reading order optimization
-- **2026-04-03** Phase 24 — Evaluation matrix (16-cell benchmark) + Qdrant hybrid search fix
-- **2026-04-01** Phase 23 — 9 production fixes: structured 500 handler, health checks, rate limiter proxy safety, request timeouts, streaming 404 fix, file upload limits, paginated datasets API
-- **2026-04-01** Phase 22 — Chat history with MySQL/SQLite, session panel, per-agent conversations
-- **2026-03-28** Phase 16 — Background HF dataset ingest with live progress tracking
-- **2026-03-26** Phase 6c — Real-time streaming upload with per-batch progress stages
-- **2026-03-26** Phase 7 — Cross-encoder reranking (sentence-transformers)
-- **2026-03-25** Phase 3 — E2E test suite, conversation persistence
+- **2026-04-03** Evaluation matrix (16-cell benchmark) + Qdrant hybrid search fix
+- **2026-04-01** 9 production fixes: structured 500 handler, health checks, rate limiter proxy safety, request timeouts, streaming 404 fix, file upload limits, paginated datasets API
+- **2026-04-01** Chat history with MySQL/SQLite, session panel, per-agent conversations
+- **2026-03-28** Background HF dataset ingest with live progress tracking
+- **2026-03-26** Real-time streaming upload with per-batch progress stages
+- **2026-03-26** Cross-encoder reranking (sentence-transformers)
+- **2026-03-25** E2E test suite, conversation persistence
 
 
 ---
@@ -151,50 +151,9 @@ cd RAGEve
 
 ## 🔎 System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Browser (port 3000)                     │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │
-                    ┌─────────▼──────────┐
-                    │   Next.js 14 App   │
-                    │   TypeScript + CSS │
-                    │   Zustand (state)  │
-                    └─────────┬──────────┘
-                              │ HTTP / SSE
-                    ┌─────────▼─────────┐
-                    │   FastAPI (port   │
-                    │       8000)       │
-                    │                   │
-                    │  ┌──────────────┐ │
-                    │  │  RAG Pipeline│ │
-                    │  │  • retrieve  │ │
-                    │  │  • rerank    │ │
-                    │  │  • generate  │ │
-                    │  └──────────────┘ │
-                    └────┬──────────┬───┘
-                         │          │
-              ┌──────────▼──┐    ┌──▼────────────── ┐
-              │   Qdrant    │    │    Ollama        │
-              │  (vectors)  │    │  LLM + embeddings│
-              │   port 6333 │    │  localhost:11434 │
-              └─────────────┘    └──────────────────┘
-                         │
-              ┌──────────▼──────────┐
-              │      MySQL / SQLite │
-              │   (chat history)    │
-              │     port 3306       │
-              └─────────────────────┘
-```
-
-| Service | Port | Purpose |
-|---|---|---|
-| Next.js Frontend | `3000` | Web UI |
-| FastAPI Backend | `8000` | REST + SSE API |
-| Qdrant | `6333` | Vector storage + retrieval |
-| Ollama | `11434` | LLM inference + embeddings |
-| MySQL | `3306` | Chat history + sessions |
-| Qdrant Dashboard | `6333/dashboard` | Vector DB UI |
+<div align="center">
+  <img src="docs/assets/architecture.png" alt="RAGEve" />
+</div>
 
 ---
 
