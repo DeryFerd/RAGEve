@@ -78,6 +78,7 @@ cd RAGEve
 
 ## 🔥 Latest Updates
 
+- **2026-04-22** Enhanced PDF parsing — column detection, structured table extraction, hierarchical chunking, reading order optimization
 - **2026-04-03** Phase 24 — Evaluation matrix (16-cell benchmark) + Qdrant hybrid search fix
 - **2026-04-01** Phase 23 — 9 production fixes: structured 500 handler, health checks, rate limiter proxy safety, request timeouts, streaming 404 fix, file upload limits, paginated datasets API
 - **2026-04-01** Phase 22 — Chat history with MySQL/SQLite, session panel, per-agent conversations
@@ -94,8 +95,10 @@ cd RAGEve
 ### 🔍 **Deep Document Understanding**
 
 - Ingest PDFs, Word docs, Excel, CSV, images, and more
+- **Enhanced PDF parsing**: column detection, structured table extraction (markdown), heading hierarchy, reading order optimization
 - Adaptive chunking with quality scoring per profile (clean text, OCR noisy, table-heavy, code)
 - Intelligent text column selection for multi-column datasets
+- Hierarchical chunking preserves section context for better semantic search
 
 ### 🧠 **Grounded Answers with Citations**
 
@@ -395,9 +398,10 @@ Results are saved to `data/benchmarks/matrix-<timestamp>.json` with full per-sam
 
 ## 📜 Roadmap
 
+✅ Completed:
+- [x] RAGFlow-style deep document parsing (layout awareness, table extraction, hierarchical chunking, reading order)
 
 Upcoming:
-- [ ] RAGFlow-style deep document parsing (layout awareness, table extraction)
 - [ ] PDF preview with highlighted citations
 - [ ] API rate limiting per-user
 - [ ] Multi-user / session isolation
