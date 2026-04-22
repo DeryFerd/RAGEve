@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "RAGEve",
   description: "AI-powered RAG platform with Ollama + Qdrant",
   icons: {
-    icon: "/logo.jpg",
+    icon: "/logo.png",
   },
 };
 

@@ -50,7 +50,7 @@ export function Sidebar() {
   return (
     <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}>
       <div className={styles.logo}>
-        <img src="/logo.jpg" alt="RAGEve logo" className={styles.logoIcon} />
+        <img src="/logo.png" alt="RAGEve logo" className={styles.logoIcon} />
         <span className={styles.logoText}>RAGEve</span>
       </div>
 

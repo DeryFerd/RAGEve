@@ -87,7 +87,7 @@ export default function SetupPage() {
     <div className={styles.page}>
       <div className={styles.container}>
         <div className={styles.logo}>
-          <img src="/logo.jpg" alt="RAGEve logo" className={styles.logoIcon} />
+          <img src="/logo.png" alt="RAGEve logo" className={styles.logoIcon} />
           <div className={styles.logoTitle}>RAGEve</div>
           <div className={styles.logoSubtitle}>Setup — Select your Ollama models</div>
         </div>
