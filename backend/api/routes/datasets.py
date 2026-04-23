@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from backend.config import settings
 
@@ -979,6 +979,33 @@ async def get_dataset_info(dataset_id: str) -> DatasetInfo:
         chunks_count=info.get("points_count", 0),
         vector_size=info.get("vectors_count", 0),
         status=info.get("status", "unknown"),
+    )
+
+
+@router.get("/{dataset_id}/download/{filename}")
+async def download_dataset_file(
+    dataset_id: str,
+    filename: str,
+) -> FileResponse:
+    """
+    Download an uploaded file belonging to a dataset.
+
+    This endpoint serves the original uploaded file (e.g., PDF) so that the
+    frontend can render it with highlighted citations. Only files within the
+    dataset's upload directory are accessible.
+    """
+    # Security: prevent path traversal
+    if "/" in filename or "\\" in filename or filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_path = settings.upload_root / dataset_id / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/pdf",  # will be overridden by mimetype detection if needed
+        filename=filename,
     )
 
 
