@@ -26,7 +26,17 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
     setLoading(true);
     listSessions({ agent_id: agentId, limit: 50 })
       .then((res) => {
-        setSessions(res.sessions);
+        // Merge server sessions with any local sessions for this agent not yet on server
+        // (e.g., auto-created session that hasn't propagated yet)
+        const existingSessions = useChatStore.getState().sessions;
+        const relevantExisting = existingSessions.filter(s => s.agent_id === agentId);
+        const mergedSessions = [...res.sessions];
+        for (const s of relevantExisting) {
+          if (!res.sessions.find(rs => rs.session_id === s.session_id)) {
+            mergedSessions.push(s);
+          }
+        }
+        setSessions(mergedSessions);
         // Keep currentSession if it still belongs to this agent
         if (currentSession && currentSession.agent_id !== agentId) {
           setCurrentSession(null);
@@ -88,7 +98,7 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
           disabled={!agentId}
           title="Start a new conversation"
         >
-          + New
+          New chat 
         </Button>
       </div>
 
