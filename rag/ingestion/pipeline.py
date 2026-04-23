@@ -266,7 +266,7 @@ def run_deepdoc_ingestion(
     eff_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else config.max_tokens_per_chunk
 
     # 4. Adaptive chunking with layouts if hierarchical chunking enabled
-    chunks = adaptive_chunk_text(
+    chunks_with_blocks = adaptive_chunk_text(
         raw_text,
         profile=selected_profile,
         override_size=eff_chunk_size,
@@ -274,7 +274,7 @@ def run_deepdoc_ingestion(
         override_tokens=eff_tokens,
         layouts=layouts if (layouts and settings.enable_hierarchical_chunking) else None,
     )
-
+    chunks = chunks_with_blocks  # list[tuple[str, list[Block]]]
     chunk_count = len(chunks)
     _log.info("Created %d chunks", chunk_count)
 
