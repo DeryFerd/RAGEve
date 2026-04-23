@@ -143,6 +143,9 @@ class ScoredChunk:
     # Preserved here so the frontend can show both cosine and reranker scores
     # and users can see whether the reranker meaningfully re-ordered results.
     cosine_score: float = 0.0
+    # Dense and sparse scores from the retrieval stage (for hybrid search details)
+    dense_score: float = 0.0
+    sparse_score: float = 0.0
 
 
 # ----------------------------------------------------------------------
@@ -223,6 +226,9 @@ class CrossEncoderReranker:
                 # Preserve the original bi-encoder cosine score so the frontend
                 # can show both cosine and reranker scores for transparency.
                 cosine_score=getattr(chunk, "cosine_score", 0.0) or chunk.score,
+                # Preserve dense and sparse scores for hybrid search details.
+                dense_score=getattr(chunk, "dense_score", 0.0) or 0.0,
+                sparse_score=getattr(chunk, "sparse_score", 0.0) or 0.0,
                 metadata=getattr(chunk, "metadata", {}),
             )
             for chunk, norm_score in zip(chunks, scores)
