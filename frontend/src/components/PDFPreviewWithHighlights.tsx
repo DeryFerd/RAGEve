@@ -35,17 +35,25 @@ interface PDFPreviewWithHighlightsProps {
  *
  * Highlights are drawn as semi-transparent yellow rectangles over the
  * corresponding text blocks. The component uses PDF.js for rendering.
+ *
+ * If highlightPages is provided, only those page numbers are rendered.
+ * Otherwise, all pages are rendered.
  */
 export default function PDFPreviewWithHighlights({
   pdfUrl,
   highlights,
   className,
-}: PDFPreviewWithHighlightsProps) {
+}: PDFPreviewWithHighlightsProps & { highlightPages?: number[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
+
+  // Determine which pages to render based on highlights
+  const pagesToRender = highlights
+    ? [...new Set(highlights.map((h) => h.page))].sort((a, b) => a - b)
+    : null;
 
   // Load PDF
   useEffect(() => {
@@ -144,6 +152,11 @@ export default function PDFPreviewWithHighlights({
     }
   };
 
+  // Determine which page numbers to render
+  const renderPageNums = pagesToRender && pagesToRender.length > 0
+    ? pagesToRender
+    : Array.from({ length: numPages }, (_, i) => i + 1);
+
   if (loading) {
     return <div className={className}>Loading PDF…</div>;
   }
@@ -158,7 +171,7 @@ export default function PDFPreviewWithHighlights({
 
   return (
     <div ref={containerRef} className={className} style={{ overflow: "auto" }}>
-      {Array.from({ length: numPages }, (_, i) => i + 1).map((num) => (
+      {renderPageNums.map((num) => (
         <div key={num} style={{ marginBottom: "20px", position: "relative" }}>
           <canvas
             id={`page-${num}`}

@@ -43,7 +43,6 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
     setUseReranker,
     setRerankerModel,
     setUseHybrid,
-    refreshRerankers,
   } = useChatStore();
 
   const {
@@ -240,20 +239,6 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
           />
         </div>
         <div className={styles.actions}>
-          {/* Settings gear */}
-          <button
-            className={`${styles.gearBtn} ${settingsOpen ? styles.gearBtnActive : ""}`}
-            onClick={() => setSettingsOpen((v) => !v)}
-            title={settingsOpen ? "Close settings" : "Open search settings"}
-            type="button"
-            aria-label={settingsOpen ? "Close settings" : "Open search settings"}
-          >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <circle cx="7.5" cy="7.5" r="2.2" />
-              <path d="M7.5 1.5v1.6M7.5 11.9v1.6M13.4 7.5h-1.6M3.2 7.5H1.6M11.7 3.3l-1.1 1.1M4.4 10.6L3.3 11.7M11.7 11.7l-1.1-1.1M4.4 4.4L3.3 3.3" />
-            </svg>
-          </button>
-
           {isStreaming ? (
             <Button variant="danger" onClick={onStop} title="Stop generation">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
@@ -272,6 +257,23 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
               Send
             </Button>
           )}
+
+          {/* Settings gear */}
+          <button
+            className={`${styles.gearBtn} ${settingsOpen ? styles.gearBtnActive : ""}`}
+            onClick={() => setSettingsOpen((v) => !v)}
+            title={settingsOpen ? "Close settings" : "Open search settings"}
+            type="button"
+            aria-label={settingsOpen ? "Close settings" : "Open search settings"}
+          >
+            <img 
+              src="/setting.png" 
+              alt="Settings" 
+              width="15" 
+              height="15" 
+              style={{ display: 'block', objectFit: 'contain' }}
+            />
+          </button>
         </div>
       </div>
     </div>
