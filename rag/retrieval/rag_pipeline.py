@@ -70,6 +70,12 @@ class SourceChunk:
     # Search mode used to retrieve this chunk.
     # "hybrid" | "dense" | "sparse"
     search_type: str = "dense"
+    # PDF layout metadata (if available): list of page numbers this chunk spans
+    pages: list[int] | None = None
+    # Detailed block-level bounding boxes: list of {page, bbox: {x0,y0,x1,y1}, type}
+    blocks: list[dict] | None = None
+    # Dataset ID (for constructing file URLs)
+    datasetId: str | None = None
 
 
 @dataclass
@@ -85,6 +91,21 @@ SYSTEM_PROMPT_TEMPLATE = (
     "Always cite which source(s) you used when providing specific information.\n\n"
     "## Context\n{context}\n\n"
     "## Instruction\n{question}"
+)
+
+# Mandatory Markdown formatting rules appended to every system prompt.
+# These ensure clean, readable output in the UI regardless of LLM defaults.
+MARKDOWN_FORMATTING_RULES = (
+    "\n\n"
+    "CRITICAL FORMATTING RULES — STRICTLY ENFORCED:\n"
+    "1. NEVER output a 'wall of text.' Always use paragraph breaks (blank lines) between distinct ideas.\n"
+    "2. ALWAYS put a blank line BEFORE any list (numbered or bulleted) when it follows a sentence.\n"
+    "   Example: 'Here are the benefits:\\n\\n1. First item\\n2. Second item'\n"
+    "3. ALWAYS include a single space after the list marker: '1. Item' not '1.Item' or '1  Item'.\n"
+    "4. For headers (## or ###), ensure exactly one blank line before and after.\n"
+    "5. Keep paragraphs to 3-5 sentences maximum. Split long paragraphs into multiple shorter ones.\n"
+    "\n"
+    "Failure to follow these rules will degrade user experience significantly."
 )
 
 
@@ -114,6 +135,9 @@ def _results_to_sources(
             cosine_score=dense,
             sparse_score=sparse,
             search_type=search_type,
+            pages=c.metadata.get("pages"),
+            blocks=c.metadata.get("blocks"),
+            datasetId=c.metadata.get("dataset_id"),
         )
     return [_to_source(c) for c in chunks]
 
@@ -227,6 +251,9 @@ class RAGPipeline:
                 context=context, question=question
             )
 
+        # Append mandatory formatting rules to ensure clean Markdown in UI
+        augmented_system = f"{augmented_system}{MARKDOWN_FORMATTING_RULES}"
+
         # ── Generate ─────────────────────────────────────────────────────
         messages = [ChatMessage(role="user", content=question)]
         response = await self.chat.chat(
@@ -302,6 +329,9 @@ class RAGPipeline:
             augmented_system = SYSTEM_PROMPT_TEMPLATE.format(
                 context=context, question=question
             )
+
+        # Append mandatory formatting rules to ensure clean Markdown in UI
+        augmented_system = f"{augmented_system}{MARKDOWN_FORMATTING_RULES}"
 
         # ── Stream answer ────────────────────────────────────────────────
         messages = [ChatMessage(role="user", content=question)]
