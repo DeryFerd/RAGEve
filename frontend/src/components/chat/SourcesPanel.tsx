@@ -10,6 +10,9 @@ import styles from "./SourcesPanel.module.css";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// Only show PDF preview for chunks with relevance score >= this threshold
+const PREVIEW_SCORE_THRESHOLD = 0.7;
+
 interface SourcesPanelProps {
   sources: SourceChunk[];
   rerankerModel?: string | null;
@@ -79,7 +82,7 @@ export function SourcesPanel({ sources, rerankerModel }: SourcesPanelProps) {
                       {(s.score * 100).toFixed(1)}%
                     </Badge>
                   )}
-                  {canPreview(s) && (
+                  {canPreview(s) && s.score >= PREVIEW_SCORE_THRESHOLD && (
                     <Button
                       size="sm"
                       variant="secondary"
