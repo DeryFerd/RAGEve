@@ -357,11 +357,9 @@ Results are saved to `data/benchmarks/matrix-<timestamp>.json` with full per-sam
 
 ## 📜 Roadmap
 
-✅ Completed:
-- [x] RAGFlow-style deep document parsing (layout awareness, table extraction, hierarchical chunking, reading order)
 
-Upcoming:
-- [ ] PDF preview with highlighted citations
+- [x] RAGFlow-style deep document parsing (layout awareness, table extraction, hierarchical chunking, reading order)
+- [x] PDF preview with highlighted citations
 - [ ] API rate limiting per-user
 - [ ] Multi-user / session isolation
 - [ ] Webhook support for external integrations
