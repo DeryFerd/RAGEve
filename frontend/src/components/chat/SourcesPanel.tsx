@@ -1,8 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import type { SourceChunk } from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import PDFPreviewWithHighlights from "@/components/PDFPreviewWithHighlights";
 import styles from "./SourcesPanel.module.css";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface SourcesPanelProps {
   sources: SourceChunk[];
@@ -10,6 +16,21 @@ interface SourcesPanelProps {
 }
 
 export function SourcesPanel({ sources, rerankerModel }: SourcesPanelProps) {
+  const [previewSource, setPreviewSource] = useState<SourceChunk | null>(null);
+
+  const canPreview = (s: SourceChunk) => {
+    return !!(
+      s.blocks &&
+      s.blocks.length > 0 &&
+      s.datasetId &&
+      s.source
+    );
+  };
+
+  const getPdfUrl = (s: SourceChunk) => {
+    return `${API_BASE}/datasets/${s.datasetId}/download/${encodeURIComponent(s.source!)}`;
+  };
+
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
@@ -58,12 +79,37 @@ export function SourcesPanel({ sources, rerankerModel }: SourcesPanelProps) {
                       {(s.score * 100).toFixed(1)}%
                     </Badge>
                   )}
+                  {canPreview(s) && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setPreviewSource(s)}
+                      title="View PDF with highlights"
+                    >
+                      Preview
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className={styles.sourceText}>{s.text}</div>
             </div>
           ))}
         </div>
+      )}
+
+      {previewSource && (
+        <Modal
+          open={!!previewSource}
+          onClose={() => setPreviewSource(null)}
+          title={`PDF Preview: ${previewSource.source}`}
+        >
+          <div style={{ height: "80vh", overflow: "auto" }}>
+            <PDFPreviewWithHighlights
+              pdfUrl={getPdfUrl(previewSource)}
+              highlights={previewSource.blocks || undefined}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

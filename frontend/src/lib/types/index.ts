@@ -467,6 +467,16 @@ export interface SourceChunk {
   sparse_score?: number;
   /** Search mode: "dense" | "hybrid". */
   search_type?: string;
+  /** Pages this chunk spans (if layout data available). */
+  pages?: number[];
+  /** Detailed block-level bounding boxes for PDF preview highlighting. */
+  blocks?: Array<{
+    page: number;
+    bbox: { x0: number; y0: number; x1: number; y1: number };
+    type: string;
+  }>;
+  /** Dataset ID (for constructing file download URL). */
+  datasetId?: string;
 }
 
 export interface ChatMessageItem {

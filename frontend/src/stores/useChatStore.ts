@@ -8,6 +8,7 @@ import type {
   SourceChunk,
   RerankerEntry,
 } from "@/lib/types";
+import { normalizeLLMResponse } from "@/lib/utils/text";
 
 interface ChatState {
   // ── Session state ──────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ function _toItem(m: ChatMessageStored, fallbackId: string): ChatMessageItem {
   return {
     id: m.message_id,
     role: m.role,
-    content: m.content,
+    content: normalizeLLMResponse(m.content),
     sources: m.sources ?? undefined,
     timestamp: m.created_at ? new Date(m.created_at).getTime() : Date.now(),
     storedMessageId: m.message_id,
@@ -115,14 +116,17 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     })),
 
   appendStreamingText: (text) =>
-    set((state) => ({ streamingText: state.streamingText + text })),
+    set((state) => ({
+      streamingText: normalizeLLMResponse(state.streamingText + text)
+    })),
 
   finalizeStreaming: (sources, rerankerModel, storedMessageId) => {
     const { streamingText, messages } = get();
+    const normalizedContent = normalizeLLMResponse(streamingText);
     const finalMessage: ChatMessageItem = {
       id: storedMessageId ?? `msg-${++messageCounter}`,
       role: "assistant",
-      content: streamingText,
+      content: normalizedContent,
       sources,
       timestamp: Date.now(),
     };
