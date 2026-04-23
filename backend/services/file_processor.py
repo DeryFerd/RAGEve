@@ -69,10 +69,10 @@ class FileProcessorService:
             "extraction": result["extraction"],
         }
 
-    def _persist_chunks(self, dataset_id: str, source_file: str, chunks: list[str]) -> None:
+    def _persist_chunks(self, dataset_id: str, source_file: str, chunks: list[tuple[str, list]]) -> None:
         out_dir = settings.chunk_root / dataset_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        for idx, chunk in enumerate(chunks):
+        for idx, (chunk_text, _) in enumerate(chunks):
             chunk_file = out_dir / f"{Path(source_file).stem}.chunk-{idx:04d}.txt"
-            chunk_file.write_text(chunk, encoding="utf-8")
+            chunk_file.write_text(chunk_text, encoding="utf-8")
