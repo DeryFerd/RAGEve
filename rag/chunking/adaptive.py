@@ -28,7 +28,7 @@ def hierarchical_chunk_text(
     layouts: PageLayout | list[PageLayout],
     chunk_size: int,
     chunk_overlap: int,
-) -> list[str]:
+) -> list[tuple[str, list[Block]]]:
     """
     Chunk text respecting heading hierarchy.
 
@@ -38,17 +38,17 @@ def hierarchical_chunk_text(
     3. Group blocks into sections (from one heading to next)
     4. For each section:
        - If section text fits in chunk_size, use as single chunk
-       - If too large, recursively chunk using deepdoc_chunk_text
+       - If too large, split blocks into batches respecting chunk_size
        - Prepend section heading to first sub-chunk for context
-    5. Return flat list of chunks
+    5. Return list of (chunk_text, source_blocks) tuples
 
     Args:
         layouts: Single PageLayout or list of PageLayout with blocks (should have column_index, level set)
         chunk_size: Target max characters per chunk
-        chunk_overlap: Overlap between chunks
+        chunk_overlap: Overlap between chunks (used for text splitting within blocks if needed)
 
     Returns:
-        List of chunk strings
+        List of (chunk_text, source_blocks) tuples
     """
     # Normalize to list
     if isinstance(layouts, PageLayout):
@@ -97,37 +97,95 @@ def hierarchical_chunk_text(
         })
 
     # Chunk each section
-    chunks: list[str] = []
+    chunks: list[tuple[str, list[Block]]] = []
+
+    def _split_blocks_into_chunks(blocks: list[Block], max_size: int) -> list[list[Block]]:
+        """Split a list of blocks into batches where each batch's total text length <= max_size."""
+        batches: list[list[Block]] = []
+        current_batch: list[Block] = []
+        current_len = 0
+
+        for block in blocks:
+            block_len = len(block.text)
+            # If block itself is larger than max_size, we need to split it internally
+            if block_len > max_size and not current_batch:
+                # Single oversized block: split its text using deepdoc_chunk_text
+                # We'll create artificial mini-blocks for each text chunk
+                sub_texts = deepdoc_chunk_text(
+                    block.text,
+                    chunk_size=max_size,
+                    chunk_overlap=chunk_overlap,
+                    max_tokens_per_chunk=500,
+                )
+                for sub_text in sub_texts:
+                    # Create a synthetic block that references the original block's bbox
+                    sub_block = Block(
+                        block_type=block.block_type,
+                        bbox=block.bbox,
+                        text=sub_text,
+                        page=block.page,
+                        order=block.order,
+                        children=[],
+                        metadata=block.metadata.copy(),
+                        column_index=block.column_index,
+                        level=block.level,
+                        parent=block.parent,
+                    )
+                    batches.append([sub_block])
+                continue
+
+            if current_len + block_len <= max_size:
+                current_batch.append(block)
+                current_len += block_len
+            else:
+                if current_batch:
+                    batches.append(current_batch)
+                current_batch = [block]
+                current_len = block_len
+
+        if current_batch:
+            batches.append(current_batch)
+
+        return batches
+
     for section in sections:
-        # Build section text (including heading if present)
-        section_text_parts = []
-        if section["heading"]:
-            section_text_parts.append(section["heading"].text)
-            section_text_parts.append("")  # blank line
-
-        section_text_parts.extend(b.text for b in section["blocks"] if b != section["heading"])
-        section_text = "\n".join(section_text_parts).strip()
-
-        if not section_text:
+        section_blocks = section["blocks"]
+        if not section_blocks:
             continue
 
+        section_text = " ".join(b.text for b in section_blocks if b != section["heading"])
+        heading_block = section["heading"]
+
         if len(section_text) <= chunk_size:
-            chunks.append(section_text)
+            # Whole section fits as one chunk
+            chunk_text_parts = []
+            if heading_block:
+                chunk_text_parts.append(heading_block.text)
+                chunk_text_parts.append("")
+            chunk_text_parts.extend(b.text for b in section_blocks if b != heading_block)
+            chunk_text = "\n".join(chunk_text_parts).strip()
+            if chunk_text:
+                chunks.append((chunk_text, section_blocks.copy()))
         else:
-            # Section too large: chunk within it using deepdoc
-            # Note: we chunk the text-only representation, not the blocks
-            sub_chunks = deepdoc_chunk_text(
-                section_text,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                max_tokens_per_chunk=500,  # default from PROFILE_PRESETS[GENERAL]
-            )
+            # Section too large: split blocks into batches
+            # Exclude heading from automatic splitting; we'll prepend it to first batch
+            non_heading_blocks = [b for b in section_blocks if b != heading_block]
+            block_batches = _split_blocks_into_chunks(non_heading_blocks, chunk_size)
 
-            # Prepend heading to first sub-chunk to maintain context
-            if section["heading"] and sub_chunks:
-                sub_chunks[0] = f"{section['heading'].text}\n\n{sub_chunks[0]}"
+            for batch_idx, batch_blocks in enumerate(block_batches):
+                chunk_text_parts = []
+                if heading_block and batch_idx == 0:
+                    chunk_text_parts.append(heading_block.text)
+                    chunk_text_parts.append("")
 
-            chunks.extend(sub_chunks)
+                chunk_text_parts.extend(b.text for b in batch_blocks)
+                chunk_text = "\n".join(chunk_text_parts).strip()
+                if chunk_text:
+                    # Include heading in the first batch's block list if present
+                    source_blocks = batch_blocks.copy()
+                    if heading_block and batch_idx == 0:
+                        source_blocks = [heading_block] + batch_blocks
+                    chunks.append((chunk_text, source_blocks))
 
     return chunks
 
@@ -140,9 +198,14 @@ def adaptive_chunk_text(
     override_overlap: int | None = None,
     override_tokens: int | None = None,
     layouts: list[PageLayout] | None = None,
-) -> list[str]:
+) -> list[tuple[str, list[Block]]]:
     """
     Adaptive chunking that respects document structure when layout is available.
+
+    Returns:
+        List of (chunk_text, source_blocks) tuples. When layouts are provided,
+        source_blocks are the original Block objects from the layout. When layouts
+        are not available (text-only), source_blocks is an empty list.
     """
     text = (text or "").strip()
     if not text:
@@ -168,7 +231,7 @@ def adaptive_chunk_text(
     if profile == ChunkProfile.TABLE_HEAVY:
         # Split by table boundaries first, then run standard chunking
         table_parts = _split_by_tables(text)
-        all_chunks: list[str] = []
+        all_chunks: list[tuple[str, list]] = []
         for part in table_parts:
             chunks = deepdoc_chunk_text(
                 part,
@@ -176,18 +239,19 @@ def adaptive_chunk_text(
                 chunk_overlap=chunk_overlap,
                 max_tokens_per_chunk=max_tokens,
             )
-            all_chunks.extend(chunks)
-        return _dedupe_chunks(all_chunks)
+            # No block references available for text-only chunking
+            all_chunks.extend((chunk, []) for chunk in chunks)
+        return _dedupe_chunks_with_blocks(all_chunks)
 
     if profile == ChunkProfile.CODE_MIXED:
         # Split by code blocks, chunk code parts smaller, text parts normally
         code_parts = _split_by_code_blocks(text)
-        all_chunks: list[str] = []
+        all_chunks: list[tuple[str, list]] = []
         for part in code_parts:
             if CODE_BLOCK_RE.search(part):
                 # This is a code block — treat as one chunk if small enough
                 if len(part) <= chunk_size * 2:
-                    all_chunks.append(part)
+                    all_chunks.append((part, []))
                 else:
                     sub_chunks = deepdoc_chunk_text(
                         part,
@@ -195,7 +259,7 @@ def adaptive_chunk_text(
                         chunk_overlap=chunk_overlap,
                         max_tokens_per_chunk=max(max_tokens // 2, 150),
                     )
-                    all_chunks.extend(sub_chunks)
+                    all_chunks.extend((sc, []) for sc in sub_chunks)
             else:
                 chunks = deepdoc_chunk_text(
                     part,
@@ -203,24 +267,29 @@ def adaptive_chunk_text(
                     chunk_overlap=chunk_overlap,
                     max_tokens_per_chunk=max_tokens,
                 )
-                all_chunks.extend(chunks)
-        return _dedupe_chunks(all_chunks)
+                all_chunks.extend((c, []) for c in chunks)
+        return _dedupe_chunks_with_blocks(all_chunks)
 
     # Standard profiles (CLEAN_TEXT, OCR_NOISY, GENERAL)
-    return deepdoc_chunk_text(
+    chunks = deepdoc_chunk_text(
         text,
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
         max_tokens_per_chunk=max_tokens,
     )
+    # No block references available for text-only chunking
+    return [(chunk, []) for chunk in chunks]
 
 
-def _dedupe_chunks(chunks: list[str]) -> list[str]:
+def _dedupe_chunks_with_blocks(
+    chunks: list[tuple[str, list[Block]]],
+) -> list[tuple[str, list[Block]]]:
+    """Deduplicate chunks while preserving block lists."""
     seen: set[str] = set()
-    result: list[str] = []
-    for chunk in chunks:
-        key = chunk.strip()
+    result: list[tuple[str, list[Block]]] = []
+    for text, blocks in chunks:
+        key = text.strip()
         if key and key not in seen:
             seen.add(key)
-            result.append(key)
+            result.append((text, blocks))
     return result
