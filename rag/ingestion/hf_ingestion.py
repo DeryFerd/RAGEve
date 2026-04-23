@@ -373,7 +373,7 @@ async def ingest_hf_dataset(
             override_tokens=max_tokens_per_chunk,
         )
 
-        for chunk_idx, _chunk_text in enumerate(row_chunks):
+        for chunk_idx, (chunk_text, _) in enumerate(row_chunks):
             chunk_meta: dict[str, Any] = {
                 "dataset_id": dataset_id,
                 "split": split,
@@ -392,7 +392,7 @@ async def ingest_hf_dataset(
                 for col in metadata_columns:
                     if col in meta:
                         chunk_meta[col] = meta[col]
-            all_chunks.append(_chunk_text)
+            all_chunks.append(chunk_text)
             all_meta.append(chunk_meta)
 
         # Flush when the window is full — release memory before the next row
