@@ -44,6 +44,9 @@ data/
 # Exception: keep README under data/ if it exists
 data/README.md
 
+# Frontend temporary directories
+frontend/src/lib/utils/
+
 # IDE / editor
 .idea/
 .vscode/
@@ -54,3 +57,14 @@ data/README.md
 
 # uv lock file (commit uv.lock, not the other ones)
 uv.lock
+
+# TypeScript
+*.tsbuildinfo
+
+# Backup files
+*.bak
+*.backup
+
+# Frontend build artifacts not covered by Next.js
+frontend/.cache/
+frontend/tsconfig.tsbuildinfo
