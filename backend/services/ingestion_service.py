@@ -189,15 +189,18 @@ class IngestionService:
             {"stage": "chunking", "message": "Splitting into semantic chunks", "progress": 30},
         )
 
-        chunks = adaptive_chunk_text(
+        # adaptive_chunk_text returns list[tuple[chunk_text, source_blocks]]
+        chunks_with_blocks = adaptive_chunk_text(
             raw_text,
             profile=selected_profile,
             override_size=eff_chunk_size,
             override_overlap=eff_overlap,
             override_tokens=eff_tokens,
+            layouts=layouts if ext == ".pdf" else None,
         )
-
-        chunk_count = len(chunks)
+        chunk_texts = [c[0] for c in chunks_with_blocks]
+        chunk_blocks = [c[1] for c in chunks_with_blocks]
+        chunk_count = len(chunks_with_blocks)
         _log.info(
             "[%s] Stage=chunking — %d chunks (size=%d overlap=%d)",
             dataset_id, chunk_count, eff_chunk_size, eff_overlap,
@@ -290,35 +293,53 @@ class IngestionService:
 
         # Stream over batches: embed → sparse → upsert → cleanup → next
         async for batch_embs, batch_start, batch_end in self.embedder.embed_batches(
-            chunks, batch_size=embed_batch_size, on_progress=on_embed_progress
+            chunk_texts, batch_size=embed_batch_size, on_progress=on_embed_progress
         ):
-            batch_chunks = chunks[batch_start:batch_end]
-            batch_size_actual = len(batch_chunks)
+            batch_texts = chunk_texts[batch_start:batch_end]
+            batch_blocks = chunk_blocks[batch_start:batch_end]
+            batch_size_actual = len(batch_texts)
 
             # ── Sparse embed this batch ──────────────────────────────────
             batch_sparse: list[dict[str, Any] | None] = [None] * batch_size_actual
             if self.sparse_embedder is not None:
                 sparse_results = await asyncio.to_thread(
-                    self.sparse_embedder.embed_batch, batch_chunks
+                    self.sparse_embedder.embed_batch, batch_texts
                 )
                 for idx, sv in enumerate(sparse_results):
                     if sv.indices:
                         batch_sparse[idx] = {"indices": sv.indices, "values": sv.values}
 
             # ── Build ChunkRecords for this batch ─────────────────────────
-            records = [
-                ChunkRecord(
-                    chunk_id=str(uuid.uuid4()),
-                    chunk_text=batch_chunks[idx],
-                    metadata={
-                        **base_metadata,
-                        "chunk_index": batch_start + idx,
-                    },
-                    dense_vector=batch_embs[idx],
-                    sparse_vector=batch_sparse[idx],
+            records = []
+            for idx in range(batch_size_actual):
+                block_list = batch_blocks[idx]
+                meta = {
+                    **base_metadata,
+                    "chunk_index": batch_start + idx,
+                }
+                # Include layout-derived metadata if available
+                if block_list:
+                    pages = sorted(set(b.page for b in block_list))
+                    blocks_meta = [
+                        {
+                            "page": b.page,
+                            "bbox": {"x0": b.bbox.x0, "y0": b.bbox.y0, "x1": b.bbox.x1, "y1": b.bbox.y1},
+                            "type": b.block_type.value,
+                        }
+                        for b in block_list
+                    ]
+                    meta["pages"] = pages
+                    meta["blocks"] = blocks_meta
+
+                records.append(
+                    ChunkRecord(
+                        chunk_id=str(uuid.uuid4()),
+                        chunk_text=batch_texts[idx],
+                        metadata=meta,
+                        dense_vector=batch_embs[idx],
+                        sparse_vector=batch_sparse[idx],
+                    )
                 )
-                for idx in range(batch_size_actual)
-            ]
 
             # ── Upsert ────────────────────────────────────────────────
             try:
@@ -334,9 +355,9 @@ class IngestionService:
 
             # ── Memory release for this batch ───────────────────────────
             # Delete all large intermediate objects before the next batch.
-            # `chunks` list itself is kept (referenced by next slice) but
-            # the sliced strings for this batch become eligible for GC.
-            del batch_embs, batch_sparse, batch_chunks, records, sparse_results
+            # `chunk_texts` and `chunk_blocks` lists themselves are kept (referenced by next slice)
+            # but the sliced portions for this batch become eligible for GC.
+            del batch_embs, batch_sparse, batch_texts, batch_blocks, records, sparse_results
             gc.collect()
             _clear_cuda_cache()
 
@@ -349,8 +370,8 @@ class IngestionService:
              "chunks_done": chunk_count, "chunks_total": chunk_count},
         )
 
-        # Final cleanup — the `chunks` list itself can now be freed
-        del chunks
+        # Final cleanup — the chunk lists can now be freed
+        del chunks_with_blocks, chunk_texts, chunk_blocks
         gc.collect()
         _clear_cuda_cache()
 
