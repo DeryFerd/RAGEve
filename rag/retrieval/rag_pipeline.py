@@ -50,6 +50,17 @@ OVERFETCH_MULTIPLIER = 3
 # Standard values: 60 (Qdrant default). Range [1, 1000].
 RRF_K = 60
 
+# Only include PDF block metadata for chunks with score >= this threshold.
+# Low-score chunks are likely irrelevant; showing full PDF preview is noise.
+# Thresholds differ by search type because score scales differ:
+#   - dense: cosine similarity ∈ [0,1] → threshold 0.75
+#   - hybrid: RRF sum ∈ [0, ~0.033] → threshold 0.02 (≈60% of max)
+PREVIEW_BLOCK_SCORE_THRESHOLD = {
+    "hybrid": 0.02,
+    "dense": 0.75,
+    "sparse": 0.02,  # treat like hybrid
+}
+
 
 # ----------------------------------------------------------------------
 # Data classes
@@ -122,11 +133,18 @@ def _results_to_sources(
     when dedicated attributes are not available. This handles both pre-reranking
     (rich scores from Qdrant) and post-reranking (cross-encoder normalised score)
     cases correctly.
+
+    Blocks (PDF highlighting) are only included for chunks with score >= PREVIEW_BLOCK_SCORE_THRESHOLD
+    to avoid showing irrelevant previews.
     """
     def _to_source(c: SearchResult) -> SourceChunk:
         # Prefer named dense/sparse attributes when present; fall back to score.
         dense   = getattr(c, "dense_score", None) or c.score
         sparse  = getattr(c, "sparse_score", None) or 0.0
+        blocks = c.metadata.get("blocks")
+        # Only include block-level metadata for high-scoring chunks.
+        if c.score < PREVIEW_BLOCK_SCORE_THRESHOLD[search_type]:
+            blocks = None
         return SourceChunk(
             chunk_id=c.chunk_id,
             text=c.chunk_text,
@@ -136,7 +154,7 @@ def _results_to_sources(
             sparse_score=sparse,
             search_type=search_type,
             pages=c.metadata.get("pages"),
-            blocks=c.metadata.get("blocks"),
+            blocks=blocks,
             datasetId=c.metadata.get("dataset_id"),
         )
     return [_to_source(c) for c in chunks]
@@ -237,7 +255,19 @@ class RAGPipeline:
                 "[%s] Reranking: %d → %d chunks using %s",
                 collection_name, len(chunks), top_k, reranker_model,
             )
-            context_chunks = reranked
+            # Convert ScoredChunk (from reranker) back to SearchResult for downstream processing.
+            # This preserves dense_score (bi-encoder cosine) and sparse_score for UI display.
+            context_chunks = [
+                SearchResult(
+                    chunk_id=rc.chunk_id,
+                    chunk_text=rc.chunk_text,
+                    score=rc.score,
+                    metadata=rc.metadata,
+                    dense_score=rc.cosine_score,
+                    sparse_score=rc.sparse_score,
+                )
+                for rc in reranked
+            ]
         else:
             context_chunks = chunks[:top_k]
 
@@ -316,7 +346,19 @@ class RAGPipeline:
                 "[%s] Reranking: %d → %d chunks using %s",
                 collection_name, len(chunks), top_k, reranker_model,
             )
-            context_chunks = reranked
+            # Convert ScoredChunk (from reranker) back to SearchResult for downstream processing.
+            # This preserves dense_score (bi-encoder cosine) and sparse_score for UI display.
+            context_chunks = [
+                SearchResult(
+                    chunk_id=rc.chunk_id,
+                    chunk_text=rc.chunk_text,
+                    score=rc.score,
+                    metadata=rc.metadata,
+                    dense_score=rc.cosine_score,
+                    sparse_score=rc.sparse_score,
+                )
+                for rc in reranked
+            ]
         else:
             context_chunks = chunks[:top_k]
 
@@ -451,6 +493,9 @@ class RAGPipeline:
         SparseVector dataclass from sparse_embedder.
         """
         import asyncio
+
+        if self.sparse_embedder is None:
+            raise RuntimeError("Sparse embedder is not configured for hybrid search")
 
         dense_task = self.embedder.embed_single(text)
         sparse_task = asyncio.to_thread(self.sparse_embedder.embed, text)
