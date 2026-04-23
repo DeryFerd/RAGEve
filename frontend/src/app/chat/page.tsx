@@ -9,12 +9,11 @@ import { getRerankers } from "@/lib/api/rerank";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { SourcesPanel } from "@/components/chat/SourcesPanel";
-import { AgentSelector } from "@/components/agents/AgentSelector";
-import { Button } from "@/components/ui/Button";
+import { AgentCard } from "@/components/chat/AgentCard";
 import { useToastStore } from "@/stores/useToastStore";
 import { SessionPanel } from "@/components/chat/SessionPanel";
-import { getSessionWithMessages } from "@/lib/api/chat";
+import { getSessionWithMessages, createSession } from "@/lib/api/chat";
+import { Button } from "@/components/ui/Button";
 import styles from "./ChatPage.module.css";
 
 let msgCounter = 0;
@@ -23,16 +22,14 @@ export default function ChatPage() {
   const {
     messages,
     streamingText,
-    sources,
-    isStreaming,
     selectedAgentId,
     currentSession,
     setSelectedAgentId,
     appendMessage,
     loadSessionMessages,
-    clearMessages,
-    activeRerankerModel,
     setRerankerModels,
+    addSession,
+    isStreaming,
   } = useChatStore();
   const { agents, setAgents } = useAgentsStore();
   const { addToast } = useToastStore();
@@ -94,7 +91,7 @@ export default function ChatPage() {
   );
 
   const handleSend = useCallback(
-    (
+    async (
       question: string,
       opts: {
         temperature: number;
@@ -104,10 +101,18 @@ export default function ChatPage() {
         useHybrid: boolean;
       }
     ) => {
+      // If no session, create one on-the-fly before sending
       if (!currentSession) {
-        addToast("Please create or select a conversation first", "warning");
-        return;
+        try {
+          const session = await createSession({ agent_id: selectedAgentId! });
+          addSession(session);
+          addToast("New conversation started", "success");
+        } catch (err) {
+          addToast(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`, "error");
+          return;
+        }
       }
+
       // Add user message immediately to the local store
       const userMsgId = `msg-${++msgCounter}`;
       appendMessage({
@@ -124,114 +129,126 @@ export default function ChatPage() {
         useHybrid: opts.useHybrid,
       });
     },
-    [currentSession, appendMessage, send, addToast]
+    [currentSession, selectedAgentId, appendMessage, send, addSession, addToast]
   );
 
-  // When the selected agent changes, reset messages
+  // When the selected agent changes, reset messages and auto-create a session
   const handleAgentChange = useCallback(
-    (agentId: string) => {
+    async (agentId: string) => {
       setSelectedAgentId(agentId);
+      try {
+        const session = await createSession({ agent_id: agentId });
+        addSession(session);
+        addToast("New conversation started", "success");
+      } catch (err) {
+        addToast(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`, "error");
+      }
     },
-    [setSelectedAgentId]
+    [setSelectedAgentId, addSession, addToast]
   );
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
+          {selectedAgentId ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedAgentId(null)}
+              className={styles.backButton}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 4l-4 4 4 4" />
+              </svg>
+              Back
+            </Button>
+          ) : null}
           <h1 className={styles.title}>Chat</h1>
-          <AgentSelector
-            agents={agents}
-            selectedId={selectedAgentId}
-            onChange={handleAgentChange}
-            disabled={isStreaming}
-          />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            clearMessages();
-            addToast("Chat cleared", "info");
-          }}
-          disabled={isStreaming}
-        >
-          Clear
-        </Button>
       </div>
 
-      <div className={styles.layout}>
-        {/* Session sidebar — only shown when an agent is selected */}
-        {selectedAgentId && (
+      {!selectedAgentId ? (
+        agents.length === 0 ? (
+          <div className={styles.emptyState}>
+            <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M6 8h36v28H30l-6 6V36H6V8z" />
+              <path d="M14 18h20M14 24h12" />
+            </svg>
+            <div className={styles.emptyTitle}>No agents yet</div>
+            <div className={styles.emptyDesc}>
+              Create an agent in the <strong>Agents</strong> page to start chatting.
+            </div>
+          </div>
+        ) : (
+          <div className={styles.agentGrid}>
+            {agents.map((agent) => (
+              <AgentCard
+                key={agent.agent_id}
+                agent={agent}
+                onClick={() => handleAgentChange(agent.agent_id)}
+              />
+            ))}
+          </div>
+        )
+      ) : (
+        <div className={styles.layout}>
           <SessionPanel
             agentId={selectedAgentId}
             onSessionSelected={handleSessionSelected}
           />
-        )}
 
-        <div className={styles.chatArea}>
-          {!selectedAgentId ? (
-            <div className={styles.emptyState}>
-              <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M6 8h36v28H30l-6 6V36H6V8z" />
-                <path d="M14 18h20M14 24h12" />
-              </svg>
-              <div className={styles.emptyTitle}>Select an agent</div>
-              <div className={styles.emptyDesc}>
-                Choose an agent from the dropdown above to start a conversation.
+          <div className={styles.chatArea}>
+            {!currentSession ? (
+              <div className={styles.emptyState}>
+                <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M6 8h36v28H30l-6 6V36H6V8z" />
+                  <path d="M14 18h20M14 24h12" />
+                </svg>
+                <div className={styles.emptyTitle}>Start a conversation</div>
+                <div className={styles.emptyDesc}>
+                  Click &ldquo;+ New&rdquo; in the sidebar to start a new conversation with this agent.
+                </div>
               </div>
-            </div>
-          ) : !currentSession ? (
-            <div className={styles.emptyState}>
-              <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M6 8h36v28H30l-6 6V36H6V8z" />
-                <path d="M14 18h20M14 24h12" />
-              </svg>
-              <div className={styles.emptyTitle}>Start a conversation</div>
-              <div className={styles.emptyDesc}>
-                Click &ldquo;+ New&rdquo; in the sidebar to start a new conversation with this agent.
+            ) : messages.length === 0 && !streamingText ? (
+              <div className={styles.emptyState}>
+                <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M6 8h36v28H30l-6 6V36H6V8z" />
+                  <path d="M14 18h20M14 24h12" />
+                </svg>
+                <div className={styles.emptyTitle}>Ask a question</div>
+                <div className={styles.emptyDesc}>
+                  The model will retrieve relevant context from your datasets and answer.
+                </div>
               </div>
-            </div>
-          ) : messages.length === 0 && !streamingText ? (
-            <div className={styles.emptyState}>
-              <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M6 8h36v28H30l-6 6V36H6V8z" />
-                <path d="M14 18h20M14 24h12" />
-              </svg>
-              <div className={styles.emptyTitle}>Ask a question</div>
-              <div className={styles.emptyDesc}>
-                The model will retrieve relevant context from your datasets and answer.
+            ) : (
+              <div className={styles.messages}>
+                {messages.map((msg) => (
+                  <ChatMessage key={msg.id} message={msg} sources={msg.sources || []} />
+                ))}
+                {streamingText && (
+                  <ChatMessage
+                    message={{
+                      id: "streaming",
+                      role: "assistant",
+                      content: streamingText,
+                      timestamp: Date.now(),
+                    }}
+                    isStreaming
+                  />
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            </div>
-          ) : (
-            <div className={styles.messages}>
-              {messages.map((msg) => (
-                <ChatMessage key={msg.id} message={msg} />
-              ))}
-              {streamingText && (
-                <ChatMessage
-                  message={{
-                    id: "streaming",
-                    role: "assistant",
-                    content: streamingText,
-                    timestamp: Date.now(),
-                  }}
-                  isStreaming
-                />
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+            )}
 
-          <ChatInput
-            onSend={handleSend}
-            onStop={stop}
-            disabled={!currentSession}
-          />
+            <ChatInput
+              onSend={handleSend}
+              onStop={stop}
+              disabled={isStreaming}
+            />
+          </div>
         </div>
-
-        <SourcesPanel sources={streamingText ? [] : sources} rerankerModel={activeRerankerModel} />
-      </div>
+      )}
     </div>
   );
 }
