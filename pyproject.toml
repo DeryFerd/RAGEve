@@ -3,7 +3,7 @@ name = "rageve"
 version = "0.1.0"
 description = "Local-first RAG platform — Ollama + Qdrant + FastAPI + Next.js. No cloud, no API keys, runs entirely on your machine."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.116.0",
     "uvicorn>=0.35.0",
@@ -18,9 +18,11 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pillow>=11.3.0",
     "pytesseract>=0.3.13",
+    "paddlepaddle>=3.2.2",
+    "paddleocr>=3.2.0",
     "python-multipart>=0.0.20",
     "regex>=2025.9.18",
-    "huggingface-hub[cli]>=1.7.2",
+    "huggingface-hub>=1.7.2",
     "pyarrow>=23.0.1",
     "sentence-transformers>=3.3.0",
     "torch>=2.5.0,<2.6.0",
