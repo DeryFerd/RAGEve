@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import tempfile
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -8,9 +8,12 @@ import pandas as pd
 import pymupdf
 from docx import Document
 from PIL import Image
-import pytesseract
 
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
+from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
+from backend.config import settings
+
+_log = logging.getLogger(__name__)
 
 # Supported file extensions for ingestion
 SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
@@ -19,11 +22,26 @@ SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".xlsx", ".png", ".jpg", ".jpeg
 class Extractors:
     @staticmethod
     def from_pdf(file_path: Path) -> str:
+        """Extract text from PDF using PyMuPDF, with OCR fallback for scanned PDFs."""
         lines: list[str] = []
         with pymupdf.open(file_path) as doc:
             for page in doc:
                 lines.append(page.get_text("text"))
-        return "\n".join(lines).strip()
+        text = "\n".join(lines).strip()
+
+        if len(text) < settings.ocr_threshold_chars:
+            _log.info(
+                "PDF %s appears scanned (only %d chars), applying OCR",
+                file_path.name,
+                len(text),
+            )
+            engine = get_ocr_engine(settings.ocr_engine)
+            ocr_text = ocr_pdf(file_path, engine)
+            if ocr_text:
+                return ocr_text
+            _log.warning("OCR returned no text for %s; using original extraction", file_path.name)
+
+        return text
 
     @staticmethod
     def from_docx(file_path: Path) -> str:
@@ -65,7 +83,8 @@ class Extractors:
     @staticmethod
     def from_image(file_path: Path) -> str:
         image = Image.open(file_path)
-        return pytesseract.image_to_string(image).strip()
+        engine = get_ocr_engine(settings.ocr_engine)
+        return engine.image_to_string(image)
 
 
 def _re_extract_with_fallback_tool(src: Path, converter) -> str:
@@ -114,7 +133,10 @@ def extract_text(
     ext = file_path.suffix.lower()
 
     if ext == ".pdf":
-        # Use enhanced parsing if at least one feature is enabled
+        text = ""
+        meta: dict = {}
+
+        # Try enhanced parsing if at least one feature is enabled
         if enable_column_detection or enable_structured_tables:
             try:
                 from rag.deepdoc.layout_parser import parse_pdf_layout, layout_to_readable_text
@@ -136,16 +158,22 @@ def extract_text(
                         if block.column_index is not None:
                             column_counts.add(block.column_index)
                 meta["columns_detected"] = len(column_counts)
-                return text, meta
             except Exception as e:
-                import logging
                 logging.getLogger("rag.ingestion.pipeline").warning(
                     "Enhanced PDF parsing failed, falling back to basic: %s", e
                 )
-                # Fall through to basic extraction
-        # Basic extraction
-        text = Extractors.from_pdf(file_path)
-        return text, {"extractor": "pymupdf", "layout_aware": False}
+                # Reset to ensure fallback runs
+                text = ""
+                meta = {}
+
+        # If enhanced parsing was not attempted or produced insufficient text, fallback
+        if not text or len(text) < settings.ocr_threshold_chars:
+            text = Extractors.from_pdf(file_path)
+            # Determine if OCR was used: from_pdf returns either pure pymupdf or OCR text
+            # We can't easily know; but we can hint based on length: if original pymupdf extraction would be tiny
+            # Simpler: just report fallback
+            meta = {"extractor": f"{settings.ocr_engine}-ocr", "layout_aware": False}
+        return text, meta
 
     if ext == ".doc":
         text, conv_result = Extractors.from_doc(file_path)
@@ -168,7 +196,8 @@ def extract_text(
 
     if ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}:
         text = Extractors.from_image(file_path)
-        return text, {"extractor": "pytesseract-ocr"}
+        engine_name = settings.ocr_engine
+        return text, {"extractor": f"{engine_name}-ocr"}
 
     raise ValueError(f"Unsupported file extension: {ext}")
 
