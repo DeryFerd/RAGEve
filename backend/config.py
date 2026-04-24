@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     enable_hierarchical_chunking: bool = True
     enable_reading_order_optimization: bool = True
 
+    # OCR configuration
+    ocr_engine: str = "paddle"  # "paddle" or "tesseract"
+    ocr_threshold_chars: int = 50  # Min chars extracted to consider PDF not scanned
+
     # Column detection tuning
     column_histogram_bins: int = 50
     column_peak_threshold: float = 0.3
