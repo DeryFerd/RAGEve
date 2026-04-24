@@ -142,6 +142,18 @@ class IngestionService:
                     "[%s] PDF layout parsing timed out after 600s — using plain text",
                     dataset_id,
                 )
+            # OCR fallback for scanned PDFs if text is still too short
+            if len(raw_text.strip()) < settings.ocr_threshold_chars:
+                _log.info("[%s] PDF text length %d below threshold; attempting OCR", dataset_id, len(raw_text))
+                from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
+                engine = get_ocr_engine(settings.ocr_engine)
+                ocr_text = ocr_pdf(file_path, engine)
+                if ocr_text:
+                    raw_text = ocr_text
+                    extraction_meta["extractor"] = f"{settings.ocr_engine}-ocr"
+                    extraction_meta["layout_aware"] = False
+                else:
+                    _log.warning("[%s] OCR produced no text; keeping layout-parsed text", dataset_id)
         elif ext == ".doc":
             raw_text, conv_result = Extractors.from_doc(file_path)
             extraction_meta = {
@@ -157,7 +169,7 @@ class IngestionService:
             extraction_meta = {"extractor": "pandas"}
         elif ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}:
             raw_text = Extractors.from_image(file_path)
-            extraction_meta = {"extractor": "pytesseract-ocr"}
+            extraction_meta = {"extractor": f"{settings.ocr_engine}-ocr"}
         else:
             raise ValueError(f"Unsupported: {ext}")
 
