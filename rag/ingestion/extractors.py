@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -8,19 +9,41 @@ import pandas as pd
 import pymupdf
 from docx import Document
 from PIL import Image
-import pytesseract
 
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
+from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
+from backend.config import settings
+
+_log = logging.getLogger(__name__)
 
 
 class Extractors:
     @staticmethod
     def from_pdf(file_path: Path) -> str:
+        """Extract text from PDF using PyMuPDF, with OCR fallback for scanned PDFs."""
+        # Basic extraction via PyMuPDF
         lines: list[str] = []
         with pymupdf.open(file_path) as doc:
             for page in doc:
                 lines.append(page.get_text("text"))
-        return "\n".join(lines).strip()
+        text = "\n".join(lines).strip()
+
+        # If very little text, assume scanned PDF → OCR each page
+        if len(text) < settings.ocr_threshold_chars:
+            _log.info(
+                "PDF %s appears scanned (only %d chars), applying OCR",
+                file_path.name,
+                len(text),
+            )
+            from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
+
+            engine = get_ocr_engine(settings.ocr_engine)
+            ocr_text = ocr_pdf(file_path, engine)
+            if ocr_text:
+                return ocr_text
+            _log.warning("OCR returned no text for %s; using original extraction", file_path.name)
+
+        return text
 
     @staticmethod
     def from_docx(file_path: Path) -> str:
@@ -62,7 +85,8 @@ class Extractors:
     @staticmethod
     def from_image(file_path: Path) -> str:
         image = Image.open(file_path)
-        return pytesseract.image_to_string(image).strip()
+        engine = get_ocr_engine(settings.ocr_engine)
+        return engine.image_to_string(image)
 
 
 def _re_extract_with_fallback_tool(src: Path, converter) -> str:
