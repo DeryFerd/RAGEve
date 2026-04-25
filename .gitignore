@@ -3,8 +3,6 @@
 .env.local
 .env.*.local
 
-# Environment variable documentation — commit this
-.env.example
 
 # Python
 __pycache__/
