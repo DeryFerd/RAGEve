@@ -1,6 +1,6 @@
 [project]
 name = "rageve"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first RAG platform — Ollama + Qdrant + FastAPI + Next.js. No cloud, no API keys, runs entirely on your machine."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -29,10 +29,13 @@ dependencies = [
     "datasets>=3.1.0",
     "fastembed>=0.8.0,<1.0.0",
     "slowapi>=0.1.9",
-    "sqlalchemy[asyncio]>=2.0",
+    "peewee>=3.17.0",
     "aiomysql>=0.2.0",
     "pymysql>=1.1.0",
-    "aiosqlite>=0.21.0",
+    "python-jose>=3.3.0",
+    "bcrypt==3.2.2",
+    "passlib>=1.7.4",
+    "arq[redis]>=0.28.0",
 ]
 
 [project.optional-dependencies]
@@ -44,3 +47,6 @@ eval = [
     "langchain-openai>=0.3.0",
     "anthropic>=0.40.0",
 ]
+
+[dependency-groups]
+dev = []
