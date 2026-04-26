@@ -12,17 +12,21 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.api.routes.agents import router as agents_router
+from backend.api.routes.auth import router as auth_router
+from backend.api.routes.canvas import router as canvas_router
 from backend.api.routes.chat import router as chat_router
-from backend.api.routes.chat_history import router as chat_history_router
-from backend.api.routes.datasets import router as datasets_router
-from backend.api.routes.files import router as files_router
+from backend.api.routes.connectors import router as connectors_router
+from backend.api.routes.conversations import router as conversations_router
+from backend.api.routes.dialogs import router as dialogs_router
+from backend.api.routes.evaluation import router as evaluation_router
 from backend.api.routes.huggingface import router as hf_router
+from backend.api.routes.knowledgebases import router as knowledgebases_router
 from backend.api.routes.ollama import router as ollama_router
 from backend.api.routes.rerank import router as rerank_router
 from backend.config import settings
 from backend.logging_config import setup_logging
-from backend.services.chat_store import close_db, init_db
+from backend.models_peewee import close_db, init_db
+from backend.services.database import connect
 from backend.services.ingestion_factory import close_qdrant_store, get_qdrant_store
 
 # Initialise file-based logging before any route handlers run.
@@ -182,11 +186,13 @@ async def lifespan(app: FastAPI):
         _log.info("HF Token    : configured (private datasets enabled)")
     else:
         _log.info("HF Token    : not set (public datasets only)")
-    if settings.db_url:
-        db_desc = settings.db_url.split("@")[1] if "@" in settings.db_url else settings.db_url
-        _log.info("Chat DB     : MySQL (%s)", db_desc)
-    else:
-        _log.info("Chat DB     : SQLite (%s)", settings.db_path)
+    _log.info(
+        "Database    : MySQL (%s@%s:%d/%s)",
+        settings.mysql_user,
+        settings.mysql_host,
+        settings.mysql_port,
+        settings.mysql_dbname,
+    )
     _log.info("─" * 60)
     # Initialise DB tables (creates them on first run)
     await init_db()
@@ -196,7 +202,8 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ──────────────────────────────────────────────────────────
     _log.info("Shutting down… closing QdrantStore HTTP client")
     await close_qdrant_store()
-    await close_db()
+    # close_db is synchronous (Peewee); call it directly without await
+    close_db()
     _log.info("Shutdown complete")
 
 
@@ -227,11 +234,14 @@ async def health():
     }
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
+app.include_router(auth_router)
 app.include_router(ollama_router)
-app.include_router(files_router)
-app.include_router(datasets_router)
+app.include_router(knowledgebases_router)
 app.include_router(hf_router)
-app.include_router(agents_router)
-app.include_router(chat_history_router)
+app.include_router(dialogs_router)
+app.include_router(conversations_router)
 app.include_router(chat_router)
 app.include_router(rerank_router)
+app.include_router(evaluation_router, prefix="/api")
+app.include_router(connectors_router, prefix="/api")
+app.include_router(canvas_router, prefix="/api")
