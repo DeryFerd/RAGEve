@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AppShell } from "@/components/layout/AppShell";
+import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 import { ToastContainer } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
@@ -17,9 +17,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="dark">
       <body>
-        <AppShell>{children}</AppShell>
+        <ConditionalAppShell>{children}</ConditionalAppShell>
         <ToastContainer />
       </body>
     </html>
