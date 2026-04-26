@@ -31,23 +31,6 @@ if check_docker; then
   done
   if curl -sf http://localhost:6333/collections &>/dev/null; then
     log_success "Qdrant ready."
-  else
-    log_error "Qdrant failed to start within 30 seconds"
-    exit 1
-  fi
-
-  # Wait for MySQL to be ready
-  log_info "Waiting for MySQL to be ready..."
-  for i in $(seq 1 60); do
-    if docker exec mysql mysqladmin ping -h localhost -uroot -prageve_password --silent 2>/dev/null; then
-      log_success "MySQL ready."
-      break
-    fi
-    sleep 1
-  done
-  if ! docker exec mysql mysqladmin ping -h localhost -uroot -prageve_password --silent 2>/dev/null; then
-    log_error "MySQL failed to start within 60 seconds"
-    exit 1
   fi
 else
   log_warn "Docker not available."

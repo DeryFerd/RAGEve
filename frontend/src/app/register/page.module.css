@@ -1,0 +1,15 @@
+/* Register page specific styles */
+
+.registerContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  padding: var(--space-4);
+}
+
+.registerCardWrapper {
+  width: 100%;
+  max-width: 450px;
+}

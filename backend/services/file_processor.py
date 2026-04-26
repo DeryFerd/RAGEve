@@ -34,6 +34,11 @@ class FileProcessorService:
 
         target = dataset_dir / upload.filename
         content = file_bytes if file_bytes is not None else await upload.read()
+        # Validate file size against configured limit
+        if len(content) > settings.max_upload_bytes:
+            raise ValueError(
+                f"File '{upload.filename}' exceeds maximum size of {settings.max_upload_bytes} bytes"
+            )
         target.write_bytes(content)
 
         _log.debug(

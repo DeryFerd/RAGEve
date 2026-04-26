@@ -598,14 +598,14 @@ async def evaluate_cell(
     n = len(samples)
     runner = RetrievalRunner(embed_model, top_k_fetch=search_mode.top_k_fetch)
 
-    # Check/create dialog (post-migration "agent" maps to Dialog)
+    # Check/create agent
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
         try:
-            r = await client.get("/dialogs/")
+            r = await client.get("/agents/")
             if r.status_code == 200:
-                for d in r.json().get("dialogs", []):
-                    if embed_model.collection in (d.get("kb_ids") or []):
-                        agent_id = d["id"]
+                for a in r.json().get("agents", []):
+                    if a.get("config", {}).get("dataset_id") == embed_model.collection:
+                        agent_id = a["agent_id"]
                         break
                 else:
                     agent_id = None
@@ -616,23 +616,23 @@ async def evaluate_cell(
 
         if agent_id is None:
             try:
-                r = await client.post("/dialogs/", json={
-                    "tenant_id": "system",
+                r = await client.post("/agents/", json={
                     "name": f"Matrix-{embed_model.name}",
                     "description": "Auto-created by benchmark/evaluation/matrix.py",
-                    "llm_id": llm_model.ollama_id,
-                    "llm_setting": {"temperature": 0.3},
-                    "prompt_config": {
-                        "system": (
+                    "config": {
+                        "system_prompt": (
                             "You are a helpful assistant. Answer based ONLY on the provided context. "
                             "If the context does not contain enough information, say so clearly."
                         ),
+                        "dataset_id": embed_model.collection,
+                        "embedding_model": embed_model.ollama_id,
+                        "chat_model": llm_model.ollama_id,
+                        "temperature": 0.3,
+                        "top_k": top_k,
                     },
-                    "top_k": top_k,
-                    "kb_ids": [embed_model.collection],
                 })
                 if r.status_code in (200, 201):
-                    agent_id = r.json().get("id")
+                    agent_id = r.json().get("agent_id")
             except Exception:
                 agent_id = None
 

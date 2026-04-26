@@ -9,32 +9,54 @@ import {
   cancelHFDownload,
   previewHFDataset,
   submitHFIngest,
+  getHFIngestStatus,
 } from "@/lib/api/datasets";
 import { useToastStore } from "@/stores/useToastStore";
 import type {
   DiscoveredDataset,
   HuggingFaceDownloadStatusResponse,
   HuggingFacePreviewResponse,
+  HFIngestStatusResponse,
+  HFIngestSubmitResult,
 } from "@/lib/types";
 import { HubSearch } from "./HubSearch";
-import { DatasetCard } from "./DatasetCard";
+import { DatasetPreview } from "./DatasetPreview";
+import { DownloadActionBar } from "./DownloadActionBar";
 import { DownloadProgressCard } from "./DownloadProgressCard";
 import { LocalDatasetsLibrary } from "./LocalDatasetsLibrary";
 import styles from "./HuggingFacePage.module.css";
 
+// ── Constants ────────────────────────────────────────────────────────────────
+
 const ACTIVE_DOWNLOAD_KEY = "hf_active_download_dataset_id";
 const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
+
+// ── Ingest Panel State (shared across LocalDatasetsLibrary) ─────────────────
+
+type IngestPanelState = {
+  expanded: boolean;
+  loading: boolean;
+  ingestId: string | null;
+  ingestStatus: HFIngestStatusResponse | null;
+  result: HFIngestSubmitResult | null;
+  selectedSplit: string;
+  selectedTextCols: string[];
+  rowLimit: string;
+};
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function HuggingFacePage() {
   const router = useRouter();
   const { addToast } = useToastStore();
 
-  // Input + preview state
+  // ── Input + preview state ───────────────────────────────────────────────
+
   const [datasetIdInput, setDatasetIdInput] = useState("");
   const firstMountRef = useRef(true);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const downloadPollRef = useRef<number | null>(null);
-  const prevIngestStatusRef = useRef<string | null>(null);
+  const ingestPollRef = useRef<number | null>(null);
 
   const [preview, setPreview] = useState<HuggingFacePreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -44,15 +66,20 @@ export default function HuggingFacePage() {
   const [autoIngestTextCols, setAutoIngestTextCols] = useState<string[]>([]);
   const [rowLimitInput, setRowLimitInput] = useState("");
 
-  // Download state
+  // ── Download state ──────────────────────────────────────────────────────
+
   const [downloadingDatasetId, setDownloadingDatasetId] = useState<string | null>(null);
   const [downloadStatus, setDownloadStatus] = useState<HuggingFaceDownloadStatusResponse | null>(null);
 
-  // Local datasets
+  // ── Local datasets ───────────────────────────────────────────────────────
+
   const [discovering, setDiscovering] = useState(false);
   const [datasets, setDatasets] = useState<DiscoveredDataset[]>([]);
+  const [ingestPanels, setIngestPanels] = useState<Record<string, IngestPanelState>>({});
+  const [activeIngestDatasetId, setActiveIngestDatasetId] = useState<string | null>(null);
 
-  // Polling helpers
+  // ── Polling helpers ──────────────────────────────────────────────────────
+
   const stopDownloadPolling = useCallback(() => {
     if (downloadPollRef.current != null) {
       window.clearInterval(downloadPollRef.current);
@@ -60,12 +87,39 @@ export default function HuggingFacePage() {
     }
   }, []);
 
-  // Handlers
+  const stopIngestPolling = useCallback(() => {
+    if (ingestPollRef.current != null) {
+      window.clearInterval(ingestPollRef.current);
+      ingestPollRef.current = null;
+    }
+  }, []);
+
+  // ── handleDiscover ──────────────────────────────────────────────────────
+
   const handleDiscover = useCallback(async () => {
     setDiscovering(true);
     try {
       const result = await discoverHFDatasets();
       setDatasets(result.datasets);
+
+      setIngestPanels((prev) => {
+        const next: Record<string, IngestPanelState> = { ...prev };
+        for (const ds of result.datasets) {
+          if (!next[ds.dataset_id]) {
+            next[ds.dataset_id] = {
+              expanded: false,
+              loading: false,
+              ingestId: null,
+              ingestStatus: null,
+              result: null,
+              selectedSplit: ds.splits.includes("train") ? "train" : (ds.splits[0] ?? "train"),
+              selectedTextCols: ds.readable_columns.slice(0, 2),
+              rowLimit: "",
+            };
+          }
+        }
+        return next;
+      });
     } catch (err) {
       addToast(`Discovery failed: ${err instanceof Error ? err.message : String(err)}`, "error");
     } finally {
@@ -73,40 +127,21 @@ export default function HuggingFacePage() {
     }
   }, [addToast]);
 
+  // ── Download polling ─────────────────────────────────────────────────────
+
   const startDownloadPolling = useCallback(
     (datasetId: string) => {
       stopDownloadPolling();
       setDownloadingDatasetId(datasetId);
-      prevIngestStatusRef.current = null;
 
       const poll = async () => {
         try {
           const st = await getHFDownloadStatus(datasetId);
           setDownloadStatus(st);
 
-          // Detect ingest status changes
-          if (st.ingest_status && prevIngestStatusRef.current !== st.ingest_status) {
-            if (TERMINAL_STATES.has(st.ingest_status)) {
-              if (st.ingest_status === "completed") {
-                addToast(
-                  st.auto_ingest && st.ingested
-                    ? `✓ Downloaded & indexed! Ready to chat.`
-                    : `✓ ${st.dataset_id} ingestion completed.`,
-                  "success"
-                );
-                void handleDiscover();
-              } else if (st.ingest_status === "failed") {
-                addToast(`Ingestion failed: ${st.ingest_error || st.message}`, "error");
-              }
-            }
-            prevIngestStatusRef.current = st.ingest_status;
-          }
-
-          const downloadTerminal = TERMINAL_STATES.has(st.status);
-          const ingestTerminal = st.ingest_status ? TERMINAL_STATES.has(st.ingest_status) : true;
-
-          if (downloadTerminal && ingestTerminal) {
+          if (TERMINAL_STATES.has(st.status)) {
             stopDownloadPolling();
+            // Don't persist terminal status — it should not survive page refresh
             window.localStorage.removeItem(ACTIVE_DOWNLOAD_KEY);
 
             if (st.status === "completed") {
@@ -138,7 +173,69 @@ export default function HuggingFacePage() {
     [stopDownloadPolling, addToast, handleDiscover]
   );
 
-  // Lifecycle
+  // ── Ingest polling ────────────────────────────────────────────────────────
+
+  const startIngestPolling = useCallback(
+    (datasetId: string, ingestId: string) => {
+      stopIngestPolling();
+
+      const poll = async () => {
+        try {
+          const st = await getHFIngestStatus(ingestId);
+
+          setIngestPanels((prev) => ({
+            ...prev,
+            [datasetId]: {
+              ...prev[datasetId],
+              ingestStatus: st,
+              loading: st.status === "running" || st.status === "queued",
+            },
+          }));
+
+          if (TERMINAL_STATES.has(st.status)) {
+            stopIngestPolling();
+
+            if (st.status === "completed") {
+              setIngestPanels((prev) => ({
+                ...prev,
+                [datasetId]: {
+                  ...prev[datasetId],
+                  ingestStatus: null,
+                  loading: false,
+                  result: st.result,
+                },
+              }));
+              const rows = st.result?.rows_processed as number | undefined;
+              const chunks = st.result?.chunks_embedded as number | undefined;
+              addToast(
+                rows != null
+                  ? `✓ ${rows.toLocaleString()} rows → ${(chunks ?? 0).toLocaleString()} chunks indexed.`
+                  : "✓ Ingestion completed.",
+                "success"
+              );
+              setDatasets((prev) =>
+                prev.map((d) => (d.dataset_id === datasetId ? { ...d, is_ingested: true } : d))
+              );
+              void handleDiscover();
+            } else if (st.status === "cancelled") {
+              addToast("Ingest cancelled.", "info");
+            } else if (st.status === "failed") {
+              addToast(`Ingest failed: ${st.error ?? st.message}`, "error");
+            }
+          }
+        } catch {
+          // Keep polling through transient errors
+        }
+      };
+
+      poll();
+      ingestPollRef.current = window.setInterval(poll, 2000);
+    },
+    [stopIngestPolling, addToast, handleDiscover]
+  );
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (firstMountRef.current) {
       firstMountRef.current = false;
@@ -154,13 +251,16 @@ export default function HuggingFacePage() {
     return () => {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       stopDownloadPolling();
+      stopIngestPolling();
+      // Reset search state so the input is always empty on next visit
       setDatasetIdInput("");
       setPreview(null);
       setPreviewError(null);
     };
-  }, [stopDownloadPolling]);
+  }, [stopDownloadPolling, stopIngestPolling]);
 
-  // Debounced preview fetch
+  // ── Debounced preview fetch ───────────────────────────────────────────────
+
   const fetchPreview = useCallback(
     async (id: string) => {
       if (!id.trim() || id.trim().length < 2) {
@@ -194,12 +294,14 @@ export default function HuggingFacePage() {
     [selectedConfig]
   );
 
-  // Handlers
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
   const handleDatasetIdChange = useCallback(
     (val: string) => {
       setDatasetIdInput(val);
       setSelectedConfig("");
       setAutoIngestTextCols([]);
+      setActiveIngestDatasetId(null);
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       if (val.trim().length >= 2) {
         previewTimerRef.current = setTimeout(() => void fetchPreview(val), 600);
@@ -216,14 +318,15 @@ export default function HuggingFacePage() {
       setDatasetIdInput(id);
       setSelectedConfig("");
       setAutoIngestTextCols([]);
+      setActiveIngestDatasetId(null);
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       previewTimerRef.current = setTimeout(() => void fetchPreview(id), 600);
     },
     [fetchPreview]
   );
 
-  const handleDownload = useCallback(async (overrideDatasetId?: string): Promise<void> => {
-    const datasetId = (overrideDatasetId ?? datasetIdInput).trim();
+  const handleDownload = useCallback(async () => {
+    const datasetId = datasetIdInput.trim();
     if (!datasetId) return;
     try {
       window.localStorage.setItem(ACTIVE_DOWNLOAD_KEY, datasetId);
@@ -243,7 +346,7 @@ export default function HuggingFacePage() {
     }
   }, [datasetIdInput, selectedConfig, autoIngest, rowLimitInput, autoIngestTextCols, startDownloadPolling, addToast]);
 
-  const handleCancelDownload = useCallback(async (): Promise<void> => {
+  const handleCancelDownload = useCallback(async () => {
     const datasetId = downloadingDatasetId ?? datasetIdInput.trim();
     if (!datasetId) return;
     try {
@@ -254,39 +357,75 @@ export default function HuggingFacePage() {
     }
   }, [downloadingDatasetId, datasetIdInput, addToast]);
 
-  // Ingest handler
-  const handleStartIngest = useCallback(async (datasetId?: string): Promise<void> => {
-    const id = datasetId ?? downloadStatus?.dataset_id ?? datasetIdInput.trim();
-    if (!id) return;
-    try {
-      await submitHFIngest(id, {
-        split: undefined,
-        text_columns: autoIngestTextCols.length > 0 ? autoIngestTextCols : undefined,
-        row_limit: rowLimitInput ? parseInt(rowLimitInput, 10) : undefined,
-        force: false,
-      });
-      void startDownloadPolling(id);
-      addToast(`Ingestion started for "${id}"`, "info");
-    } catch (err) {
-      addToast(`Failed to start ingestion: ${err instanceof Error ? err.message : String(err)}`, "error");
-    }
-  }, [downloadStatus, datasetIdInput, autoIngestTextCols, rowLimitInput, startDownloadPolling, addToast]);
+  const updatePanel = useCallback(
+    (id: string, updates: Partial<IngestPanelState>) =>
+      setIngestPanels((prev) => ({ ...prev, [id]: { ...prev[id], ...updates } })),
+    []
+  );
 
-  const handleLibraryIngestNow = useCallback((datasetId: string) => {
-    handleDatasetIdChange(datasetId);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    void handleStartIngest(datasetId);
-  }, [handleDatasetIdChange, handleStartIngest]);
+  const handleIngest = useCallback(
+    async (ds: DiscoveredDataset, force = false) => {
+      const panel = ingestPanels[ds.dataset_id];
+      if (!panel) return;
 
-  // Derived state
+      setIngestPanels((prev) => ({
+        ...prev,
+        [ds.dataset_id]: { ...prev[ds.dataset_id], loading: true },
+      }));
+
+      try {
+        const submit = await submitHFIngest(ds.dataset_id, {
+          split: panel.selectedSplit,
+          text_columns: panel.selectedTextCols.length > 0 ? panel.selectedTextCols : undefined,
+          row_limit: panel.rowLimit ? parseInt(panel.rowLimit, 10) : undefined,
+          force,
+        });
+
+        setIngestPanels((prev) => ({
+          ...prev,
+          [ds.dataset_id]: {
+            ...prev[ds.dataset_id],
+            ingestId: submit.ingest_id,
+            loading: true,
+          },
+        }));
+
+        void startIngestPolling(ds.dataset_id, submit.ingest_id);
+      } catch (err) {
+        setIngestPanels((prev) => ({
+          ...prev,
+          [ds.dataset_id]: { ...prev[ds.dataset_id], loading: false },
+        }));
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("409") || msg.toLowerCase().includes("already ingested")) {
+          addToast(
+            `"${ds.dataset_id}" is already indexed in Qdrant. Use 'Re-ingest' to re-process.`,
+            "warning"
+          );
+          void handleDiscover();
+        } else {
+          addToast(`Ingest submit failed: ${msg}`, "error");
+        }
+      }
+    },
+    [ingestPanels, addToast, handleDiscover, startIngestPolling]
+  );
+
+  // ── Derived state ────────────────────────────────────────────────────────
+
   const isDownloading =
     downloadStatus != null && !TERMINAL_STATES.has(downloadStatus.status);
+
+  const isCompleted = downloadStatus?.status === "completed";
+  const isFailed = downloadStatus?.status === "failed";
+  const isCancelled = downloadStatus?.status === "cancelled";
 
   const ingestStatus = downloadStatus?.ingest_status;
   const ingestCompleted = ingestStatus === "completed";
   const ingestFailed = ingestStatus === "failed";
   const isIngesting = ingestStatus === "ingesting";
 
+  const showSuccessState = isCompleted && !isDownloading;
   const autoIngestEnabled = downloadStatus?.auto_ingest === true;
 
   const textColumnOptions: Array<{ value: string; label: string; typeHint?: string }> =
@@ -298,56 +437,44 @@ export default function HuggingFacePage() {
         }))
       : [];
 
-  // Skeleton loader for preview card
-  const renderPreviewSkeleton = () => (
-    <div className={styles.previewCard}>
-      <div className={styles.previewHeader}>
-        <div className={styles.previewMain}>
-          <div className={`${styles.skeleton} ${styles.skeletonAvatar}`} />
-          <div className={styles.previewInfo}>
-            <div className={`${styles.skeleton} ${styles.skeletonTitle}`} />
-            <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-              <div className={`${styles.skeleton}`} style={{ width: 80, height: 20 }} />
-              <div className={`${styles.skeleton}`} style={{ width: 60, height: 20 }} />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className={styles.previewDescription}>
-        <div className={`${styles.skeleton} ${styles.skeletonText}`} style={{ width: "100%" }} />
-        <div className={`${styles.skeleton} ${styles.skeletonText}`} style={{ width: "80%" }} />
-      </div>
-    </div>
-  );
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.page}>
-      {/* ── Zone 1: Discovery ──────────────────────────────────────── */}
+
+      {/* ── Zone 1: Browse & Select ─────────────────────────────────────── */}
       <HubSearch
         datasetId={datasetIdInput}
         onDatasetIdChange={handleDatasetIdChange}
         onChipClick={handleChipClick}
       />
 
-      {/* Preview / Loading / Error */}
-      {previewLoading && renderPreviewSkeleton()}
-      {previewError && !previewLoading && (
-        <div className={styles.previewCard} style={{ padding: "var(--space-4)", textAlign: "center" }}>
-          <p style={{ color: "var(--text-primary)" }}>{previewError}</p>
-        </div>
-      )}
-
-      {preview && !previewLoading && (
-        <DatasetCard
+      {/* ── Zone 1: Preview card ───────────────────────────────────────── */}
+      {preview && (
+        <DatasetPreview
           preview={preview}
+          previewLoading={previewLoading}
+          previewError={previewError}
           selectedConfig={selectedConfig}
           onConfigChange={setSelectedConfig}
+        />
+      )}
+
+      {/* ── Zone 2: Action bar ──────────────────────────────────────────── */}
+      {preview && (
+        <DownloadActionBar
+          preview={preview}
+          selectedConfig={selectedConfig}
           autoIngest={autoIngest}
           rowLimitInput={rowLimitInput}
           textColumnOptions={textColumnOptions}
           autoIngestTextCols={autoIngestTextCols}
           isDownloading={isDownloading}
+          isCompleted={isCompleted ?? false}
+          ingestCompleted={ingestCompleted}
+          ingestFailed={ingestFailed}
           isIngesting={isIngesting}
+          autoIngestEnabled={autoIngestEnabled}
           onAutoIngestChange={setAutoIngest}
           onAutoIngestTextColsChange={setAutoIngestTextCols}
           onRowLimitChange={setRowLimitInput}
@@ -356,9 +483,9 @@ export default function HuggingFacePage() {
         />
       )}
 
-      {/* Active download progress */}
-      {downloadStatus && (
-        <div style={{ marginTop: preview && !previewLoading ? "var(--space-6)" : "var(--space-8)" }}>
+      {/* ── Zone 2: Progress card ────────────────────────────────────────── */}
+      {downloadStatus && !TERMINAL_STATES.has(downloadStatus.status) && (
+        <div style={{ marginTop: preview ? 12 : 24 }}>
           <DownloadProgressCard
             downloadStatus={downloadStatus}
             preview={preview}
@@ -366,24 +493,30 @@ export default function HuggingFacePage() {
             ingestCompleted={ingestCompleted}
             ingestFailed={ingestFailed}
             isIngesting={isIngesting}
-            onStartIngest={() => void handleStartIngest()}
-            onCancel={() => void handleCancelDownload()}
+            datasets={datasets}
+            setActiveIngestDatasetId={setActiveIngestDatasetId}
+            onPanelUpdate={updatePanel}
+            onCancel={handleCancelDownload}
           />
         </div>
       )}
 
-      {/* ── Zone 3: Local Library ───────────────────────────────────── */}
+      {/* ── Zone 3: Library ─────────────────────────────────────────────── */}
       <LocalDatasetsLibrary
         datasets={datasets}
+        ingestPanels={ingestPanels}
         discovering={discovering}
         downloadStatus={downloadStatus}
         isDownloading={isDownloading}
         onDiscover={handleDiscover}
         onRestartPolling={startDownloadPolling}
-        onIngestNow={handleLibraryIngestNow}
+        onPanelUpdate={updatePanel}
+        onIngest={handleIngest}
+        stopIngestPolling={stopIngestPolling}
         addToast={addToast}
         router={router}
       />
+
     </div>
   );
 }

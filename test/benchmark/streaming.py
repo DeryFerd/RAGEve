@@ -54,36 +54,36 @@ TEST_QUERIES = [
 # ---------------------------------------------------------------------------
 
 async def _get_or_create_agent() -> str | None:
-    """Find a dialog whose first kb_id is 'squad', or create one."""
+    """Find an agent pointing at 'squad' collection, or create one."""
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
         try:
-            r = await client.get("/dialogs/")
+            r = await client.get("/agents/")
             if r.status_code == 200:
-                for d in r.json().get("dialogs", []):
-                    if "squad" in (d.get("kb_ids") or []):
-                        return d["id"]
+                for a in r.json().get("agents", []):
+                    if a.get("config", {}).get("dataset_id") == "squad":
+                        return a["agent_id"]
         except Exception:
             pass
 
         payload = {
-            "tenant_id": "system",
-            "name": "Benchmark Dialog",
+            "name": "Benchmark Agent",
             "description": "Auto-created by benchmark/streaming.py",
-            "llm_id": "llama3.2:latest",
-            "llm_setting": {"temperature": 0.7},
-            "prompt_config": {
-                "system": (
+            "config": {
+                "system_prompt": (
                     "You are a helpful assistant. Answer based ONLY on the provided context. "
                     "If the context does not contain enough information, say so clearly."
                 ),
+                "dataset_id": "squad",
+                "embedding_model": "nomic-embed-text:latest",
+                "chat_model": "llama3.2:latest",
+                "temperature": 0.7,
+                "top_k": 5,
             },
-            "top_k": 5,
-            "kb_ids": ["squad"],
         }
         try:
-            r = await client.post("/dialogs/", json=payload)
+            r = await client.post("/agents/", json=payload)
             if r.status_code in (200, 201):
-                return r.json().get("id")
+                return r.json().get("agent_id")
         except Exception:
             pass
     return None

@@ -10,7 +10,7 @@ import styles from "./HuggingFacePage.module.css";
 
 const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
 
-const fmtBytes = (n: number | null | undefined): string => {
+const _fmtBytes = (n: number | null | undefined): string => {
   if (n == null) return "—";
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
@@ -24,7 +24,9 @@ interface DownloadProgressCardProps {
   ingestCompleted: boolean;
   ingestFailed: boolean;
   isIngesting: boolean;
-  onStartIngest: () => void;
+  datasets: { dataset_id: string }[];
+  setActiveIngestDatasetId: (id: string) => void;
+  onPanelUpdate: (id: string, updates: Record<string, unknown>) => void;
   onCancel: () => void;
 }
 
@@ -35,22 +37,27 @@ export function DownloadProgressCard({
   ingestCompleted,
   ingestFailed,
   isIngesting,
-  onStartIngest,
+  datasets,
+  setActiveIngestDatasetId,
+  onPanelUpdate,
   onCancel,
 }: DownloadProgressCardProps) {
   const router = useRouter();
 
+  // Prefer preview's full_dataset_id when available; fall back to raw dataset_id
   const datasetName = preview?.full_dataset_id ?? downloadStatus.dataset_id;
 
   const isCompleted = downloadStatus.status === "completed";
   const isFailed = downloadStatus.status === "failed";
   const isCancelled = downloadStatus.status === "cancelled";
   const isDownloading = !TERMINAL_STATES.has(downloadStatus.status);
+  const showSuccessState = isCompleted && !isDownloading;
 
+  // Stage computation
   const stages = [
-    { key: "downloading", label: "Download" },
-    { key: "extracting", label: "Extract" },
-    { key: "embedding", label: "Index" },
+    { key: "downloading", label: "Downloading" },
+    { key: "extracting", label: "Extracting" },
+    { key: "embedding", label: "Embedding" },
     { key: "ready", label: "Ready" },
   ];
 
@@ -80,23 +87,34 @@ export function DownloadProgressCard({
     return "pending";
   };
 
+  const handleIngestNow = () => {
+    const id = downloadStatus.dataset_id;
+    setActiveIngestDatasetId(id);
+    const ds = datasets.find((d) => d.dataset_id === id);
+    if (ds) {
+      onPanelUpdate(id, { expanded: true });
+    }
+  };
+
   return (
     <div className={styles.progressCard}>
-      {/* ── Header ───────────────────────────────────────────── */}
-      <div className={styles.progressHeader}>
-        <div className={styles.progressTitleRow}>
-          <span className={styles.progressDatasetName}>
+      {/* Header */}
+      <div className={styles.dlProgressHeader}>
+        <div className={styles.dlProgressHeaderLeft}>
+          <span className={styles.dlProgressDatasetName}>
             {isCompleted ? "✓ " : isFailed ? "✗ " : isCancelled ? "— " : ""}
             {datasetName}
             {downloadStatus.config && ` › ${downloadStatus.config}`}
           </span>
-          {isIngesting && <span className={styles.progressStatus}>Indexing…</span>}
-          {ingestCompleted && <span className={styles.progressStatus} style={{ color: "var(--text-primary)" }}>✓ Ready</span>}
-          {ingestFailed && <span className={styles.progressStatus} style={{ color: "var(--text-primary)" }}>✗ Index failed</span>}
+          <span className={styles.dlProgressSub}>
+            {isIngesting ? "Indexing…" : ingestCompleted ? "Indexed!" : ingestFailed ? "Indexing failed" : ""}
+          </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
-            className={styles.progressPct}
+            className={`${styles.dlProgressPct} ${
+              isCompleted ? styles.dlProgressPctDone : isFailed ? styles.dlProgressPctError : ""
+            }`}
           >
             {isCompleted ? "✓ Done" : isFailed ? "✗ Failed" : isCancelled ? "— Cancelled" : `${downloadStatus.progress}%`}
           </span>
@@ -108,56 +126,79 @@ export function DownloadProgressCard({
         </div>
       </div>
 
-      {/* ── Stage Indicators ─────────────────────────────────── */}
+      {/* Stage dots strip */}
       {!isCompleted && !isFailed && !isCancelled && (
-        <div className={styles.progressStages}>
+        <div className={styles.dlProgressStages}>
           {stages.map((s) => {
             const state = getStageState(s.key);
             return (
-              <div key={s.key} className={`${styles.progressStage} ${styles[`progressStage${state.charAt(0).toUpperCase() + state.slice(1)}`]}`}>
-                <div className={styles.stageDot} />
-                <span className={styles.stageLabel}>{s.label}</span>
+              <div
+                key={s.key}
+                className={`${styles.dlStage} ${styles[`dlStage${state.charAt(0).toUpperCase() + state.slice(1)}`]}`}
+              >
+                <span className={styles.dlStageDot} />
+                <span>{s.label}</span>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* ── Progress Bar ─────────────────────────────────────── */}
+      {/* Progress bar — hidden on terminal states */}
       {!isCompleted && !isFailed && !isCancelled && (
         <>
           <div className={styles.progressBarWrap}>
             <div
-              className={`${styles.progressFill} ${isIngesting ? "" : styles.progressFillAnimating}`}
+              className={`${styles.progressFill} ${
+                isIngesting ? "" : styles.progressFillAnimating
+              }`}
               style={{ width: `${Math.max(0, Math.min(100, downloadStatus.progress))}%` }}
             />
           </div>
-          <div className={styles.progressMeta}>
-            <span>{downloadStatus.bytes_downloaded != null ? fmtBytes(downloadStatus.bytes_downloaded) : "—"}</span>
-            <span>{downloadStatus.total_bytes != null ? `/ ${fmtBytes(downloadStatus.total_bytes)}` : "downloading…"}</span>
+          <div className={styles.dlProgressMeta}>
+            <span>
+              {downloadStatus.bytes_downloaded != null
+                ? _fmtBytes(downloadStatus.bytes_downloaded)
+                : "—"}
+            </span>
+            <span>
+              {downloadStatus.total_bytes != null
+                ? `/ ${_fmtBytes(downloadStatus.total_bytes)}`
+                : "downloading…"}
+            </span>
           </div>
         </>
       )}
 
-      {/* ── Terminal State Bar ───────────────────────────────── */}
+      {/* Terminal-state full bar */}
       {(isCompleted || isFailed || isCancelled) && (
         <div className={styles.progressBarWrap}>
           <div
-            className={`${styles.progressFill} ${isCompleted ? styles.progressFillSuccess : isFailed ? styles.progressFillError : ""}`}
+            className={`${styles.progressFill} ${
+              isCompleted ? styles.progressFillSuccess : isFailed ? styles.progressFillError : ""
+            }`}
             style={{ width: "100%" }}
           />
         </div>
       )}
 
-      {/* ── Ingest Progress ──────────────────────────────────── */}
+      {/* Ingest sub-bar */}
       {isCompleted && autoIngestEnabled && (
-        <div className={styles.progressIngest}>
-          <span className={styles.progressIngestLabel}>
-            {isIngesting ? "Indexing…" : ingestCompleted ? "✓ Indexed & ready to chat!" : "Indexing…"}
-          </span>
-          <div className={styles.progressIngestBar}>
+        <div className={styles.ingestSubRow}>
+          <div className={styles.ingestSubLabel}>
+            {isIngesting
+              ? "Indexing…"
+              : ingestCompleted
+              ? "✓ Indexed & ready to chat!"
+              : ingestFailed
+              ? "✗ Indexing failed"
+              : "Indexing…"}
+          </div>
+          <div className={styles.ingestSubBar}>
             <div
-              className={`${styles.progressIngestFill} ${ingestCompleted ? styles.progressIngestFillDone : ingestFailed ? styles.progressIngestFillError : ""}`}
+              className={`${styles.ingestSubFill} ${
+                ingestCompleted ? styles.ingestSubFillDone : ingestFailed ? styles.ingestSubFillError : ""
+              }`}
               style={{
                 width: isIngesting ? "80%" : ingestCompleted ? "100%" : ingestFailed ? "100%" : "0%",
               }}
@@ -166,13 +207,15 @@ export function DownloadProgressCard({
         </div>
       )}
 
-      {/* ── Message / Details ────────────────────────────────── */}
-      <div className={styles.progressDetails}>{downloadStatus.message}</div>
+      {/* Message */}
+      <div className={styles.progressMsg}>{downloadStatus.message}</div>
 
+      {/* Ingest error */}
       {isIngesting && downloadStatus.ingest_message && (
-        <div className={styles.progressDetails}>{downloadStatus.ingest_message}</div>
+        <div className={styles.progressSubMsg}>{downloadStatus.ingest_message}</div>
       )}
 
+      {/* Errors */}
       {isFailed && downloadStatus.error && (
         <div className={styles.progressError}>Error: {downloadStatus.error}</div>
       )}
@@ -180,11 +223,11 @@ export function DownloadProgressCard({
         <div className={styles.progressError}>Indexing error: {downloadStatus.ingest_error}</div>
       )}
 
-      {/* ── CTAs ─────────────────────────────────────────────── */}
-      {isCompleted && (
-        <div className={styles.progressCta}>
-          {!autoIngestEnabled && !ingestCompleted && !isIngesting && (
-            <Button onClick={onStartIngest}>Ingest Now</Button>
+      {/* Success CTA */}
+      {showSuccessState && (
+        <div className={styles.dlProgressCta}>
+          {!autoIngestEnabled && !ingestCompleted && (
+            <Button onClick={handleIngestNow}>Ingest Now</Button>
           )}
           {ingestCompleted && <Button onClick={() => router.push("/chat")}>Go to Chat</Button>}
           {!ingestCompleted && (

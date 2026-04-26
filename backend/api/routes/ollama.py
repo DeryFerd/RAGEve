@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
+from backend.api.routes._limiter import limiter
 from backend.clients.ollama_client import OllamaClient
 from backend.config import settings
 from backend.schemas.ollama import (
@@ -14,7 +15,8 @@ client = OllamaClient(base_url=settings.ollama_base_url)
 
 
 @router.get("/models", response_model=OllamaModelListResponse)
-async def list_local_models() -> OllamaModelListResponse:
+@limiter.limit("120/minute")
+async def list_local_models(request: Request) -> OllamaModelListResponse:
     """
     Scan Ollama local registry and return existing model names plus full detail objects.
 
@@ -55,7 +57,8 @@ async def list_local_models() -> OllamaModelListResponse:
 
 
 @router.post("/validate", response_model=ModelValidationResponse)
-async def validate_model_selection(payload: ModelSelectionRequest) -> ModelValidationResponse:
+@limiter.limit("60/minute")
+async def validate_model_selection(request: Request, payload: ModelSelectionRequest) -> ModelValidationResponse:
     """
     Validate that selected embedding/chat models already exist locally in Ollama.
     """

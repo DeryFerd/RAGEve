@@ -40,7 +40,6 @@ export async function apiFetch<T>(
   const response = await fetch(url, {
     ...options,
     signal: controller.signal,
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(apiKey ? { "X-API-Key": apiKey } : {}),

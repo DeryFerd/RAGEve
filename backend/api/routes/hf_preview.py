@@ -10,8 +10,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
+from backend.api.routes._limiter import limiter
 from backend.config import settings
 from backend.schemas.huggingface import (
     HuggingFaceInstructionsResponse,
@@ -43,7 +44,8 @@ def _fmt_size(n: int | None) -> str:
 
 
 @router.get("/preview/{dataset_id:path}", response_model=HuggingFacePreviewResponse)
-async def preview_hf_dataset(dataset_id: str) -> HuggingFacePreviewResponse:
+@limiter.limit("60/minute")
+async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePreviewResponse:
     """
     Return a full preview of a HuggingFace dataset: configs, splits, columns,
     description, downloads, likes, and rich card metadata (tags, language, license, etc).
@@ -213,7 +215,8 @@ async def preview_hf_dataset(dataset_id: str) -> HuggingFacePreviewResponse:
 
 
 @router.get("/instructions/{dataset_id:path}", response_model=HuggingFaceInstructionsResponse)
-async def get_hf_download_instructions(dataset_id: str) -> HuggingFaceInstructionsResponse:
+@limiter.limit("120/minute")
+async def get_hf_download_instructions(request: Request, dataset_id: str) -> HuggingFaceInstructionsResponse:
     """Return download command + expected local path info."""
     safe_id = dataset_id.replace("/", "__")
     local_path = str(settings.data_root / "hf" / safe_id)

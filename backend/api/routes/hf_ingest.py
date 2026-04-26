@@ -10,15 +10,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time as _time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from backend.api.routes._limiter import limiter
 from backend.config import settings
 from backend.api.routes import hf_status
 
@@ -99,71 +99,12 @@ async def _run_hf_background_ingest(
 ) -> None:
     """Background worker: run HF dataset through quality scoring → chunking → embedding → Qdrant upsert."""
     from rag.ingestion.hf_ingestion import ingest_hf_dataset as _run_hf_ingest
-    from backend.services.database import run_db_operation
     from backend.services.ingestion_factory import get_embedder, get_qdrant_store, get_sparse_embedder
-    from backend.services.knowledge_base_store import get_knowledge_base_store
 
     _log.info("HF ingest worker started: ingest_id=%s dataset_id=%s", ingest_id, dataset_id)
 
     hf_root = settings.data_root / "hf"
     local_path = hf_root / hf_status._normalize_dataset_dirname(dataset_id)
-
-    # Get or create knowledgebase, document, task records
-    store = get_knowledge_base_store()
-    kb = await run_db_operation(store.get_knowledgebase, qdrant_safe_id)
-    if not kb:
-        kb = await run_db_operation(
-            store.create_knowledgebase,
-            tenant_id="system",  # HF datasets are system-wide
-            name=dataset_id,
-            created_by="system",
-            description=f"HuggingFace dataset: {dataset_id}",
-            parser_ids="default",
-            kb_id=qdrant_safe_id,
-        )
-
-    doc = await run_db_operation(store.get_document, qdrant_safe_id)
-    if not doc:
-        doc = await run_db_operation(
-            store.create_document,
-            kb_id=kb.id,
-            name=dataset_id,
-            parser_id="default",
-            created_by="system",
-            doc_id=qdrant_safe_id,
-        )
-
-    task = await run_db_operation(
-        store.create_task,
-        doc_id=doc.id,
-        task_type="hf_ingestion",
-        priority=0,
-    )
-
-    # Bridge: forward progress from ingest pipeline to Task record and ingest status registry
-    async def _bridge(event: dict) -> None:
-        st = event.get("stage", "running")
-        pct = event.get("progress", 0)
-        msg = event.get("message", "")
-        # Update ingest status registry for HTTP polling
-        await hf_status._set_hf_ingest_status(
-            ingest_id,
-            progress=min(pct, 99),
-            message=f"[{st}] {msg}" if msg else st,
-        )
-        # Also update Task progress
-        await run_db_operation(
-            store.update_task_progress,
-            task.id,
-            progress=pct,
-            msg=msg,
-        )
-        await run_db_operation(
-            store.update_document_progress,
-            doc.id,
-            progress=pct,
-            progress_msg=msg,
-        )
 
     await hf_status._set_hf_ingest_status(
         ingest_id,
@@ -173,15 +114,22 @@ async def _run_hf_background_ingest(
         started_at=started_at,
     )
 
-    # Mark task as started
-    await run_db_operation(store.start_task, task.id)
-
     qdrant_store = get_qdrant_store()
     embedder = get_embedder()
     sparse_embedder = get_sparse_embedder()
 
+    # Bridge: forward progress from ingest pipeline to ingest status registry
+    async def _bridge(event: dict) -> None:
+        st = event.get("stage", "running")
+        pct = event.get("progress", 0)
+        msg = event.get("message", "")
+        await hf_status._set_hf_ingest_status(
+            ingest_id,
+            progress=min(pct, 99),
+            message=f"[{st}] {msg}" if msg else st,
+        )
+
     try:
-        t0_ingest = _time.monotonic()
         result = await _run_hf_ingest(
             local_path=local_path,
             dataset_id=qdrant_safe_id,
@@ -197,15 +145,13 @@ async def _run_hf_background_ingest(
             sparse_embedder=sparse_embedder,
             progress_callback=_bridge,
         )
-        elapsed = _time.monotonic() - t0_ingest
 
-        # Mark complete
         await hf_status._set_hf_ingest_status(
             ingest_id,
             status="completed",
             progress=100,
             message="Ingestion complete",
-            completed_at=hf_status._utc_now_iso(),
+            completed_at=_utc_now_iso(),
             result={
                 "ingest_id": ingest_id,
                 "dataset_id": dataset_id,
@@ -218,10 +164,6 @@ async def _run_hf_background_ingest(
                 "message": result.get("message", "Done"),
             },
         )
-        # Complete task and document
-        duration = elapsed
-        await run_db_operation(store.complete_task, task.id, duration)
-        await run_db_operation(store.complete_document, doc.id, duration)
         _log.info("HF ingest completed: ingest_id=%s chunks=%d", ingest_id, result.get("chunks_embedded", 0))
 
     except asyncio.CancelledError:
@@ -230,14 +172,7 @@ async def _run_hf_background_ingest(
             status="cancelled",
             progress=0,
             message="Cancelled by user",
-            completed_at=hf_status._utc_now_iso(),
-        )
-        # Also update task/document as failed/cancelled
-        await run_db_operation(
-            store.update_task_progress,
-            task.id,
-            progress=-1.0,
-            msg="Cancelled by user",
+            completed_at=_utc_now_iso(),
         )
         raise
 
@@ -249,20 +184,7 @@ async def _run_hf_background_ingest(
             progress=0,
             error=str(exc),
             message=f"Failed: {exc}",
-            completed_at=hf_status._utc_now_iso(),
-        )
-        # Update task/document as failed
-        await run_db_operation(
-            store.update_task_progress,
-            task.id,
-            progress=-1.0,
-            msg=f"Failed: {exc}",
-        )
-        await run_db_operation(
-            store.update_document_progress,
-            doc.id,
-            progress=-1.0,
-            progress_msg=f"Failed: {exc}",
+            completed_at=_utc_now_iso(),
         )
 
 
@@ -274,7 +196,9 @@ async def _run_hf_background_ingest(
     response_model=HFIngestSubmitResponse,
     summary="Ingest a registered HuggingFace dataset into Qdrant",
 )
+@limiter.limit("30/minute")
 async def submit_hf_ingest(
+    request: Request,
     dataset_id: str,
     payload: HuggingFaceIngestRequest,
     background_tasks: BackgroundTasks,
@@ -357,7 +281,8 @@ async def submit_hf_ingest(
     response_model=HFIngestStatusResponse,
     summary="Poll status of a background HF ingest",
 )
-async def get_hf_ingest_status(ingest_id: str) -> HFIngestStatusResponse:
+@limiter.limit("120/minute")
+async def get_hf_ingest_status(request: Request, ingest_id: str) -> HFIngestStatusResponse:
     """Return current status of a background HF ingest task."""
     entry = hf_status._hf_ingest_registry.get(ingest_id)
     if not entry:
@@ -382,7 +307,8 @@ async def get_hf_ingest_status(ingest_id: str) -> HFIngestStatusResponse:
 
 
 @router.post("/ingest/{ingest_id}/cancel")
-async def cancel_hf_ingest(ingest_id: str) -> dict:
+@limiter.limit("60/minute")
+async def cancel_hf_ingest(request: Request, ingest_id: str) -> dict:
     """Cancel a running or queued ingest task."""
     entry = hf_status._hf_ingest_registry.get(ingest_id)
     if not entry:

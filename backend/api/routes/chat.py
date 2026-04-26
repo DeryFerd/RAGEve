@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json as _json
+import logging
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -14,6 +15,7 @@ from backend.services.dialog_store import get_dialog_store
 from backend.services.tenant_user_store import get_tenant_user_store
 from backend.services.ingestion_factory import get_rag_pipeline
 
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -147,25 +149,21 @@ async def _stream_rag(
                         sources_list = token.get("sources", [])
                         reranker_model = token.get("reranker_model")
                         use_hybrid = token.get("use_hybrid", False)
-                        yield _json.dumps({
-                            "event": "end",
-                            "sources": sources_list,
-                            "reranker_model": reranker_model,
-                            "use_hybrid": use_hybrid,
-                        }) + "\n"
+                        yield f"data: {_json.dumps({'event': 'end', 'sources': sources_list, 'reranker_model': reranker_model, 'use_hybrid': use_hybrid})}\n\n"
                     continue
 
-                yield _json.dumps({"event": "chunk", "content": token}) + "\n"
+                yield f"data: {_json.dumps({'event': 'chunk', 'content': token})}\n\n"
 
             if not done_emitted:
-                yield _json.dumps({
-                    "event": "end",
-                    "sources": sources_list,
-                    "reranker_model": reranker_model,
-                    "use_hybrid": use_hybrid,
-                }) + "\n"
+                yield f"data: {_json.dumps({'event': 'end', 'sources': sources_list, 'reranker_model': reranker_model, 'use_hybrid': use_hybrid})}\n\n"
     except asyncio.TimeoutError:
-        raise HTTPException(status_code=504, detail="Request timed out after 120 seconds")
+        _log.warning("Streaming RAG timeout for dialog %s", dialog_id)
+        yield f"data: {_json.dumps({'event': 'error', 'error': 'Request timed out after 120 seconds'})}\n\n"
+        return
+    except Exception as e:
+        _log.exception("Streaming RAG failed for dialog %s", dialog_id)
+        yield f"data: {_json.dumps({'event': 'error', 'error': str(e)})}\n\n"
+        return
 
 
 @router.post("/{dialog_id}/stream")
@@ -182,5 +180,5 @@ async def chat_stream(
     """
     return StreamingResponse(
         _stream_rag(dialog_id, payload),
-        media_type="application/x-ndjson",
+        media_type="text/event-stream",
     )

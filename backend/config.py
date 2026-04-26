@@ -13,35 +13,19 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str | None = None  # Wire to Qdrant when it is deployed with auth
 
-    # MySQL database connection (Peewee ORM reads these directly).
+    # MySQL database connection (Peewee ORM for 27-table RAGFlow schema)
     mysql_host: str = "localhost"
     mysql_port: int = 3306
     mysql_user: str = "root"
     mysql_password: str = ""
     mysql_dbname: str = "rag_flow"
 
-    # Redis for task queue (Arq)
-    redis_host: str = "localhost"
-    redis_port: int = 6379
-    redis_password: str | None = None
-    redis_db: int = 0
-
-    # JWT settings for cookie-based authentication.
-    jwt_secret_key: str = "change-me-in-production"
-    jwt_expire_minutes: int = 60 * 24  # 24 hours
-
-    # Frontend base URL (used for email verification links).
-    frontend_url: str = "http://localhost:3000"
-
-    # SMTP settings for transactional email (e.g., email verification).
-    # Set smtp_dev_mode="console" to print emails to stdout instead of sending.
-    smtp_dev_mode: str = "console"  # "console" | "smtp"
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_from: str = "noreply@rageve.local"
-    smtp_use_tls: bool = True
+    # MySQL connection for SQLAlchemy (legacy chat history store)
+    # Use mysql+aiomysql:// for production, mysql+pymysql:// for sync fallback.
+    # Leave blank to use SQLite (data/chat.db) for single-node deployments.
+    db_url: str | None = None
+    db_pool_size: int = 5  # (unused by Peewee, kept for compatibility)
+    db_max_overflow: int = 10  # (unused by Peewee, kept for compatibility)
 
     # Optional API key for protecting all endpoints.
     # If unset (None or empty), the API is open (local-only deployments).
@@ -62,6 +46,22 @@ class Settings(BaseSettings):
     # HuggingFace access token — required for private datasets.
     # Leave blank for anonymous access (public datasets only).
     hf_token: str | None = None
+
+    # JWT authentication
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_expire_minutes: int = 1440  # 24 hours
+
+    # Frontend URL (used for email verification links)
+    frontend_url: str = "http://localhost:3000"
+
+    # Email delivery (SMTP)
+    smtp_dev_mode: str = "console"  # "console" (logs only) or "smtp" (send)
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "noreply@rageve.local"
+    smtp_use_tls: bool = True
 
     data_root: Path = Path("data")
     upload_dir_name: str = "uploads"
@@ -114,6 +114,10 @@ class Settings(BaseSettings):
     @property
     def vector_root(self) -> Path:
         return self.data_root / self.vector_dir_name
+
+    @property
+    def db_path(self) -> Path:
+        return self.data_root / "chat.db"
 
     @property
     def hf_status_file(self) -> Path:

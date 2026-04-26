@@ -6,8 +6,9 @@ Provides:
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
+from backend.api.routes._limiter import limiter
 from backend.api.routes import hf_status
 from backend.schemas.huggingface import HuggingFaceStatusTextsResponse
 
@@ -15,7 +16,8 @@ router = APIRouter(tags=["huggingface-status"])
 
 
 @router.get("/status-texts/{dataset_id:path}", response_model=HuggingFaceStatusTextsResponse)
-async def get_hf_status_texts(dataset_id: str) -> HuggingFaceStatusTextsResponse:
+@limiter.limit("120/minute")
+async def get_hf_status_texts(request: Request, dataset_id: str) -> HuggingFaceStatusTextsResponse:
     """Return human-readable status + message for a dataset."""
     status = hf_status._hf_download_status.get(dataset_id)
     if not status:

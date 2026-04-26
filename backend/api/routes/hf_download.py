@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time as _time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -317,75 +316,21 @@ async def _download_hf_dataset_to_server(
                 )
 
                 try:
-                    from backend.services.database import run_db_operation
-                    from backend.services.knowledge_base_store import get_knowledge_base_store
                     from backend.services.ingestion_factory import get_embedder, get_qdrant_store, get_sparse_embedder
                     from rag.ingestion.hf_ingestion import ingest_hf_dataset as _run_ingest
-
-                    # Create or get knowledgebase, document, task
-                    store = get_knowledge_base_store()
-                    qdrant_safe_id = dataset_id.replace("/", "_")
-                    kb = await run_db_operation(store.get_knowledgebase, qdrant_safe_id)
-                    if not kb:
-                        kb = await run_db_operation(
-                            store.create_knowledgebase,
-                            tenant_id="system",
-                            name=dataset_id,
-                            created_by="system",
-                            description=f"HuggingFace dataset: {dataset_id}",
-                            parser_ids="default",
-                            kb_id=qdrant_safe_id,
-                        )
-                    doc = await run_db_operation(store.get_document, qdrant_safe_id)
-                    if not doc:
-                        doc = await run_db_operation(
-                            store.create_document,
-                            kb_id=kb.id,
-                            name=dataset_id,
-                            parser_id="default",
-                            created_by="system",
-                            doc_id=qdrant_safe_id,
-                        )
-                    task = await run_db_operation(
-                        store.create_task,
-                        doc_id=doc.id,
-                        task_type="hf_ingestion",
-                        priority=0,
-                    )
-                    # Mark task started
-                    await run_db_operation(store.start_task, task.id)
 
                     qdrant_store = get_qdrant_store()
                     embedder = get_embedder()
                     sparse_embedder = get_sparse_embedder()
 
-                    # Bridge: update both download status and Task/Document
-                    async def _bridge(event: dict) -> None:
-                        st = event.get("stage", "running")
-                        pct = event.get("progress", 0)
-                        msg = event.get("message", "")
-                        # Update download status for ingest portion
-                        hf_status._set_download_status(
-                            dataset_id,
-                            ingest_status="ingesting",
-                            ingest_message=f"[{st}] {msg}" if msg else st,
-                        )
-                        # Update Task and Document progress
-                        await run_db_operation(
-                            store.update_task_progress,
-                            task.id,
-                            progress=pct,
-                            msg=msg,
-                        )
-                        await run_db_operation(
-                            store.update_document_progress,
-                            doc.id,
-                            progress=pct,
-                            progress_msg=msg,
-                        )
+                    qdrant_safe_id = dataset_id.replace("/", "_")
 
-                    # Record start time and run ingestion
-                    t0_ingest = _time.monotonic()
+                    hf_status._set_download_status(
+                        dataset_id,
+                        ingest_status="ingesting",
+                        ingest_message="Ingesting into Qdrant…",
+                    )
+
                     result = await _run_ingest(
                         dataset_id=dataset_id,
                         qdrant_store=qdrant_store,
@@ -398,13 +343,7 @@ async def _download_hf_dataset_to_server(
                         chunk_overlap=auto_ingest_chunk_overlap or 180,
                         max_tokens_per_chunk=auto_ingest_max_tokens or 500,
                         row_limit=auto_ingest_row_limit,
-                        progress_callback=_bridge,
                     )
-                    elapsed = _time.monotonic() - t0_ingest
-
-                    # Complete task and document
-                    await run_db_operation(store.complete_task, task.id, duration=elapsed)
-                    await run_db_operation(store.complete_document, doc.id, duration=elapsed)
 
                     hf_status._set_download_status(
                         dataset_id,
@@ -429,20 +368,6 @@ async def _download_hf_dataset_to_server(
                         ingest_status="failed",
                         ingest_error=str(exc),
                     )
-                    # Mark task/document as failed if they were created
-                    if 'task' in locals() and 'doc' in locals():
-                        await run_db_operation(
-                            store.update_task_progress,
-                            task.id,
-                            progress=-1.0,
-                            msg=f"Failed: {exc}",
-                        )
-                        await run_db_operation(
-                            store.update_document_progress,
-                            doc.id,
-                            progress=-1.0,
-                            progress_msg=f"Failed: {exc}",
-                        )
             else:
                 hf_status._set_download_status(
                     dataset_id,
@@ -547,7 +472,8 @@ async def download_hf_dataset(
 
 
 @router.get("/download/{dataset_id:path}/status", response_model=HuggingFaceDownloadStatusResponse)
-async def get_hf_download_status(dataset_id: str) -> HuggingFaceDownloadStatusResponse:
+@limiter.limit("120/minute")
+async def get_hf_download_status(request: Request, dataset_id: str) -> HuggingFaceDownloadStatusResponse:
     """Get current in-memory status for a dataset download task."""
     status_obj = hf_status._hf_download_status.get(dataset_id)
     if not status_obj:
@@ -568,7 +494,8 @@ async def get_hf_download_status(dataset_id: str) -> HuggingFaceDownloadStatusRe
 
 
 @router.post("/download/{dataset_id:path}/cancel", response_model=HuggingFaceDownloadResponse)
-async def cancel_hf_download(dataset_id: str) -> HuggingFaceDownloadResponse:
+@limiter.limit("60/minute")
+async def cancel_hf_download(request: Request, dataset_id: str) -> HuggingFaceDownloadResponse:
     """Cancel an in-progress or queued dataset download."""
     status_obj = hf_status._hf_download_status.get(dataset_id)
     if status_obj and status_obj.get("status") in ("completed", "failed", "cancelled"):

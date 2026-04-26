@@ -9,7 +9,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+
+from backend.api.routes._limiter import limiter
 
 _log = logging.getLogger("app")
 
@@ -17,7 +19,8 @@ router = APIRouter(tags=["huggingface-search"])
 
 
 @router.get("/search")
-async def search_hf_datasets(q: str) -> list[dict[str, Any]]:
+@limiter.limit("60/minute")
+async def search_hf_datasets(request: Request, q: str) -> list[dict[str, Any]]:
     """Search HuggingFace Hub for datasets matching the query."""
     import httpx
 

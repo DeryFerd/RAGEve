@@ -1,0 +1,42 @@
+/* Login page specific styles */
+
+.loginContainer {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  padding: var(--space-4);
+}
+
+.loginCardWrapper {
+  width: 100%;
+  max-width: 400px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: var(--space-1);
+}
+
+.passwordToggle:hover {
+  color: var(--text-secondary);
+}
+
+.forgotPassword {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+
+.forgotPassword:hover {
+  text-decoration: underline;
+}

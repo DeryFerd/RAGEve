@@ -620,45 +620,42 @@ async def sse_debugger() -> None:
 
 async def _get_or_create_agent() -> str | None:
     """
-    Returns the dialog id (UUID) of a dialog whose first kb_id matches
-    COLLECTION_NAME, creating one if none exists. Returns None on failure.
-
-    NOTE: post-migration the legacy "agent" concept is now "dialog" and
-    datasets are referenced via Dialog.kb_ids (knowledge bases).
+    Returns the agent_id (UUID) of an agent pointing at COLLECTION_NAME,
+    creating one if none exists. Returns None on failure.
     """
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
-        # 1. Look for an existing dialog that already references our collection
+        # 1. Look for an existing agent that uses our collection
         try:
-            r = await client.get("/dialogs/")
+            r = await client.get("/agents/")
             if r.status_code == 200:
-                dialogs = r.json().get("dialogs", [])
-                for d in dialogs:
-                    if COLLECTION_NAME in (d.get("kb_ids") or []):
-                        return d["id"]
+                agents = r.json().get("agents", [])
+                for a in agents:
+                    if a.get("config", {}).get("dataset_id") == COLLECTION_NAME:
+                        return a["agent_id"]
         except Exception:
             pass
 
-        # 2. Create a new dialog pointing at the collection
+        # 2. Create a new agent pointing at the collection
         payload = {
-            "tenant_id": "system",
-            "name": "E2E Test Dialog",
+            "name": "E2E Test Agent",
             "description": "Auto-created by _test_e2e.py",
-            "llm_id": OLLAMA_CHAT_MODEL,
-            "llm_setting": {"temperature": 0.7},
-            "prompt_config": {
-                "system": (
+            "config": {
+                "system_prompt": (
                     "You are a helpful assistant. Answer based ONLY on the provided context. "
                     "If the context does not contain enough information, say so clearly."
                 ),
+                "dataset_id": COLLECTION_NAME,
+                "embedding_model": OLLAMA_EMBED_MODEL,
+                "chat_model": OLLAMA_CHAT_MODEL,
+                "temperature": 0.7,
+                "top_k": 5,
             },
-            "top_k": 5,
-            "kb_ids": [COLLECTION_NAME],
         }
         try:
-            r = await client.post("/dialogs/", json=payload)
+            r = await client.post("/agents/", json=payload)
             if r.status_code in (200, 201):
                 data = r.json()
-                return data.get("id")
+                return data.get("agent_id")
         except Exception:
             pass
     return None

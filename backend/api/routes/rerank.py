@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
+from backend.api.routes._limiter import limiter
 from backend.schemas.rerank import RerankerEntrySchema, RerankersResponse
 from rag.retrieval.cross_encoder_reranker import AVAILABLE_RERANKERS
 
@@ -7,7 +8,8 @@ router = APIRouter(prefix="/rerankers", tags=["rerankers"])
 
 
 @router.get("/", response_model=RerankersResponse)
-async def list_rerankers() -> RerankersResponse:
+@limiter.limit("120/minute")
+async def list_rerankers(request: Request) -> RerankersResponse:
     """
     Return the list of locally available cross-encoder reranker models.
 

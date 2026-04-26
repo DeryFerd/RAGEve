@@ -79,38 +79,38 @@ async def _stream_chat_answer(
 
 
 async def _get_or_create_agent(cfg: EvalConfig) -> str | None:
-    """Find an existing dialog for the squad collection, or create one."""
-    # NOTE: /dialogs/ is on the FastAPI backend, NOT Ollama
+    """Find an existing agent for the squad collection, or create one."""
+    # NOTE: /agents/ is on the FastAPI backend, NOT Ollama
     API_BASE_URL = "http://localhost:8000"
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
         try:
-            r = await client.get("/dialogs/")
+            r = await client.get("/agents/")
             if r.status_code == 200:
-                for d in r.json().get("dialogs", []):
-                    if cfg.dataset_id in (d.get("kb_ids") or []):
-                        return d["id"]
+                for a in r.json().get("agents", []):
+                    if a.get("config", {}).get("dataset_id") == cfg.dataset_id:
+                        return a["agent_id"]
         except Exception:
             pass
 
         payload = {
-            "tenant_id": "system",
-            "name": "Eval Dialog",
+            "name": "Eval Agent",
             "description": "Auto-created by benchmark/evaluation",
-            "llm_id": cfg.ollama_chat_model,
-            "llm_setting": {"temperature": 0.3},
-            "prompt_config": {
-                "system": (
+            "config": {
+                "system_prompt": (
                     "You are a helpful assistant. Answer based ONLY on the provided context. "
                     "If the context does not contain enough information, say so clearly."
                 ),
+                "dataset_id": cfg.dataset_id,
+                "embedding_model": cfg.ollama_embed_model,
+                "chat_model": cfg.ollama_chat_model,
+                "temperature": 0.3,
+                "top_k": cfg.top_k,
             },
-            "top_k": cfg.top_k,
-            "kb_ids": [cfg.dataset_id],
         }
         try:
-            r = await client.post("/dialogs/", json=payload)
+            r = await client.post("/agents/", json=payload)
             if r.status_code in (200, 201):
-                return r.json().get("id")
+                return r.json().get("agent_id")
         except Exception:
             pass
     return None

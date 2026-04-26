@@ -1,62 +1,6 @@
 /* ============================================================
-   HuggingFacePage — Clean Redesign
+   HuggingFacePage — redesigned layout
    ============================================================ */
-
-/* ── Zone Separators ─────────────────────────────────────────────── */
-.zone {
-  margin-bottom: var(--space-8);
-}
-
-.zoneHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--border);
-}
-
-.zoneTitle {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.zoneSubtitle {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-weight: 400;
-  margin-top: var(--space-1);
-}
-
-/* ── Skeleton Loading ─────────────────────────────────────────────── */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
-}
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.skeletonText {
-  height: 1em;
-  margin-bottom: var(--space-2);
-}
-.skeletonTitle {
-  height: 1.25em;
-  width: 60%;
-  margin-bottom: var(--space-3);
-}
-.skeletonAvatar {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  flex-shrink: 0;
-}
 
 /* ── Page shell ─────────────────────────────────── */
 .page {
@@ -65,22 +9,24 @@
   padding: 0 0 80px;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+  overflow-x: hidden; /* prevent horizontal overflow from any inline styles */
 }
 
 /* ── Page header ─────────────────────────────── */
 .pageHeader {
-  margin-bottom: var(--space-8);
+  margin-bottom: 28px;
 }
 .pageTitle {
-  font-size: var(--text-2xl);
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.3px;
   line-height: 1.2;
-  margin-bottom: var(--space-2);
 }
 .pageSubtitle {
-  font-size: var(--text-sm);
+  margin-top: 4px;
+  font-size: 13px;
   color: var(--text-muted);
   font-weight: 400;
   line-height: 1.5;
@@ -878,82 +824,38 @@
   gap: 6px;
 }
 
-/* ── Zone 1: Discovery ─────────────────────────────────────────────── */
-
-.searchSection {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: visible;
-  transition: border-color var(--transition-fast);
-  position: relative;
-  margin-bottom: var(--space-6);
-}
-.searchSection:focus-within {
-  border-color: var(--border-focus);
-}
-
-/* Search row */
-.searchRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-}
-
-.mainInput {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: var(--text-base);
-  font-family: var(--font-sans);
-  color: var(--text-primary);
-  caret-color: var(--accent);
-}
-.mainInput::placeholder {
-  color: var(--text-muted);
-}
+/* ── Zone 1: Hub Search ─────────────────────────────────────────────────── */
 
 /* Mode toggle */
 .searchToggleRow {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-4) var(--space-2);
+  gap: 4px;
+  padding: 10px 16px 0;
 }
 .searchToggle {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
   font-family: var(--font-sans);
   cursor: pointer;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-secondary);
   transition: all var(--transition-fast);
-  font-weight: 500;
 }
-.searchToggle:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
+.searchToggle:hover { background: var(--bg-hover); color: var(--text-primary); }
 .searchToggleActive {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-text);
 }
-.searchToggleActive:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-  color: var(--accent-text);
-}
+.searchToggleActive:hover { background: var(--accent-hover); color: var(--accent-text); }
 
 /* Search icon */
 .searchIcon {
   position: absolute;
-  left: var(--space-3);
+  left: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
@@ -964,40 +866,15 @@
 .searchClear {
   background: none;
   border: none;
-  padding: var(--space-1);
+  padding: 4px 6px;
   cursor: pointer;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  font-size: var(--text-sm);
+  font-size: 12px;
   transition: color var(--transition-fast);
-  flex-shrink: 0;
 }
 .searchClear:hover { color: var(--text-primary); }
-
-/* Lookup spinner */
-.lookupRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.lookupSpinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 /* Hub search dropdown */
 .searchDropdown {
@@ -1005,7 +882,7 @@
   top: 100%;
   left: -1px;
   right: -1px;
-  margin-top: var(--space-1);
+  margin-top: 4px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -1015,21 +892,17 @@
   overflow-y: auto;
   animation: slideDown 0.15s ease;
 }
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 .searchDropdownLoading {
-  padding: var(--space-4);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 8px;
 }
 .searchResultItem {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  gap: 10px;
+  padding: 10px 14px;
   cursor: pointer;
   border-bottom: 1px solid var(--border);
   transition: background var(--transition-fast);
@@ -1038,939 +911,386 @@
 .searchResultItem:hover { background: var(--bg-hover); }
 .searchResultIcon { font-size: 18px; flex-shrink: 0; margin-top: 1px; opacity: 0.6; }
 .searchResultInfo { flex: 1; min-width: 0; }
-.searchResultName { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.searchResultMeta { font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; display: flex; gap: var(--space-3); }
-.searchResultDesc { font-size: var(--text-sm); color: var(--text-secondary); margin-top: var(--space-1); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.searchNoResults { padding: var(--space-4); text-align: center; color: var(--text-muted); font-size: var(--text-sm); }
+.searchResultName { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.searchResultMeta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; }
+.searchResultDesc { font-size: 11px; color: var(--text-secondary); margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.searchNoResults { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-/* Suggestion chips */
-.chipsRow {
+/* Preview compact / tabbed */
+.previewDetailsBtn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  padding: 0;
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4) 0;
-  flex-wrap: wrap;
+  gap: 4px;
+  transition: color var(--transition-fast);
 }
-.chipsLabel {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+.previewDetailsBtn:hover { text-decoration: underline; }
+.previewTabStrip {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  overflow-x: auto;
+}
+.previewTab {
+  padding: 8px 12px;
+  font-size: 11px;
   font-weight: 500;
-  white-space: nowrap;
-}
-.chip {
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  font-family: var(--font-sans);
+  color: var(--text-muted);
   cursor: pointer;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   transition: all var(--transition-fast);
+  white-space: nowrap;
+  background: transparent;
+  font-family: var(--font-sans);
 }
-.chip:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-focus);
-  color: var(--text-primary);
+.previewTab:hover { color: var(--text-primary); }
+.previewTabActive { color: var(--accent); border-bottom-color: var(--accent); }
+.previewTabBadge { margin-left: 4px; font-size: 10px; opacity: 0.7; }
+
+/* Source badges */
+.sourceBadgeBlue {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
-.chipActive {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-.chipActive:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-  color: var(--accent-text);
+.sourceBadgeOrange {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
-/* ── Preview Card (Simplified) ─────────────────────────────────────── */
-.previewCard {
+/* ── Zone 2: Action Bar ─────────────────────────────────────────────────── */
+
+.actionBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  margin-bottom: var(--space-6);
-  overflow: hidden;
-  animation: slideDown 0.18s ease;
+  margin-top: 12px;
+  flex-wrap: wrap;
 }
-
-.previewHeader {
-  padding: var(--space-4);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.previewMain {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+.actionBarInfo {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.actionBarDatasetName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.actionBarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.previewIcon {
-  font-size: 32px;
+/* Ingest slide-in panel */
+.actionBarSlideIn {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+.actionBarSlideInOpen {
+  max-height: 400px;
+  opacity: 1;
+}
+
+/* ── Zone 2: Download Progress ──────────────────────────────────────────── */
+
+.dlProgressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dlProgressHeaderLeft { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dlProgressDatasetName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+.dlProgressSub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.dlProgressPct {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+.dlProgressPctDone { color: var(--success); font-weight: 600; }
+.dlProgressPctError { color: var(--error); }
+
+/* Stage dots strip */
+.dlProgressStages {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.dlStage {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding-right: 14px;
+  flex-shrink: 0;
+}
+.dlStageDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.dlStageActive .dlStageDot { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.dlStageActive { color: var(--text-primary); font-weight: 500; }
+.dlStageDone .dlStageDot { background: var(--success); }
+.dlStageDone { color: var(--success); }
+.dlStageError .dlStageDot { background: var(--error); }
+.dlStageError { color: var(--error); }
+.dlStagePending { color: var(--text-muted); }
+
+.dlProgressMeta {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 16px;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── Library cards (used by LocalDatasetsLibrary) ─────────────────────────── */
+
+.libraryCard {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: visible;
+  transition: border-color var(--transition-fast);
+}
+.libraryCard:hover {
+  border-color: var(--border-focus);
+}
+
+/* Top row: icon | info block | actions */
+.libraryCardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px 10px;
+}
+.libraryCardIcon {
+  font-size: 22px;
   line-height: 1;
   color: var(--accent);
-  opacity: 0.7;
   flex-shrink: 0;
   margin-top: 2px;
+  opacity: 0.7;
 }
 
-.previewInfo {
+/* Info block — must not overflow */
+.libraryCardInfo {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: 4px;
 }
 
-.previewName {
-  font-size: var(--text-lg);
+/* Dataset name: always truncate, never break weirdly */
+.libraryCardName {
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1.3;
 }
 
-.previewBadges {
+/* Meta row: file count, size, splits */
+.libraryCardMeta {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.libraryCardMeta > span {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 3px;
+}
+
+/* Badges row */
+.libraryCardBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
-.previewMeta {
+/* Actions column — always right-aligned, never shrinks */
+.libraryCardActions {
   display: flex;
-  gap: var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  flex-wrap: wrap;
-}
-.previewMeta > span {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.previewActions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  align-items: flex-start;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-/* Description */
-.previewDescription {
-  padding: 0 var(--space-4) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-.previewDescriptionClamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.previewExpandBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: var(--space-2);
-  background: var(--bg-tertiary);
-  border: none;
-  border-top: 1px solid var(--border);
-  color: var(--accent);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  transition: background var(--transition-fast);
-}
-.previewExpandBtn:hover {
-  background: var(--bg-hover);
-}
-
-/* Config/Ingest Panel (Slide-up drawer) */
-.previewPanel {
+/* Ingest options panel inside the card */
+.libraryCardIngestPanel {
   border-top: 1px solid var(--border);
   background: var(--bg-tertiary);
-  padding: var(--space-4);
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  animation: slideUp 0.2s ease;
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  gap: 10px;
+  animation: slideDown 0.15s ease;
 }
 
-.panelSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.panelLabel {
-  font-size: var(--text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-}
-
-.panelHint {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.panelGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-.panelField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.panelFieldLabel {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.panelFieldHint {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.panelInput {
-  width: 100%;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-sm);
-  font-family: var(--font-sans);
-  color: var(--text-primary);
-  transition: border-color var(--transition-fast);
-}
-.panelInput:focus {
-  outline: none;
-  border-color: var(--border-focus);
-}
-.panelInput::placeholder {
-  color: var(--text-muted);
-}
-
-/* MultiSelect adjustments */
-.panelField :global(.multi-select) {
-  width: 100%;
-}
-
-/* Make sure MultiSelect dropdowns escape container */
-.previewPanel {
-  position: relative;
-  z-index: 10;
-}
-
-/* Config required hint */
-.configHintBanner {
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  color: var(--warning);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-/* Auto-ingest label (used in panel) */
-.autoIngestLabel {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  color: var(--text-primary);
-}
-.autoIngestLabel input[type="checkbox"] {
-  accent-color: var(--accent);
-  width: 14px;
-  height: 14px;
-}
-
-/* Source badge (used in preview card) */
-.sourceBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid transparent;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-}
-
-/* ── Zone 2: Download Progress ───────────────────────────────────────── */
-
-.progressCard {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  margin-bottom: var(--space-6);
-  overflow: hidden;
-}
-
-.progressHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4);
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.progressTitleRow {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  flex: 1;
-  min-width: 0;
-}
-
-.progressDatasetName {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.progressStatus {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.progressPct {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.progressPctDone { color: var(--text-primary); }
-.progressPctError { color: var(--text-primary); }
-
-/* Simplified stages */
-.progressStages {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border);
-  position: relative;
-}
-.progressStages::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: calc(var(--space-4) + 8px);
-  right: calc(var(--space-4) + 8px);
-  height: 1px;
-  background: var(--border);
-  z-index: 0;
-  transform: translateY(-50%);
-}
-
-.progressStage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  position: relative;
-  z-index: 1;
-  background: var(--bg-elevated);
-  padding: 0 var(--space-2);
-}
-
-.stageDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
-  border: 2px solid var(--border);
-  transition: all var(--transition-fast);
-}
-
-.stageLabel {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.progressStage.active .stageDot {
-  border-color: var(--accent);
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-muted);
-}
-.progressStage.active .stageLabel {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.progressStage.done .stageDot {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-}
-
-.progressStage.error .stageDot {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-}
-
-/* Progress bar */
-.progressBarWrap {
-  height: 8px;
-  background: var(--bg-tertiary);
-  overflow: hidden;
-}
-.progressFill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-full);
-  transition: width 0.3s ease;
-}
-.progressFillAnimating {
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent 0px,
-    transparent 6px,
-    rgba(255,255,255,0.15) 6px,
-    rgba(255,255,255,0.15) 12px
-  );
-  background-size: 28px 28px;
-  animation: shimmer 0.9s linear infinite;
-}
-.progressFillSuccess { background: var(--text-primary); }
-.progressFillError   { background: var(--text-primary); }
-
-.progressMeta {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-/* Ingest sub-bar */
-.progressIngest {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
-}
-.progressIngestLabel {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
-  margin-bottom: var(--space-2);
-  display: block;
-}
-.progressIngestBar {
-  height: 6px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-.progressIngestFill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  transition: width 0.3s ease;
-}
-.progressIngestFillDone { background: var(--text-primary); }
-.progressIngestFillError { background: var(--text-primary); }
-
-.progressDetails {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--border);
-}
-
-.progressError {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  font-weight: 600;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--text-primary);
-}
-
-.progressCta {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
-}
-
-/* ── Zone 3: Local Library ───────────────────────────────────────────── */
-
-.localSection {
-  margin-top: var(--space-8);
-}
-
+/* Library section header */
 .libraryHeader {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.libraryTitle {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.libraryControls {
-  display: flex;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
+/* Filter tabs */
 .libraryFilterTabs {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
 }
-
 .libraryFilterTab {
-  padding: var(--space-1) var(--space-3);
+  padding: 3px 10px;
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  font-size: 12px;
   font-family: var(--font-sans);
   cursor: pointer;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   transition: all var(--transition-fast);
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  font-weight: 500;
+  gap: 5px;
 }
 .libraryFilterTab:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 .libraryFilterTabActive {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 .libraryFilterTabActive:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--bg-active);
 }
 
-.libraryRefreshBtn {
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-family: var(--font-sans);
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  transition: all var(--transition-fast);
-  display: flex;
+/* Count badges inside filter tabs and header */
+.libraryCount {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
 }
-.libraryRefreshBtn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-.libraryRefreshBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+
+/* Grid layout for library cards */
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
 }
 
 /* Active download banner */
 .activeDownloadBanner {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: var(--text-sm);
+  font-size: 12px;
   color: var(--text-primary);
-  margin-bottom: var(--space-4);
+  font-weight: 500;
 }
 .bannerDot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--accent);
   flex-shrink: 0;
   animation: pulse 1.4s ease-in-out infinite;
 }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
 
-/* Library grid */
-.libraryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
+/* Empty / count footer */
+.libraryCardCount {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
 }
-
-.libraryCard {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  overflow: hidden;
-  transition: border-color var(--transition-fast);
-  display: flex;
-  flex-direction: column;
-}
-.libraryCard:hover {
-  border-color: var(--border-focus);
-}
-
-.libraryCardHeader {
-  padding: var(--space-4);
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  flex: 1;
-  min-width: 0;
-}
-
-.libraryCardIcon {
-  font-size: 24px;
-  color: var(--accent);
-  opacity: 0.6;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.libraryCardInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.libraryCardName {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-  line-height: 1.3;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.libraryCardMeta {
-  display: flex;
-  gap: var(--space-3);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  flex-wrap: wrap;
-}
-.libraryCardMeta > span {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.libraryCardBadges {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-/* Small badge variant for library cards */
-.libraryBadge {
-  font-size: var(--text-xs);
-  padding: 2px 8px;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-}
-.badgeSuccess {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-.badgeDefault {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-}
-
-.libraryCardActions {
-  display: flex;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
-}
-
 .libraryCardEmptyState {
-  padding: var(--space-10);
+  padding: 24px;
   text-align: center;
   color: var(--text-muted);
-  font-size: var(--text-base);
+  font-size: 13px;
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
 }
 
-.libraryCardCount {
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  margin-top: var(--space-3);
-}
+/* (end of HuggingFacePage.module.css) */
 
-/* ── Progress Card (Simplified) ───────────────────────────────────────── */
-
-.progressCard {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-  margin-bottom: var(--space-6);
-  overflow: hidden;
-}
-
-.progressHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-4);
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.progressTitleRow {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  flex: 1;
-  min-width: 0;
-}
-
-.progressDatasetName {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-.progressStatus {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.progressPct {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.progressPctDone { color: var(--text-primary); }
-.progressPctError { color: var(--text-primary); }
-
-/* Simplified stages */
-.progressStages {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border);
-  position: relative;
-}
-.progressStages::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: calc(var(--space-4) + 8px);
-  right: calc(var(--space-4) + 8px);
-  height: 1px;
-  background: var(--border);
-  z-index: 0;
-  transform: translateY(-50%);
-}
-
-.progressStage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  position: relative;
-  z-index: 1;
-  background: var(--bg-elevated);
-  padding: 0 var(--space-2);
-}
-
-.stageDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
-  border: 2px solid var(--border);
-  transition: all var(--transition-fast);
-}
-
-.stageLabel {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.progressStage.active .stageDot {
-  border-color: var(--accent);
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-muted);
-}
-.progressStage.active .stageLabel {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.progressStage.done .stageDot {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-}
-
-.progressStage.error .stageDot {
-  border-color: var(--text-primary);
-  background: var(--text-primary);
-}
-
-/* Progress bar */
-.progressBarWrap {
-  height: 8px;
-  background: var(--bg-tertiary);
-  overflow: hidden;
-}
-.progressFill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: var(--radius-full);
-  transition: width 0.3s ease;
-}
-.progressFillAnimating {
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent 0px,
-    transparent 6px,
-    rgba(255,255,255,0.15) 6px,
-    rgba(255,255,255,0.15) 12px
-  );
-  background-size: 28px 28px;
-  animation: shimmer 0.9s linear infinite;
-}
-.progressFillSuccess { background: var(--text-primary); }
-.progressFillError   { background: var(--text-primary); }
-
-.progressMeta {
-  display: flex;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-
-/* Ingest sub-bar */
-.progressIngest {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
-}
-.progressIngestLabel {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
-  margin-bottom: var(--space-2);
-  display: block;
-}
-.progressIngestBar {
-  height: 6px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-.progressIngestFill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  transition: width 0.3s ease;
-}
-.progressIngestFillDone { background: var(--text-primary); }
-.progressIngestFillError { background: var(--text-primary); }
-
-.progressDetails {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  line-height: 1.5;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--border);
-}
-
-.progressError {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-  font-weight: 600;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--text-primary);
-}
-
-.progressCta {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
-}

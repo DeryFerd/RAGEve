@@ -182,12 +182,10 @@ def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_
 
 
 def curl_upload(dataset_id: str, file_path: Path) -> tuple[int, str, str]:
-    # NOTE: post-migration "datasets" are now "knowledgebases".
-    # dataset_id maps directly to kb_id.
     cmd = [
         "curl", "-s", "-w", "\n%{http_code}",
         "-X", "POST",
-        f"{BACKEND_URL}/knowledgebases/{dataset_id}/upload",
+        f"{BACKEND_URL}/datasets/{dataset_id}/upload",
         "-F", f"files=@{file_path}",
     ]
     proc = subprocess.run(cmd, capture_output=True, timeout=3600)
@@ -210,12 +208,9 @@ def _stream_upload(dataset_id: str, file_path: Path):
     with open(file_path, "rb") as f:
         files = {"files": (file_path.name, f, "application/octet-stream")}
         try:
-            # NOTE: streaming upload endpoint was removed during the
-            # SQLAlchemy → Peewee migration; fall back to the synchronous
-            # /knowledgebases/{kb}/upload which is now the only upload route.
             with httpx.stream(
                 "POST",
-                f"{BACKEND_URL}/knowledgebases/{dataset_id}/upload",
+                f"{BACKEND_URL}/datasets/{dataset_id}/upload/stream",
                 files=files,
                 timeout=3600.0,
             ) as r:
