@@ -6,7 +6,6 @@ from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.embedding.sparse_embedder import SparseEmbedder
 from rag.generation.ollama_chat import OllamaChat
 from rag.retrieval.rag_pipeline import RAGPipeline
-from rag.storage.agent_store import AgentStore
 from rag.storage.qdrant_store import QdrantStore
 
 # Singleton instances — lazily initialized
@@ -14,7 +13,6 @@ _qdrant_store: QdrantStore | None = None
 _embedder: OllamaEmbedder | None = None
 _sparse_embedder: SparseEmbedder | None = None
 _chat_client: OllamaChat | None = None
-_agent_store: AgentStore | None = None
 _rag_pipeline: RAGPipeline | None = None
 _ingestion_service: IngestionService | None = None
 
@@ -58,13 +56,6 @@ def get_chat_client(model: str | None = None) -> OllamaChat:
         _chat_client = OllamaChat(base_url=settings.ollama_base_url, model=target)
         _active_chat_model = target
     return _chat_client
-
-
-def get_agent_store() -> AgentStore:
-    global _agent_store
-    if _agent_store is None:
-        _agent_store = AgentStore(registry_path=settings.data_root / "agents" / "registry.json")
-    return _agent_store
 
 
 def get_rag_pipeline(
