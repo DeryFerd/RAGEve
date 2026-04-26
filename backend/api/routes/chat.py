@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import json as _json
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -7,40 +9,64 @@ from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
 from backend.schemas.chat import ChatRequest, ChatResponse, SourceChunkSchema
-from backend.services.ingestion_factory import get_agent_store, get_rag_pipeline
+from backend.services.database import run_db_operation
+from backend.services.dialog_store import get_dialog_store
+from backend.services.tenant_user_store import get_tenant_user_store
+from backend.services.ingestion_factory import get_rag_pipeline
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("/{agent_id}", response_model=ChatResponse)
+@router.post("/{dialog_id}", response_model=ChatResponse)
 @limiter.limit("120/minute")
 async def chat(
     request: Request,
-    agent_id: str,
+    dialog_id: str,
     payload: ChatRequest,
 ) -> ChatResponse:
     """
-    Non-streaming RAG chat endpoint.
+    Non-streaming RAG chat endpoint using a dialog (agent).
     """
-    store = get_agent_store()
-    agent = store.get(agent_id)
+    # Fetch dialog
+    dialog_store = get_dialog_store()
+    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
+    if not dialog:
+        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
 
-    if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    # Fetch tenant for embedding model
+    tenant_store = get_tenant_user_store()
+    tenant = await run_db_operation(tenant_store.get_tenant, dialog.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found")
 
+    # Determine collection (knowledge base) - use first kb_id
+    if not dialog.kb_ids:
+        raise HTTPException(status_code=400, detail="Dialog has no knowledge base assigned")
+    collection_name = dialog.kb_ids[0]
+
+    # Build system prompt
+    system_prompt = ""
+    if dialog.prompt_config:
+        system_prompt = dialog.prompt_config.get("system", "")
+
+    # LLM settings
+    temperature = payload.temperature if payload.temperature is not None else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    top_k = payload.top_k if payload.top_k is not None else dialog.top_k
+
+    # RAG pipeline
     rag = get_rag_pipeline(
-        embedding_model=agent.config.embedding_model,
-        chat_model=agent.config.chat_model,
+        embedding_model=tenant.embd_id,  # Tenant's embedding model
+        chat_model=dialog.llm_id,
     )
 
     answer = await rag.query(
-        collection_name=agent.config.dataset_id,
+        collection_name=collection_name,
         question=payload.question,
-        system_prompt=agent.config.system_prompt,
-        top_k=payload.top_k or agent.config.top_k,
+        system_prompt=system_prompt,
+        top_k=top_k,
         score_threshold=payload.score_threshold or 0.0,
-        temperature=payload.temperature or agent.config.temperature,
+        temperature=temperature,
         use_reranker=payload.use_reranker,
         reranker_model=payload.reranker_model,
         use_hybrid=payload.use_hybrid,
@@ -68,21 +94,33 @@ async def chat(
 
 
 async def _stream_rag(
-    agent_id: str,
+    dialog_id: str,
     payload: ChatRequest,
 ) -> AsyncIterator[str]:
     import asyncio
-    import json as _json
 
-    store = get_agent_store()
-    agent = store.get(agent_id)
+    dialog_store = get_dialog_store()
+    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
+    if not dialog:
+        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
 
-    if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    tenant_store = get_tenant_user_store()
+    tenant = await run_db_operation(tenant_store.get_tenant, dialog.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found")
+
+    if not dialog.kb_ids:
+        raise HTTPException(status_code=400, detail="Dialog has no knowledge base assigned")
+    collection_name = dialog.kb_ids[0]
+
+    system_prompt = dialog.prompt_config.get("system", "") if dialog.prompt_config else ""
+
+    temperature = payload.temperature if payload.temperature is not None else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    top_k = payload.top_k if payload.top_k is not None else dialog.top_k
 
     rag = get_rag_pipeline(
-        embedding_model=agent.config.embedding_model,
-        chat_model=agent.config.chat_model,
+        embedding_model=tenant.embd_id,
+        chat_model=dialog.llm_id,
     )
 
     sources_list: list[dict] = []
@@ -93,12 +131,12 @@ async def _stream_rag(
     try:
         async with asyncio.timeout(120):
             async for token in rag.query_stream(
-                collection_name=agent.config.dataset_id,
+                collection_name=collection_name,
                 question=payload.question,
-                system_prompt=agent.config.system_prompt,
-                top_k=payload.top_k or agent.config.top_k,
+                system_prompt=system_prompt,
+                top_k=top_k,
                 score_threshold=payload.score_threshold or 0.0,
-                temperature=payload.temperature or agent.config.temperature,
+                temperature=temperature,
                 use_reranker=payload.use_reranker,
                 reranker_model=payload.reranker_model,
                 use_hybrid=payload.use_hybrid,
@@ -130,21 +168,19 @@ async def _stream_rag(
         raise HTTPException(status_code=504, detail="Request timed out after 120 seconds")
 
 
-@router.post("/{agent_id}/stream")
+@router.post("/{dialog_id}/stream")
 @limiter.limit("120/minute")
-async def chat_stream(request: Request, agent_id: str, payload: ChatRequest) -> StreamingResponse:
+async def chat_stream(
+    request: Request,
+    dialog_id: str,
+    payload: ChatRequest,
+) -> StreamingResponse:
     """
     Streaming RAG chat endpoint using SSE.
     Each chunk is sent as: {"event": "chunk", "content": "..."}
     Final event: {"event": "end", "sources": [...]}
     """
-    store = get_agent_store()
-    agent = store.get(agent_id)
-
-    if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
-
     return StreamingResponse(
-        _stream_rag(agent_id, payload),
+        _stream_rag(dialog_id, payload),
         media_type="application/x-ndjson",
     )
