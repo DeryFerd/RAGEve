@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { MultiSelect } from "@/components/ui/MultiSelect";
 import { Badge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
 import type {
   DiscoveredDataset,
   HFIngestStatusResponse,
@@ -15,6 +14,7 @@ import type {
 import { cancelHFIngest } from "@/lib/api/datasets";
 import type { ToastVariant } from "@/stores/useToastStore";
 import styles from "./HuggingFacePage.module.css";
+import { ACTIVE_DOWNLOAD_KEY } from "./page";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,146 +40,7 @@ const fmtSize = (bytes: number) => {
 const scoreColor = (s: number) =>
   s > 0.85 ? "var(--text-primary)" : s > 0.7 ? "var(--text-secondary)" : "var(--text-muted)";
 
-// ── Ingest Progress Card ─────────────────────────────────────────────────────
-
-interface IngestProgressCardProps {
-  datasetId: string;
-  ingestStatus: HFIngestStatusResponse;
-  ingestId: string;
-  stopIngestPolling: () => void;
-  addToast: (msg: string, variant?: ToastVariant) => void;
-  onCancel: () => void;
-}
-
-function IngestProgressCard({
-  datasetId,
-  ingestStatus,
-  ingestId,
-  stopIngestPolling,
-  addToast,
-  onCancel,
-}: IngestProgressCardProps) {
-  const st = ingestStatus;
-  return (
-    <div className={styles.resultCard} style={{ borderLeft: "3px solid var(--accent)" }}>
-      <div className={styles.resultHeader}>
-        <div className={styles.resultTitle} style={{ color: "var(--text-primary)" }}>
-          &#x25B2; Ingesting {datasetId}
-        </div>
-        <Button
-          variant="danger"
-          size="sm"
-          onClick={() => {
-            cancelHFIngest(ingestId).then(() => {
-              stopIngestPolling();
-              onCancel();
-            }).catch((e) => addToast(`Cancel failed: ${e}`, "error"));
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
-      <div className={styles.resultStats}>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Progress</span>
-          <span className={styles.resultStatValue}>{st.progress}%</span>
-        </div>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Chunks</span>
-          <span className={styles.resultStatValue}>
-            {st.chunks_done.toLocaleString()} / {st.chunks_total.toLocaleString()}
-          </span>
-        </div>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Stage</span>
-          <span className={styles.resultStatValue} style={{ textTransform: "capitalize" }}>
-            {st.current_stage}
-          </span>
-        </div>
-      </div>
-      <div className={styles.ingestSubBar}>
-        <div
-          className={styles.ingestSubFill}
-          style={{ width: `${st.progress}%` }}
-        />
-      </div>
-      <p className={styles.resultHint}>{st.message}</p>
-    </div>
-  );
-}
-
-// ── Ingest Result Card ──────────────────────────────────────────────────────
-
-interface IngestResultCardProps {
-  datasetId: string;
-  result: HFIngestSubmitResult;
-  isIndexed: boolean;
-  onReingest: () => void;
-  router: ReturnType<typeof useRouter>;
-}
-
-function IngestResultCard({ datasetId, result, isIndexed, onReingest, router }: IngestResultCardProps) {
-  const r = result as {
-    rows_processed?: number;
-    chunks_embedded?: number;
-    avg_quality_score?: number;
-    text_columns_used?: string[];
-    profiles_used?: Record<string, number>;
-    message?: string;
-  } | null;
-  if (!r) return null;
-
-  return (
-    <div className={styles.resultCard}>
-      <div className={styles.resultHeader}>
-        <div className={styles.resultTitle}>
-          &#x2713; {isIndexed ? "Indexed" : "Ingestion complete"} — {datasetId}
-        </div>
-        <div className={styles.resultHeaderActions}>
-          <Button variant="ghost" size="sm" onClick={() => router.push("/chat")}>
-            Go to Chat →
-          </Button>
-          {isIndexed && (
-            <Button variant="danger" size="sm" onClick={onReingest}>
-              Re-ingest
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className={styles.resultStats}>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Rows</span>
-          <span className={styles.resultStatValue}>{(r.rows_processed ?? 0).toLocaleString()}</span>
-        </div>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Chunks</span>
-          <span className={styles.resultStatValue}>{(r.chunks_embedded ?? 0).toLocaleString()}</span>
-        </div>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Quality</span>
-          <span
-            className={styles.resultStatValue}
-            style={{ color: scoreColor(r.avg_quality_score ?? 0) }}
-          >
-            {(r.avg_quality_score ?? 0).toFixed(3)}
-          </span>
-        </div>
-        <div className={styles.resultStat}>
-          <span className={styles.resultStatLabel}>Columns</span>
-          <span className={styles.resultStatValue}>{r.text_columns_used?.join(", ")}</span>
-        </div>
-      </div>
-      {r.profiles_used && Object.keys(r.profiles_used).length > 0 && (
-        <p className={styles.resultHint}>
-          Profiles: {Object.entries(r.profiles_used).map(([k, v]) => `${k} (${v})`).join(", ")}
-        </p>
-      )}
-      {r.message && <p className={styles.resultHint}>{r.message}</p>}
-    </div>
-  );
-}
-
-// ── Library Card ─────────────────────────────────────────────────────────────
+// ── Ingest options state ───────────────────────────────────────────────────────
 
 interface LibraryCardProps {
   ds: DiscoveredDataset;
@@ -205,10 +66,18 @@ function LibraryCard({
   const updatePanel = (updates: Partial<IngestPanelState>) =>
     onPanelUpdate(ds.dataset_id, updates);
 
+  // Status indicator color
+  const getStatusColor = () => {
+    if (panel?.ingestStatus?.status === "running" || panel?.ingestStatus?.status === "queued") return "var(--warning)";
+    if (panel?.ingestStatus?.status === "failed") return "var(--error)";
+    if (ds.is_ingested) return "var(--success)";
+    return "var(--text-muted)";
+  };
+
   return (
     <div className={styles.libraryCard}>
       <div className={styles.libraryCardTop}>
-        <div className={styles.libraryCardIcon}>⬡</div>
+        <div className={styles.libraryCardIcon} style={{ color: getStatusColor() }}>⬡</div>
         <div className={styles.libraryCardInfo}>
           <div className={styles.libraryCardName}>
             {ds.dataset_id}
@@ -218,10 +87,19 @@ function LibraryCard({
             <span>{ds.file_count} file(s)</span>
             <span>{fmtSize(ds.total_size_bytes)}</span>
             <span>{ds.splits.join(", ")}</span>
+            {panel?.ingestStatus?.status === "running" && (
+              <span className={styles.ingestProgressText}>
+                Indexing: {panel.ingestStatus.progress}%
+              </span>
+            )}
           </div>
           <div className={styles.libraryCardBadges}>
             {ds.is_ingested ? (
               <Badge variant="success">Indexed</Badge>
+            ) : panel?.ingestStatus?.status === "running" ? (
+              <Badge variant="warning">Indexing</Badge>
+            ) : panel?.ingestStatus?.status === "failed" ? (
+              <Badge variant="error">Failed</Badge>
             ) : (
               <Badge variant="default">Not Indexed</Badge>
             )}
@@ -280,11 +158,13 @@ function LibraryCard({
           </div>
           <div style={{ marginTop: 10 }}>
             <label
+              htmlFor={`row-limit-${ds.dataset_id}`}
               style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", display: "block", marginBottom: 4 }}
             >
               Row Limit
             </label>
             <input
+              id={`row-limit-${ds.dataset_id}`}
               type="text"
               placeholder="Leave empty = full"
               value={panel.rowLimit}
@@ -323,31 +203,114 @@ function LibraryCard({
 
       {/* Live ingest progress */}
       {panel?.ingestId != null && panel?.ingestStatus != null && (
-        <IngestProgressCard
-          datasetId={ds.dataset_id}
-          ingestStatus={panel.ingestStatus}
-          ingestId={panel.ingestId}
-          stopIngestPolling={stopIngestPolling}
-          addToast={addToast}
-          onCancel={() => {
-            onPanelUpdate(ds.dataset_id, {
-              ingestId: null,
-              ingestStatus: null,
-              loading: false,
-            });
+        <div
+          className={styles.resultCard}
+          style={{
+            borderLeft: `3px solid ${
+              panel.ingestStatus.status === "running" ? "var(--accent)" :
+              panel.ingestStatus.status === "failed" ? "var(--error)" :
+              "var(--warning)"
+            }`
           }}
-        />
+        >
+          <div className={styles.resultHeader}>
+            <div className={styles.resultTitle} style={{ color: "var(--text-primary)" }}>
+              {panel.ingestStatus.status === "running" ? "⏳" : panel.ingestStatus.status === "failed" ? "✗" : "▶"} Ingesting {ds.dataset_id}
+            </div>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                cancelHFIngest(panel.ingestId!).then(() => {
+                  stopIngestPolling();
+                  onPanelUpdate(ds.dataset_id, {
+                    ingestId: null,
+                    ingestStatus: null,
+                    loading: false,
+                  });
+                }).catch((e) => addToast(`Cancel failed: ${e}`, "error"));
+              }}
+              disabled={panel.ingestStatus.status !== "running" && panel.ingestStatus.status !== "queued"}
+            >
+              Cancel
+            </Button>
+          </div>
+          <div className={styles.resultStats}>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Progress</span>
+              <span className={styles.resultStatValue}>{panel.ingestStatus.progress}%</span>
+            </div>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Chunks</span>
+              <span className={styles.resultStatValue}>
+                {panel.ingestStatus.chunks_done.toLocaleString()} / {panel.ingestStatus.chunks_total.toLocaleString()}
+              </span>
+            </div>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Stage</span>
+              <span className={styles.resultStatValue} style={{ textTransform: "capitalize" }}>
+                {panel.ingestStatus.current_stage}
+              </span>
+            </div>
+          </div>
+          <div className={styles.ingestSubBar}>
+            <div
+              className={styles.ingestSubFill}
+              style={{ width: `${panel.ingestStatus.progress}%` }}
+            />
+          </div>
+          <p className={styles.resultHint}>{panel.ingestStatus.message}</p>
+        </div>
       )}
 
       {/* Completed result */}
       {panel?.result != null && (
-        <IngestResultCard
-          datasetId={ds.dataset_id}
-          result={panel.result}
-          isIndexed={!!ds.is_ingested}
-          onReingest={() => void onIngest(ds)}
-          router={router}
-        />
+        <div className={styles.resultCard}>
+          <div className={styles.resultHeader}>
+            <div className={styles.resultTitle} style={{ color: "var(--success)" }}>
+              ✓ {ds.is_ingested ? "Indexed" : "Ingestion complete"} — {ds.dataset_id}
+            </div>
+            <div className={styles.resultHeaderActions}>
+              <Button variant="ghost" size="sm" onClick={() => router.push("/chat")}>
+                Go to Chat
+              </Button>
+              {ds.is_ingested && (
+                <Button variant="secondary" size="sm" onClick={() => void onIngest(ds)}>
+                  Re-ingest
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className={styles.resultStats}>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Rows</span>
+              <span className={styles.resultStatValue}>{(panel.result.rows_processed ?? 0).toLocaleString()}</span>
+            </div>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Chunks</span>
+              <span className={styles.resultStatValue}>{(panel.result.chunks_embedded ?? 0).toLocaleString()}</span>
+            </div>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Quality</span>
+              <span
+                className={styles.resultStatValue}
+                style={{ color: scoreColor(panel.result.avg_quality_score ?? 0) }}
+              >
+                {(panel.result.avg_quality_score ?? 0).toFixed(3)}
+              </span>
+            </div>
+            <div className={styles.resultStat}>
+              <span className={styles.resultStatLabel}>Columns</span>
+              <span className={styles.resultStatValue}>{panel.result.text_columns_used?.join(", ")}</span>
+            </div>
+          </div>
+          {panel.result.profiles_used && Object.keys(panel.result.profiles_used).length > 0 && (
+            <p className={styles.resultHint}>
+              Profiles: {Object.entries(panel.result.profiles_used).map(([k, v]) => `${k} (${v})`).join(", ")}
+            </p>
+          )}
+          {panel.result.message && <p className={styles.resultHint}>{panel.result.message}</p>}
+        </div>
       )}
     </div>
   );
@@ -400,7 +363,7 @@ export function LocalDatasetsLibrary({
 
   const handleRefresh = useCallback(async () => {
     await onDiscover();
-    const saved = window.localStorage.getItem("hf_active_download_dataset_id");
+    const saved = window.localStorage.getItem(ACTIVE_DOWNLOAD_KEY);
     if (saved) {
       onRestartPolling(saved);
     }
@@ -460,14 +423,49 @@ export function LocalDatasetsLibrary({
         </div>
       )}
 
+      {/* Skeleton loading state */}
+      {discovering && datasets.length === 0 && (
+        <div className={styles.libraryGrid}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={styles.skeletonLibraryCard}>
+              <div className={styles.skeletonLibraryHeader}>
+                <div className={styles.skeletonLibraryIcon} />
+                <div className={styles.skeletonLibraryInfo}>
+                  <div className={styles.skeletonLibraryName} />
+                  <div className={styles.skeletonLibraryMeta} />
+                </div>
+              </div>
+              <div className={styles.skeletonLibraryActions} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Grid */}
-      {datasets.length === 0 ? (
-        <div className={styles.libraryCardEmptyState}>
-          No local datasets found. Start a download above to get started.
+      {!discovering && datasets.length === 0 ? (
+        <div className={styles.emptyStateWithIcon}>
+          <div className={styles.emptyStateIcon}>⬡</div>
+          <div className={styles.emptyStateText}>
+            <strong>No datasets in your library yet.</strong><br />
+            Discover and download datasets from the HuggingFace Hub to get started.
+          </div>
+          <Button onClick={onDiscover} loading={discovering}>
+            Discover Datasets
+          </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className={styles.libraryCardEmptyState}>
-          {filter === "indexed" ? "No indexed datasets yet." : "All datasets are indexed!"}
+        <div className={styles.emptyStateWithIcon}>
+          <div className={styles.emptyStateIcon}>🔍</div>
+          <div className={styles.emptyStateText}>
+            {filter === "indexed"
+              ? "No indexed datasets yet. Index a dataset to start chatting."
+              : "All datasets are indexed! Nothing to see here."}
+          </div>
+          {filter !== "all" && (
+            <Button variant="secondary" onClick={() => setFilter("all")} style={{ marginTop: 8 }}>
+              Show All
+            </Button>
+          )}
         </div>
       ) : (
         <>
@@ -477,7 +475,7 @@ export function LocalDatasetsLibrary({
                 key={ds.dataset_id}
                 ds={ds}
                 panel={ingestPanels[ds.dataset_id]}
-                onPanelUpdate={(id, updates) => onPanelUpdate(id, updates as Partial<IngestPanelState>)}
+                onPanelUpdate={onPanelUpdate}
                 onIngest={onIngest}
                 stopIngestPolling={stopIngestPolling}
                 addToast={addToast}

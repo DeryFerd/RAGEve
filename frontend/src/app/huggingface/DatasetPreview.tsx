@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import type { HuggingFacePreviewResponse } from "@/lib/types";
 import styles from "./HuggingFacePage.module.css";
@@ -21,8 +20,6 @@ interface DatasetPreviewProps {
   preview: HuggingFacePreviewResponse;
   previewLoading: boolean;
   previewError: string | null;
-  selectedConfig: string;
-  onConfigChange: (config: string) => void;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -31,25 +28,36 @@ export function DatasetPreview({
   preview,
   previewLoading,
   previewError,
-  selectedConfig,
-  onConfigChange,
 }: DatasetPreviewProps) {
-  type TabKey = "description" | "tags" | "readme" | "columns" | "config";
+  type TabKey = "description" | "tags" | "readme" | "columns";
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("description");
 
   if (previewLoading) {
     return (
-      <div className={styles.previewCard} style={{ minHeight: 80 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <span className={styles.lookupSpinner} />
-          <span style={{ marginLeft: 8, fontSize: 13, color: "var(--text-muted)" }}>Loading preview…</span>
+      <div className={styles.skeletonPreviewCard}>
+        <div className={styles.skeletonPreviewHero}>
+          <div className={styles.skeletonIcon} />
+          <div className={styles.skeletonPreviewInfo}>
+            <div className={styles.skeletonTitle} />
+            <div className={styles.skeletonBadges}>
+              <div className={styles.skeletonBadge} />
+              <div className={styles.skeletonBadge} />
+              <div className={styles.skeletonBadge} />
+            </div>
+          </div>
         </div>
+        <div className={styles.skeletonStats}>
+          <div className={styles.skeletonStat} />
+          <div className={styles.skeletonStat} />
+          <div className={styles.skeletonStat} />
+        </div>
+        <div className={styles.skeletonDesc} />
       </div>
     );
   }
 
-  if (previewError && !preview) {
+  if (previewError) {
     return (
       <div className={styles.previewCard} style={{ padding: "12px 16px" }}>
         <p style={{ fontSize: 12, color: "var(--error)" }}>{previewError}</p>
@@ -64,14 +72,12 @@ export function DatasetPreview({
   const hasTags = !!(preview.tags && preview.tags.length > 0);
   const hasReadme = !!preview.readme_html;
   const hasColumns = Object.keys(preview.columns).length > 0;
-  const hasConfigs = preview.configs.length > 0;
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [];
   if (hasDescription) tabs.push({ key: "description", label: "Description" });
   if (hasTags) tabs.push({ key: "tags", label: "Tags", count: preview.tags?.length });
   if (hasReadme) tabs.push({ key: "readme", label: "README" });
   if (hasColumns) tabs.push({ key: "columns", label: "Columns", count: Object.keys(preview.columns).length });
-  if (hasConfigs) tabs.push({ key: "config", label: "Config", count: preview.configs.length });
 
   // Set active tab to first available if current is hidden
   const activeTabValid = tabs.some((t) => t.key === activeTab);
@@ -90,6 +96,8 @@ export function DatasetPreview({
       : preview.source === "datasets-server"
       ? "◈ datasets-server"
       : "◎ Hub API";
+
+  const needsTruncate = preview.description && preview.description.length > 180;
 
   return (
     <div className={styles.previewCard}>
@@ -144,14 +152,12 @@ export function DatasetPreview({
         <div className={styles.previewSection}>
           <p
             className={`${styles.description} ${
-              !detailsOpen && preview.description.length > 180
-                ? styles.descriptionClamped
-                : ""
+              !detailsOpen && needsTruncate ? styles.descriptionClamped : ""
             }`}
           >
             {preview.description}
           </p>
-          {preview.description.length > 180 && (
+          {needsTruncate && (
             <button
               className={styles.descToggle}
               onClick={() => setDetailsOpen((v) => !v)}
@@ -164,7 +170,7 @@ export function DatasetPreview({
       )}
 
       {/* ── Details toggle ────────────────────────────────────────────── */}
-      {(hasTags || hasReadme || hasConfigs) && (
+      {(hasTags || hasReadme || hasColumns) && (
         <div
           style={{
             display: "flex",
@@ -177,6 +183,7 @@ export function DatasetPreview({
             className={styles.previewDetailsBtn}
             onClick={() => setDetailsOpen((v) => !v)}
             type="button"
+            aria-expanded={detailsOpen}
           >
             {detailsOpen ? "▲ Hide details" : "▼ Show details"}
           </button>
@@ -188,7 +195,7 @@ export function DatasetPreview({
         <>
           {/* Tab strip */}
           {tabs.length > 0 && (
-            <div className={styles.previewTabStrip}>
+            <div className={styles.previewTabStrip} role="tablist">
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
@@ -197,6 +204,8 @@ export function DatasetPreview({
                   }`}
                   onClick={() => setActiveTab(tab.key)}
                   type="button"
+                  role="tab"
+                  aria-selected={effectiveTab === tab.key}
                 >
                   {tab.label}
                   {tab.count != null && (
@@ -254,32 +263,10 @@ export function DatasetPreview({
                 </div>
               </div>
             )}
-
-            {/* Config tab */}
-            {effectiveTab === "config" && (
-              <div>
-                <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
-                  Select a configuration to continue:
-                </p>
-                <Select
-                  id="config-select"
-                  label="Configuration"
-                  value={selectedConfig}
-                  onChange={(e) => onConfigChange(e.target.value)}
-                  options={preview.configs.map((c) => ({ value: c, label: c }))}
-                />
-              </div>
-            )}
           </div>
         </>
       )}
 
-      {/* Config hint when config is required but not selected */}
-      {hasConfigs && !selectedConfig && !detailsOpen && (
-        <div className={styles.configHintRow}>
-          ⚠ Please select a configuration above to continue downloading.
-        </div>
-      )}
     </div>
   );
 }

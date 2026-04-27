@@ -297,7 +297,6 @@ export interface HuggingFaceDownloadRequest {
   batch_size?: number | null;
   chunk_overlap?: number | null;
   max_tokens_per_chunk?: number | null;
-  text_column?: string | null;
   text_columns?: string[];
   metadata_columns?: string[];
   ingest_split?: string | null;
@@ -380,7 +379,6 @@ export interface HFIngestSubmitResponse {
   ingest_id: string;
   dataset_id: string;
   message: string;
-  result: HFIngestSubmitResult | null;
 }
 
 export interface HFIngestStatusResponse {

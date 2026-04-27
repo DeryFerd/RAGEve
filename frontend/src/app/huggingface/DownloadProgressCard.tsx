@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type {
   HuggingFaceDownloadStatusResponse,
@@ -10,11 +11,30 @@ import styles from "./HuggingFacePage.module.css";
 
 const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
 
+// Stage progress thresholds (heuristic, based on backend progress reporting)
+const STAGE_PROGRESS_THRESHOLDS = {
+  extracting: 30,  // Show extracting as active when progress > 30%
+  embedding: 60,   // Show embedding as active when progress > 60%
+} as const;
+
 const _fmtBytes = (n: number | null | undefined): string => {
   if (n == null) return "—";
   if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
+};
+
+const _fmtSpeed = (bytesPerSecond: number): string => {
+  if (bytesPerSecond < 1024) return `${bytesPerSecond.toFixed(0)} B/s`;
+  if (bytesPerSecond < 1024 ** 2) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  if (bytesPerSecond < 1024 ** 3) return `${(bytesPerSecond / 1024 ** 2).toFixed(1)} MB/s`;
+  return `${(bytesPerSecond / 1024 ** 3).toFixed(2)} GB/s`;
+};
+
+const _fmtETA = (seconds: number): string => {
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)}m`;
+  return `${Math.ceil(seconds / 3600)}h`;
 };
 
 interface DownloadProgressCardProps {
@@ -43,6 +63,35 @@ export function DownloadProgressCard({
   onCancel,
 }: DownloadProgressCardProps) {
   const router = useRouter();
+
+  // Track previous values for speed calculation
+  const prevBytesRef = useRef<number>(downloadStatus.bytes_downloaded ?? 0);
+  const prevTimeRef = useRef<number>(Date.now());
+  const [speed, setSpeed] = useState<number>(0);
+  const [eta, setEta] = useState<number | null>(null);
+
+  // Calculate speed and ETA on each update
+  useEffect(() => {
+    const now = Date.now();
+    const elapsedMs = now - prevTimeRef.current;
+    if (elapsedMs > 500) {
+      const bytesDelta = (downloadStatus.bytes_downloaded ?? 0) - prevBytesRef.current;
+      if (bytesDelta > 0) {
+        const bytesPerSecond = (bytesDelta / elapsedMs) * 1000;
+        setSpeed(bytesPerSecond);
+
+        // Calculate ETA
+        const remainingBytes = (downloadStatus.total_bytes ?? 0) - (downloadStatus.bytes_downloaded ?? 0);
+        if (remainingBytes > 0 && bytesPerSecond > 0) {
+          setEta(remainingBytes / bytesPerSecond);
+        } else {
+          setEta(null);
+        }
+      }
+      prevBytesRef.current = downloadStatus.bytes_downloaded ?? 0;
+      prevTimeRef.current = now;
+    }
+  }, [downloadStatus.bytes_downloaded, downloadStatus.total_bytes]);
 
   // Prefer preview's full_dataset_id when available; fall back to raw dataset_id
   const datasetName = preview?.full_dataset_id ?? downloadStatus.dataset_id;
@@ -75,13 +124,13 @@ export function DownloadProgressCard({
     }
     if (key === "extracting") {
       if (isCompleted) return "done";
-      if (isDownloading && downloadStatus.progress > 30) return "active";
+      if (isDownloading && downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.extracting) return "active";
       return "pending";
     }
     if (key === "embedding") {
       if (isCompleted) return "done";
       if (isIngesting) return "active";
-      if (isDownloading && downloadStatus.progress > 60) return "active";
+      if (isDownloading && downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.embedding) return "active";
       return "pending";
     }
     return "pending";
@@ -166,6 +215,13 @@ export function DownloadProgressCard({
                 ? `/ ${_fmtBytes(downloadStatus.total_bytes)}`
                 : "downloading…"}
             </span>
+            {/* Speed and ETA */}
+            {speed > 0 && (
+              <span style={{ color: "var(--text-muted)" }}>
+                {_fmtSpeed(speed)}
+                {eta != null && eta > 0 && ` • ETA: ${_fmtETA(eta)}`}
+              </span>
+            )}
           </div>
         </>
       )}

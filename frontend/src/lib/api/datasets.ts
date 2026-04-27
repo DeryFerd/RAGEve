@@ -225,7 +225,7 @@ export async function submitHFIngest(
   payload?: HFIngestRequest
 ): Promise<HFIngestSubmitResponse> {
   return apiFetch<HFIngestSubmitResponse>(
-    `/datasets/hf/${encodeURIComponent(datasetId)}/ingest/submit`,
+    `/datasets/hf/${encodeURIComponent(datasetId)}/ingest`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

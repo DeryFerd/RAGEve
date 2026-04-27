@@ -29,6 +29,7 @@ import styles from "./HuggingFacePage.module.css";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const ACTIVE_DOWNLOAD_KEY = "hf_active_download_dataset_id";
+export { ACTIVE_DOWNLOAD_KEY };
 const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
 
 // ── Ingest Panel State (shared across LocalDatasetsLibrary) ─────────────────
@@ -57,6 +58,7 @@ export default function HuggingFacePage() {
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const downloadPollRef = useRef<number | null>(null);
   const ingestPollRef = useRef<number | null>(null);
+  const discoverInProgress = useRef(false);
 
   const [preview, setPreview] = useState<HuggingFacePreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -76,7 +78,7 @@ export default function HuggingFacePage() {
   const [discovering, setDiscovering] = useState(false);
   const [datasets, setDatasets] = useState<DiscoveredDataset[]>([]);
   const [ingestPanels, setIngestPanels] = useState<Record<string, IngestPanelState>>({});
-  const [activeIngestDatasetId, setActiveIngestDatasetId] = useState<string | null>(null);
+  const [_activeIngestDatasetId, setActiveIngestDatasetId] = useState<string | null>(null);
 
   // ── Polling helpers ──────────────────────────────────────────────────────
 
@@ -97,6 +99,10 @@ export default function HuggingFacePage() {
   // ── handleDiscover ──────────────────────────────────────────────────────
 
   const handleDiscover = useCallback(async () => {
+    if (discoverInProgress.current) {
+      return; // Prevent concurrent calls
+    }
+    discoverInProgress.current = true;
     setDiscovering(true);
     try {
       const result = await discoverHFDatasets();
@@ -124,6 +130,7 @@ export default function HuggingFacePage() {
       addToast(`Discovery failed: ${err instanceof Error ? err.message : String(err)}`, "error");
     } finally {
       setDiscovering(false);
+      discoverInProgress.current = false;
     }
   }, [addToast]);
 
@@ -417,15 +424,12 @@ export default function HuggingFacePage() {
     downloadStatus != null && !TERMINAL_STATES.has(downloadStatus.status);
 
   const isCompleted = downloadStatus?.status === "completed";
-  const isFailed = downloadStatus?.status === "failed";
-  const isCancelled = downloadStatus?.status === "cancelled";
 
   const ingestStatus = downloadStatus?.ingest_status;
   const ingestCompleted = ingestStatus === "completed";
   const ingestFailed = ingestStatus === "failed";
   const isIngesting = ingestStatus === "ingesting";
 
-  const showSuccessState = isCompleted && !isDownloading;
   const autoIngestEnabled = downloadStatus?.auto_ingest === true;
 
   const textColumnOptions: Array<{ value: string; label: string; typeHint?: string }> =
@@ -442,80 +446,94 @@ export default function HuggingFacePage() {
   return (
     <div className={styles.page}>
 
-      {/* ── Zone 1: Browse & Select ─────────────────────────────────────── */}
-      <HubSearch
-        datasetId={datasetIdInput}
-        onDatasetIdChange={handleDatasetIdChange}
-        onChipClick={handleChipClick}
-      />
-
-      {/* ── Zone 1: Preview card ───────────────────────────────────────── */}
-      {preview && (
-        <DatasetPreview
-          preview={preview}
-          previewLoading={previewLoading}
-          previewError={previewError}
-          selectedConfig={selectedConfig}
-          onConfigChange={setSelectedConfig}
+      {/* ── Section 1: Discover & Preview ─────────────────────────────────── */}
+      <section className={styles.sectionDiscover} aria-labelledby="discover-heading">
+        <div className={styles.sectionHeader}>
+          <h2 id="discover-heading" className={styles.sectionTitle}>Discover & Preview</h2>
+          <p className={styles.sectionSubtitle}>Search HuggingFace Hub, preview datasets, and download</p>
+        </div>
+        
+        {/* Search */}
+        <HubSearch
+          datasetId={datasetIdInput}
+          onDatasetIdChange={handleDatasetIdChange}
+          onChipClick={handleChipClick}
         />
-      )}
 
-      {/* ── Zone 2: Action bar ──────────────────────────────────────────── */}
-      {preview && (
-        <DownloadActionBar
-          preview={preview}
-          selectedConfig={selectedConfig}
-          autoIngest={autoIngest}
-          rowLimitInput={rowLimitInput}
-          textColumnOptions={textColumnOptions}
-          autoIngestTextCols={autoIngestTextCols}
-          isDownloading={isDownloading}
-          isCompleted={isCompleted ?? false}
-          ingestCompleted={ingestCompleted}
-          ingestFailed={ingestFailed}
-          isIngesting={isIngesting}
-          autoIngestEnabled={autoIngestEnabled}
-          onAutoIngestChange={setAutoIngest}
-          onAutoIngestTextColsChange={setAutoIngestTextCols}
-          onRowLimitChange={setRowLimitInput}
-          onDownload={handleDownload}
-          onCancel={handleCancelDownload}
-        />
-      )}
-
-      {/* ── Zone 2: Progress card ────────────────────────────────────────── */}
-      {downloadStatus && !TERMINAL_STATES.has(downloadStatus.status) && (
-        <div style={{ marginTop: preview ? 12 : 24 }}>
-          <DownloadProgressCard
-            downloadStatus={downloadStatus}
+        {/* Preview card */}
+        {preview && (
+          <DatasetPreview
             preview={preview}
-            autoIngestEnabled={autoIngestEnabled}
+            previewLoading={previewLoading}
+            previewError={previewError}
+          />
+        )}
+
+        {/* Action bar */}
+        {preview && (
+          <DownloadActionBar
+            preview={preview}
+            selectedConfig={selectedConfig}
+            onConfigChange={setSelectedConfig}
+            autoIngest={autoIngest}
+            rowLimitInput={rowLimitInput}
+            textColumnOptions={textColumnOptions}
+            autoIngestTextCols={autoIngestTextCols}
+            isDownloading={isDownloading}
+            isCompleted={isCompleted ?? false}
             ingestCompleted={ingestCompleted}
             ingestFailed={ingestFailed}
             isIngesting={isIngesting}
-            datasets={datasets}
-            setActiveIngestDatasetId={setActiveIngestDatasetId}
-            onPanelUpdate={updatePanel}
+            autoIngestEnabled={autoIngestEnabled}
+            onAutoIngestChange={setAutoIngest}
+            onAutoIngestTextColsChange={setAutoIngestTextCols}
+            onRowLimitChange={setRowLimitInput}
+            onDownload={handleDownload}
             onCancel={handleCancelDownload}
           />
-        </div>
-      )}
+        )}
 
-      {/* ── Zone 3: Library ─────────────────────────────────────────────── */}
-      <LocalDatasetsLibrary
-        datasets={datasets}
-        ingestPanels={ingestPanels}
-        discovering={discovering}
-        downloadStatus={downloadStatus}
-        isDownloading={isDownloading}
-        onDiscover={handleDiscover}
-        onRestartPolling={startDownloadPolling}
-        onPanelUpdate={updatePanel}
-        onIngest={handleIngest}
-        stopIngestPolling={stopIngestPolling}
-        addToast={addToast}
-        router={router}
-      />
+        {/* Progress card */}
+        {downloadStatus && !TERMINAL_STATES.has(downloadStatus.status) && (
+          <div style={{ marginTop: preview ? 16 : 32 }}>
+            <DownloadProgressCard
+              downloadStatus={downloadStatus}
+              preview={preview}
+              autoIngestEnabled={autoIngestEnabled}
+              ingestCompleted={ingestCompleted}
+              ingestFailed={ingestFailed}
+              isIngesting={isIngesting}
+              datasets={datasets}
+              setActiveIngestDatasetId={setActiveIngestDatasetId}
+              onPanelUpdate={updatePanel}
+              onCancel={handleCancelDownload}
+            />
+          </div>
+        )}
+      </section>
+
+      {/* ── Section 2: My Dataset Library ───────────────────────────────────── */}
+      <section className={styles.sectionLibrary} aria-labelledby="library-heading">
+        <div className={styles.sectionHeader}>
+          <h2 id="library-heading" className={styles.sectionTitle}>My Dataset Library</h2>
+          <p className={styles.sectionSubtitle}>Downloaded datasets ready for ingestion or chat</p>
+        </div>
+
+        <LocalDatasetsLibrary
+          datasets={datasets}
+          ingestPanels={ingestPanels}
+          discovering={discovering}
+          downloadStatus={downloadStatus}
+          isDownloading={isDownloading}
+          onDiscover={handleDiscover}
+          onRestartPolling={startDownloadPolling}
+          onPanelUpdate={updatePanel}
+          onIngest={handleIngest}
+          stopIngestPolling={stopIngestPolling}
+          addToast={addToast}
+          router={router}
+        />
+      </section>
 
     </div>
   );

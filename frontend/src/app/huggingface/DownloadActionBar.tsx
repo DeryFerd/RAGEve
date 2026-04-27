@@ -12,6 +12,7 @@ import styles from "./HuggingFacePage.module.css";
 interface DownloadActionBarProps {
   preview: HuggingFacePreviewResponse;
   selectedConfig: string;
+  onConfigChange: (config: string) => void;
   autoIngest: boolean;
   rowLimitInput: string;
   textColumnOptions: Array<{ value: string; label: string; typeHint?: string }>;
@@ -34,6 +35,7 @@ interface DownloadActionBarProps {
 export function DownloadActionBar({
   preview,
   selectedConfig,
+  onConfigChange,
   autoIngest,
   rowLimitInput,
   textColumnOptions,
@@ -78,6 +80,42 @@ export function DownloadActionBar({
 
         {/* Actions */}
         <div className={styles.actionBarActions}>
+          {/* Config selector (if multiple configs exist) */}
+          {preview.configs.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label
+                htmlFor="config-select-action"
+                className={styles.ingestOptsLabel}
+                style={{ marginRight: 4 }}
+              >
+                Config:
+              </label>
+              <select
+                id="config-select-action"
+                value={selectedConfig}
+                onChange={(e) => onConfigChange(e.target.value)}
+                disabled={isDownloading}
+                aria-label="Dataset configuration"
+                style={{
+                  background: "var(--bg-primary)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "5px 8px",
+                  fontSize: 12,
+                  fontFamily: "var(--font-sans)",
+                  color: "var(--text-primary)",
+                  minWidth: 120,
+                }}
+              >
+                {preview.configs.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Auto-ingest toggle */}
           <label
             className={styles.ingestOptsLabel}
@@ -131,6 +169,7 @@ export function DownloadActionBar({
               {/* Row limit */}
               <div className={styles.ingestOptsField}>
                 <label
+                  htmlFor="row-limit-input-action"
                   style={{
                     display: "block",
                     fontSize: 10,
@@ -144,6 +183,7 @@ export function DownloadActionBar({
                   Row Limit
                 </label>
                 <input
+                  id="row-limit-input-action"
                   className={styles.rowLimitInput}
                   type="text"
                   placeholder="Full dataset (no limit)"
