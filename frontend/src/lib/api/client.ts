@@ -40,6 +40,7 @@ export async function apiFetch<T>(
   const response = await fetch(url, {
     ...options,
     signal: controller.signal,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(apiKey ? { "X-API-Key": apiKey } : {}),
@@ -85,6 +86,7 @@ export async function apiFetchFormData<T>(path: string, body: FormData): Promise
     method: "POST",
     body,
     signal: controller.signal,
+    credentials: "include",
     // Note: NOT setting Content-Type header — browser sets multipart boundary automatically
   });
 

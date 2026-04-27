@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AppShell } from "@/components/layout/AppShell";
-import { ToastContainer } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "RAGEve",
@@ -18,10 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
-      <body>
-        <AppShell>{children}</AppShell>
-        <ToastContainer />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
