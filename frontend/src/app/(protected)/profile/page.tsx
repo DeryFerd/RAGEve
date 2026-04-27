@@ -1,9 +1,16 @@
 "use client";
 
+import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, updateProfile, changePassword, logout } from "@/lib/api/auth";
 import { AuthMeResponse } from "@/lib/api/auth";
+import { Card, CardBody } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { Spinner } from "@/components/ui/Spinner";
+import { User, Mail, Calendar, Clock, Lock, LogOut } from "lucide-react";
 import styles from "./page.module.css";
 
 export default function ProfilePage() {
@@ -42,7 +49,7 @@ export default function ProfilePage() {
     fetchUser();
   }, [router]);
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -65,7 +72,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -108,7 +115,11 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <div className={styles.container}>Loading...</div>;
+    return (
+      <div className={styles.loadingContainer}>
+        <Spinner size={32} />
+      </div>
+    );
   }
 
   if (!user) {
@@ -117,112 +128,149 @@ export default function ProfilePage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Profile</h1>
-
-        {error && <div className={styles.error}>{error}</div>}
-        {success && <div className={styles.success}>{success}</div>}
-
-        <section className={styles.section}>
-          <h2>Account Information</h2>
-          <div className={styles.infoGrid}>
-            <div>
-              <strong>Username:</strong> {user.username}
+      <Card>
+        <CardBody>
+          {/* Header with avatar */}
+          <div className={styles.header}>
+            <div className={styles.avatar} aria-hidden="true">
+              <User size={32} />
             </div>
-            <div>
-              <strong>Email:</strong> {user.email} {user.email_verified ? "(verified)" : "(unverified)"}
-            </div>
-            <div>
-              <strong>Full Name:</strong> {user.full_name || "(not set)"}
-            </div>
-            <div>
-              <strong>Member since:</strong> {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
-            </div>
-            <div>
-              <strong>Last login:</strong> {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "N/A"}
+            <div className={styles.titleArea}>
+              <h1 className={styles.title}>Profile</h1>
+              <p className={styles.subtitle}>@{user.username}</p>
             </div>
           </div>
-        </section>
 
-        <section className={styles.section}>
-          <h2>Edit Profile</h2>
-          <form onSubmit={handleProfileUpdate} className={styles.form}>
-            <div className={styles.field}>
-              <label htmlFor="fullName">Full Name</label>
-              <input
+          {/* Feedback alerts */}
+          {error && <div className={`${styles.alert} ${styles.alertError}`}>{error}</div>}
+          {success && <div className={`${styles.alert} ${styles.alertSuccess}`}>{success}</div>}
+
+          {/* Account Information */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Account Information</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Username</span>
+                <span className={styles.infoValue}>
+                  <User size={14} color="var(--text-muted)" />
+                  {user.username}
+                </span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Email</span>
+                <div className={styles.emailRow}>
+                  <span className={styles.infoValue}>
+                    <Mail size={14} color="var(--text-muted)" />
+                    {user.email}
+                  </span>
+                  <Badge variant={user.email_verified ? "success" : "warning"}>
+                    {user.email_verified ? "Verified" : "Unverified"}
+                  </Badge>
+                </div>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Full Name</span>
+                <span className={styles.infoValue}>
+                  <User size={14} color="var(--text-muted)" />
+                  {user.full_name || "(not set)"}
+                </span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Member since</span>
+                <span className={styles.infoValue}>
+                  <Calendar size={14} color="var(--text-muted)" />
+                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
+                </span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Last login</span>
+                <span className={styles.infoValue}>
+                  <Clock size={14} color="var(--text-muted)" />
+                  {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "N/A"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Profile */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Edit Profile</h2>
+            <form onSubmit={handleProfileUpdate} className={styles.form}>
+              <Input
+                label="Full Name"
                 id="fullName"
-                type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 disabled={savingProfile}
+                placeholder="Enter your full name"
               />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="email">Email</label>
-              <input
+              <Input
+                label="Email"
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={savingProfile}
+                hint="Changing email will require re-verification."
+                placeholder="you@example.com"
               />
-              <small>Changing email will require re-verification.</small>
-            </div>
-            <button type="submit" disabled={savingProfile} className={styles.button}>
-              {savingProfile ? "Saving..." : "Save Changes"}
-            </button>
-          </form>
-        </section>
+              <Button type="submit" disabled={savingProfile} loading={savingProfile}>
+                Save Changes
+              </Button>
+            </form>
+          </div>
 
-        <section className={styles.section}>
-          <h2>Change Password</h2>
-          <form onSubmit={handlePasswordChange} className={styles.form}>
-            <div className={styles.field}>
-              <label htmlFor="currentPassword">Current Password</label>
-              <input
+          {/* Change Password */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>
+              <Lock size={14} />
+              Change Password
+            </h2>
+            <form onSubmit={handlePasswordChange} className={styles.form}>
+              <Input
+                label="Current Password"
                 id="currentPassword"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                required
                 disabled={changingPassword}
+                required
               />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="newPassword">New Password</label>
-              <input
+              <Input
+                label="New Password"
                 id="newPassword"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                required
                 disabled={changingPassword}
+                required
                 minLength={8}
+                hint="At least 8 characters"
               />
-            </div>
-            <div className={styles.field}>
-              <label htmlFor="confirmPassword">Confirm New Password</label>
-              <input
+              <Input
+                label="Confirm New Password"
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                required
                 disabled={changingPassword}
+                required
               />
-            </div>
-            <button type="submit" disabled={changingPassword} className={styles.button}>
-              {changingPassword ? "Changing..." : "Change Password"}
-            </button>
-          </form>
-        </section>
+              <Button type="submit" disabled={changingPassword} loading={changingPassword}>
+                Change Password
+              </Button>
+            </form>
+          </div>
 
-        <section className={styles.section}>
-          <button onClick={handleLogout} className={styles.logoutButton}>
-            Log Out
-          </button>
-        </section>
-      </div>
+          {/* Logout */}
+          <div className={styles.logoutSection}>
+            <Button variant="danger" fullWidth onClick={handleLogout}>
+              <LogOut size={16} />
+              Log Out
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }
