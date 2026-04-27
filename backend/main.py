@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.api.routes.agents import router as agents_router
+from backend.api.routes.auth import router as auth_router
 from backend.api.routes.chat import router as chat_router
 from backend.api.routes.chat_history import router as chat_history_router
 from backend.api.routes.datasets import router as datasets_router
@@ -246,6 +247,7 @@ async def health():
     }
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
+app.include_router(auth_router)
 app.include_router(ollama_router)
 app.include_router(files_router)
 app.include_router(datasets_router)
