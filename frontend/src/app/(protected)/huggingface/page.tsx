@@ -24,13 +24,11 @@ import { DatasetPreview } from "./DatasetPreview";
 import { DownloadActionBar } from "./DownloadActionBar";
 import { DownloadProgressCard } from "./DownloadProgressCard";
 import { LocalDatasetsLibrary } from "./LocalDatasetsLibrary";
+import { ACTIVE_DOWNLOAD_KEY, TERMINAL_STATES } from "./constants";
 import styles from "./HuggingFacePage.module.css";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const ACTIVE_DOWNLOAD_KEY = "hf_active_download_dataset_id";
-export { ACTIVE_DOWNLOAD_KEY };
-const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
+// (moved to constants.ts)
 
 // ── Ingest Panel State (shared across LocalDatasetsLibrary) ─────────────────
 

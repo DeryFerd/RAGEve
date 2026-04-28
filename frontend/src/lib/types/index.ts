@@ -582,3 +582,231 @@ export interface FeedbackPayload {
   rating: "thumbs_up" | "thumbs_down";
   comment?: string;
 }
+
+// ── Knowledgebases ─────────────────────────────────────────────────────────────
+
+export interface KnowledgebaseCreate {
+  tenant_id: string;
+  name: string;
+  description?: string | null;
+  avatar?: string | null;
+  parser_ids?: string;
+  language?: string;
+  created_by: string;
+  pagerank?: number;
+  pipeline_id?: string | null;
+}
+
+export interface KnowledgebaseUpdate {
+  name?: string;
+  description?: string | null;
+  avatar?: string | null;
+  parser_ids?: string | null;
+  language?: string | null;
+  pagerank?: number | null;
+  pipeline_id?: string | null;
+}
+
+export interface KnowledgebaseResponse {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string | null;
+  avatar?: string | null;
+  parser_ids: string;
+  language?: string | null;
+  created_by: string;
+  pagerank: number;
+  pipeline_id?: string | null;
+  graphrag_task_id?: string | null;
+  raptor_task_id?: string | null;
+  mindmap_task_id?: string | null;
+  create_time?: number | null;
+  create_date?: string | null;
+  update_time?: number | null;
+  update_date?: string | null;
+}
+
+export interface KnowledgebaseListResponse {
+  knowledgebases: KnowledgebaseResponse[];
+  total: number;
+}
+
+// Alias for document response used in knowledgebases API
+export type KbDocumentResponse = DocumentResponse;
+
+// DocumentResponse is already defined above as DocumentResponse
+export interface DocumentResponse {
+  id: string;
+  kb_id: string;
+  name: string;
+  parser_id: string;
+  created_by: string;
+  progress: number;
+  progress_msg: string;
+  process_duation: number;
+  doc_type?: string | null;
+  doc_metadata: Record<string, unknown>;
+  meta_fields: Record<string, unknown>;
+  thumbnail?: string | null;
+  pipeline_id?: string | null;
+  create_time?: number | null;
+  create_date?: string | null;
+  update_time?: number | null;
+  update_date?: string | null;
+}
+
+// Alias for file upload response used in knowledgebases API
+export type KbFileUploadResponse = FileUploadResponse;
+
+export interface FileUploadResponse {
+  filename: string;
+  file_id: string;
+  doc_id: string;
+  task_id: string;
+  size: number;
+  file_type: string;
+  status: string;
+}
+
+// Alias for task response used in knowledgebases API
+export type KbTaskResponse = TaskResponse;
+
+export interface TaskResponse {
+  id: string;
+  doc_id: string;
+  task_type: string;
+  from_page: number;
+  to_page: number;
+  priority: number;
+  begin_at?: string | null;
+  process_duation: number;
+  progress: number;
+  progress_msg: string;
+  retry_count: number;
+  digest?: string | null;
+  chunk_ids?: string | null;
+  create_time?: number | null;
+  create_date?: string | null;
+}
+
+// ── Dialogs ───────────────────────────────────────────────────────────────────
+
+export interface DialogCreate {
+  tenant_id: string;
+  name: string;
+  description?: string | null;
+  language?: string;
+  llm_id: string;
+  llm_setting?: Record<string, unknown>;
+  prompt_type?: string;
+  prompt_config?: Record<string, unknown>;
+  meta_data_filter?: Record<string, unknown>;
+  similarity_threshold?: number;
+  vector_similarity_weight?: number;
+  top_n?: number;
+  top_k?: number;
+  do_refer?: string;
+  rerank_id?: string;
+  kb_ids?: string[];
+  status?: string;
+}
+
+export interface DialogUpdate {
+  name?: string | null;
+  description?: string | null;
+  language?: string | null;
+  llm_id?: string | null;
+  llm_setting?: Record<string, unknown> | null;
+  prompt_type?: string | null;
+  prompt_config?: Record<string, unknown> | null;
+  meta_data_filter?: Record<string, unknown> | null;
+  similarity_threshold?: number | null;
+  vector_similarity_weight?: number | null;
+  top_n?: number | null;
+  top_k?: number | null;
+  do_refer?: string | null;
+  rerank_id?: string | null;
+  kb_ids?: string[] | null;
+  status?: string | null;
+}
+
+export interface DialogResponse {
+  id: string;
+  tenant_id: string;
+  name?: string | null;
+  description?: string | null;
+  language?: string | null;
+  llm_id: string;
+  llm_setting: Record<string, unknown>;
+  prompt_type: string;
+  prompt_config: Record<string, unknown>;
+  meta_data_filter: Record<string, unknown>;
+  similarity_threshold: number;
+  vector_similarity_weight: number;
+  top_n: number;
+  top_k: number;
+  do_refer: string;
+  rerank_id: string;
+  kb_ids: string[];
+  status: string;
+  create_time?: number | null;
+  create_date?: string | null;
+  update_time?: number | null;
+  update_date?: string | null;
+}
+
+export interface DialogListResponse {
+  dialogs: DialogResponse[];
+  total: number;
+}
+
+// ── Conversations ─────────────────────────────────────────────────────────────
+
+export interface ConversationCreate {
+  dialog_id: string;
+  name?: string;
+  user_id?: string | null;
+  messages?: Array<Record<string, unknown>>;
+  reference?: Array<unknown>;
+}
+
+export interface ConversationUpdate {
+  name?: string | null;
+  reference?: Array<unknown> | null;
+}
+
+export interface ConversationResponse {
+  id: string;
+  dialog_id: string;
+  name?: string | null;
+  message: Array<Record<string, unknown>>;
+  reference: Array<unknown>;
+  user_id?: string | null;
+  create_time?: number | null;
+  create_date?: string | null;
+  update_time?: number | null;
+  update_date?: string | null;
+}
+
+export interface ConversationListResponse {
+  conversations: ConversationResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AppendMessageRequest {
+  role: string;
+  content: string;
+  token_count?: number | null;
+  sources?: Array<Record<string, unknown>> | null;
+}
+
+export interface AppendMessageResponse {
+  role: string;
+  content: string;
+  token_count?: number | null;
+  sources?: Array<Record<string, unknown>> | null;
+  extra?: Record<string, unknown> | null;
+}

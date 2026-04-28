@@ -14,7 +14,7 @@ import type {
 import { cancelHFIngest } from "@/lib/api/datasets";
 import type { ToastVariant } from "@/stores/useToastStore";
 import styles from "./HuggingFacePage.module.css";
-import { ACTIVE_DOWNLOAD_KEY } from "./page";
+import { ACTIVE_DOWNLOAD_KEY } from "./constants";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
