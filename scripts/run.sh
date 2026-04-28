@@ -30,14 +30,17 @@ fi
 # ── OS ─────────────────────────────────────────────────────────────────────────
 detect_os
 
-# ── Docker containers ─────────────────────────────────────────────────────────
+# ── Docker check ─────────────────────────────────────────────────────────────
 if ! check_docker; then
   log_error "Docker must be running. Please start Docker Desktop and re-run."
   exit 1
 fi
 
-log_info "Starting Qdrant + MySQL..."
-docker compose -f docker/docker-compose.yml up -d qdrant mysql 2>&1 | grep -v "^$" || true
+# ── Ollama check ─────────────────────────────────────────────────────────────
+check_ollama
+
+log_info "Starting Qdrant + MySQL + Backend..."
+docker compose -f docker/docker-compose.yml up -d qdrant mysql backend
 
 # Wait for Qdrant
 for i in $(seq 1 30); do
@@ -51,17 +54,8 @@ else
   exit 1
 fi
 
-# ── Ollama ─────────────────────────────────────────────────────────────────────
-check_ollama
-
-# ── Backend ───────────────────────────────────────────────────────────────────
-log_info "Starting FastAPI backend..."
-uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &>/dev/null &
-BACKEND_PID=$!
-echo $BACKEND_PID > .backend.pid
-
 # Wait for backend
-for i in $(seq 1 15); do
+for i in $(seq 1 30); do
   curl -sf http://localhost:8000/health &>/dev/null && break
   sleep 1
 done
@@ -104,8 +98,8 @@ echo
 # ── Shutdown trap ─────────────────────────────────────────────────────────────
 shutdown() {
   log_info "Stopping services..."
-  kill $(cat .backend.pid 2>/dev/null) $(cat .frontend.pid 2>/dev/null) 2>/dev/null || true
-  rm -f .backend.pid .frontend.pid
+  kill $(cat .frontend.pid 2>/dev/null) 2>/dev/null || true
+  rm -f .frontend.pid
   docker compose -f docker/docker-compose.yml down 2>/dev/null || true
   log_success "All services stopped."
   exit 0

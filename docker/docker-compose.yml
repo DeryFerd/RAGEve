@@ -16,9 +16,10 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rageve_password}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_flow}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rageve}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ../docker/mysql-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rageve_password}"]
       interval: 10s
@@ -38,8 +39,8 @@ services:
       - ./:/app
       - ./data:/app/data
     env_file:
-      - path: ../.env
-        required: false
+      - path: ./.env
+        required: true
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       VECTOR_DB_PROVIDER: qdrant
@@ -48,11 +49,11 @@ services:
       # Peewee ORM connection (27-table RAGFlow schema)
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_USER: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rageve_password}
-      MYSQL_DBNAME: ${MYSQL_DATABASE:-rag_flow}
+      MYSQL_USER: ${MYSQL_USER:-rageve}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rageve_password}
+      MYSQL_DBNAME: ${MYSQL_DATABASE:-rageve}
       # Legacy SQLAlchemy DB_URL (for backward compatibility during migration)
-      DB_URL: mysql+aiomysql://root:${MYSQL_ROOT_PASSWORD:-rageve_password}@mysql:3306/${MYSQL_DATABASE:-rag_flow}?charset=utf8mb4
+      DB_URL: mysql+aiomysql://${MYSQL_USER:-rageve}:${MYSQL_PASSWORD:-rageve_password}@mysql:3306/${MYSQL_DATABASE:-rageve}?charset=utf8mb4
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

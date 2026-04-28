@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     mysql_port: int = 3306
     mysql_user: str = "root"
     mysql_password: str = ""
-    mysql_dbname: str = "rag_flow"
+    mysql_dbname: str = "rageve"
 
     # MySQL connection for SQLAlchemy (legacy chat history store)
     # Use mysql+aiomysql:// for production, mysql+pymysql:// for sync fallback.
