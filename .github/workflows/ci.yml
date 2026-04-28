@@ -17,7 +17,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: ''
-          MYSQL_DATABASE: rageve
+          MYSQL_DATABASE: rag_eve
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
@@ -46,10 +46,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -83,7 +83,7 @@ jobs:
           MYSQL_PORT: 3306
           MYSQL_USER: root
           MYSQL_PASSWORD: ''
-          MYSQL_DBNAME: rageve_test
+          MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
         run: uv run python test/test_stores.py
@@ -94,14 +94,14 @@ jobs:
           MYSQL_PORT: 3306
           MYSQL_USER: root
           MYSQL_PASSWORD: ''
-          MYSQL_DBNAME: rageve_test
+          MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
         run: uv run python -m pytest test/api/ -v
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-backend
           path: |
@@ -114,10 +114,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
