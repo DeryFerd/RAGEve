@@ -18,7 +18,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rageve_password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_flow}
     volumes:
-      - ./data/mysql:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rageve_password}"]
       interval: 10s
@@ -61,3 +61,6 @@ services:
       qdrant:
         condition: service_started
     restart: unless-stopped
+
+volumes:
+  mysql_data:
