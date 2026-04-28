@@ -46,6 +46,14 @@ eval = [
     "langchain-openai>=0.3.0",
     "anthropic>=0.40.0",
 ]
+dev = [
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "flake8>=7.0.0",
+    "flake8-bugbear>=24.9.1",
+    "mypy>=1.0.0",
+    "types-requests>=2.0.0",
+]
 
 [tool.setuptools]
 packages = ["backend"]
