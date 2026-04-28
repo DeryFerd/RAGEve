@@ -53,8 +53,6 @@ frontend/src/lib/utils/
 *~
 .DS_Store
 
-# uv lock file (commit uv.lock, not the other ones)
-uv.lock
 
 # TypeScript
 *.tsbuildinfo
