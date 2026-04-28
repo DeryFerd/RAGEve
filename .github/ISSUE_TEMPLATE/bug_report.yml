@@ -1,0 +1,62 @@
+name: "Bug Report"
+description: Create a bug issue for RAGEve
+title: "[Bug]: "
+labels: ["bug"]
+body:
+- type: checkboxes
+  attributes:
+    label: Self Checks
+    description: "Please check the following in order to be responded in time :)"
+    options:
+      - label: I have searched for existing issues [search for existing issues](https://github.com/bazzi24/RAGEve/issues), including closed ones.
+        required: true
+      - label: "Please do not modify this template :) and fill in all the required fields."
+        required: true
+- type: markdown
+  attributes:
+    value: "Please provide the following information to help us understand the issue."
+- type: input
+  attributes:
+    label: RAGFEve workspace code commit ID
+    description: Enter the commit ID associated with the issue.
+    placeholder: e.g., 4ff39ee
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Other environment information
+    description: |
+      Enter the environment details:
+      value: |
+      - Hardware parameters:
+      - OS type:
+      - Others:
+    render: Markdown
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Actual behavior
+    description: Describe what you encountered.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Expected behavior
+    description: Describe what you expected.
+  validations:
+    required: false
+- type: textarea
+  attributes:
+    label: Steps to reproduce
+    description: Steps to reproduce what you encountered.
+    render: Markdown
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Additional information
+    description: |
+      Log, error message, or any other information can help find the root cause.
+  validations:
+    required: false
