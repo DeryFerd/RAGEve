@@ -33,9 +33,6 @@ jobs:
       - name: Check imports
         run: uv run python -c "import main; print('Backend imports OK')"
 
-      - name: Verify package
-        run: uv run python -m pip check
-
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest

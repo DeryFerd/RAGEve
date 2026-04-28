@@ -16,10 +16,10 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: ''
-          MYSQL_DATABASE: rag_eve
+          MYSQL_ROOT_PASSWORD: 'rootpassword'
+          MYSQL_DATABASE: rag_eve_test
         options: >-
-          --health-cmd="mysqladmin ping"
+          --health-cmd="mysqladmin ping -h localhost -prootpassword"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -38,9 +38,9 @@ jobs:
         image: ollama/ollama:latest
         options: >-
           --health-cmd="curl -f http://localhost:11434/api/tags || exit 1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+          --health-interval=15s
+          --health-timeout=30s
+          --health-retries=10
         ports:
           - 11434:11434
 
@@ -63,26 +63,26 @@ jobs:
 
       - name: Wait for services
         run: |
-          sleep 30
+          sleep 20
 
       - name: Initialize database schema
         env:
           MYSQL_HOST: localhost
           MYSQL_PORT: 3306
           MYSQL_USER: root
-          MYSQL_PASSWORD: ''
-          MYSQL_DBNAME: rag_eve
+          MYSQL_PASSWORD: 'rootpassword'
+          MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
         run: |
-          uv run python -c "from backend.models_peewee import init_db; init_db()" || true
+          uv run python -c "from backend.models_peewee import init_db; init_db()"
 
       - name: Run store unit tests
         env:
           MYSQL_HOST: localhost
           MYSQL_PORT: 3306
           MYSQL_USER: root
-          MYSQL_PASSWORD: ''
+          MYSQL_PASSWORD: 'rootpassword'
           MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
@@ -93,7 +93,7 @@ jobs:
           MYSQL_HOST: localhost
           MYSQL_PORT: 3306
           MYSQL_USER: root
-          MYSQL_PASSWORD: ''
+          MYSQL_PASSWORD: 'rootpassword'
           MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
