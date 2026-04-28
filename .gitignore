@@ -61,6 +61,9 @@ frontend/src/lib/utils/
 *.bak
 *.backup
 
+# Corrupted git artifacts (safe to ignore)
+.trashed_git_corrupted/
+
 # Frontend build artifacts not covered by Next.js
 frontend/.cache/
 frontend/tsconfig.tsbuildinfo
