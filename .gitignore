@@ -42,9 +42,6 @@ data/
 # Exception: keep README under data/ if it exists
 data/README.md
 
-# Frontend temporary directories
-frontend/src/lib/utils/
-
 # IDE / editor
 .idea/
 .vscode/
