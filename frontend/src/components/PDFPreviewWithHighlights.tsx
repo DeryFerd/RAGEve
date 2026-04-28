@@ -116,12 +116,8 @@ export default function PDFPreviewWithHighlights({
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
-    // Render PDF page
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport,
-    };
-    await page.render(renderContext).promise;
+    // Render PDF page - pdfjs-dist v5 API uses { canvas, viewport }
+    await page.render({ canvas, viewport }).promise;
 
     // Draw highlights for blocks on this page
     if (highlights) {
@@ -136,9 +132,7 @@ export default function PDFPreviewWithHighlights({
         const { x0, y0, x1, y1 } = block.bbox;
         // Scale coordinates to match render scale
         const sx = x0 * RENDER_SCALE;
-        const sy = y0 * RENDER_SCALE;
         const sw = (x1 - x0) * RENDER_SCALE;
-        const sh = (y1 - y0) * RENDER_SCALE;
 
         const cyTop = viewport.height - (y1 * RENDER_SCALE);
         const cyBottom = viewport.height - (y0 * RENDER_SCALE);

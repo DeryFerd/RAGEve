@@ -3,12 +3,18 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import type { ChatMessageItem, SourceChunk } from "@/lib/types";
 import { StreamingCursor } from "./StreamingCursor";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import PDFPreviewWithHighlights from "@/components/PDFPreviewWithHighlights";
 import styles from "./ChatMessage.module.css";
+
+// Dynamically import PDFPreviewWithHighlights with SSR disabled
+const PDFPreviewWithHighlights = dynamic(
+  () => import("@/components/PDFPreviewWithHighlights").then(mod => mod.default),
+  { ssr: false, loading: () => <div>Loading PDF preview...</div> }
+);
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 

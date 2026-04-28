@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAgentsStore } from "@/stores/useAgentsStore";
