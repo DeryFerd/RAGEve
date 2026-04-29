@@ -18,6 +18,7 @@ import peewee
 
 class JSONTextField(peewee.TextField):
     """JSON field stored as LONGTEXT in MySQL."""
+
     field_type = "LONGTEXT"
 
     def db_value(self, value: Any) -> str | None:
@@ -36,6 +37,7 @@ class JSONTextField(peewee.TextField):
 
 class ListField(JSONTextField):
     """Array field using JSON. Ensures empty list instead of empty dict."""
+
     def db_value(self, value: list | None) -> str:
         if value is None:
             return "[]"
@@ -60,6 +62,7 @@ class BaseModel(peewee.Model):
     - update_time: Unix timestamp (bigint) when record last updated
     - update_date: datetime when record last updated
     """
+
     create_time = peewee.BigIntegerField(null=True, index=True)
     create_date = peewee.DateTimeField(null=True, index=True)
     update_time = peewee.BigIntegerField(null=True, index=True)

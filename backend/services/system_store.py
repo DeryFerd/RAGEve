@@ -12,12 +12,12 @@ import logging
 from typing import Any
 
 from backend.models_peewee import (
-    SystemSettings,
-    APIToken,
-    API4Conversation,
     MCP,
-    Search,
+    API4Conversation,
+    APIToken,
     PipelineOperationLog,
+    Search,
+    SystemSettings,
     get_database,
 )
 
@@ -95,7 +95,9 @@ class SystemStore:
             _log.info("Created API token for tenant %s", tenant_id)
             return t
 
-    def verify_api_token(self, token: str, tenant_id: str | None = None) -> APIToken | None:
+    def verify_api_token(
+        self, token: str, tenant_id: str | None = None
+    ) -> APIToken | None:
         """Verify an API token and return associated token record."""
         with get_database().connection_context():
             try:

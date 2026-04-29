@@ -108,7 +108,9 @@ async def send_verification_email(to_email: str, token: str) -> None:
 
     # Production: send via SMTP
     if not all([settings.smtp_host, settings.smtp_user, settings.smtp_password]):
-        raise ValueError("SMTP configuration incomplete: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD")
+        raise ValueError(
+            "SMTP configuration incomplete: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD"
+        )
 
     msg = MIMEText(body)
     msg["Subject"] = subject

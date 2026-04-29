@@ -11,10 +11,10 @@ import time
 from typing import Any
 
 from backend.models_peewee import (
-    EvaluationDataset,
     EvaluationCase,
-    EvaluationRun,
+    EvaluationDataset,
     EvaluationResult,
+    EvaluationRun,
     get_database,
 )
 
@@ -72,7 +72,11 @@ class EvaluationStore:
                 query = query.where(EvaluationDataset.created_by == created_by)
 
             total = query.count()
-            results = query.order_by(EvaluationDataset.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(EvaluationDataset.create_time.desc())
+                .limit(limit)
+                .offset(offset)
+            )
             return [ds.to_dict() for ds in results], total
 
     # ==================== Evaluation Cases ====================
@@ -161,7 +165,11 @@ class EvaluationStore:
                 query = query.where(EvaluationRun.created_by == created_by)
 
             total = query.count()
-            results = query.order_by(EvaluationRun.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(EvaluationRun.create_time.desc())
+                .limit(limit)
+                .offset(offset)
+            )
             return [r.to_dict() for r in results], total
 
     def finish_run(
@@ -235,7 +243,9 @@ class EvaluationStore:
 
         stats = {}
         for metric in metric_names:
-            values = [r["metrics"].get(metric) for r in results if metric in r["metrics"]]
+            values = [
+                r["metrics"].get(metric) for r in results if metric in r["metrics"]
+            ]
             if values:
                 stats[metric] = {
                     "mean": sum(values) / len(values),

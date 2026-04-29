@@ -23,44 +23,44 @@ from backend.config import settings
 _log = logging.getLogger(__name__)
 
 from .base import BaseModel
-from .user import User, Tenant, UserTenant
-from .knowledgebase import Knowledgebase, Document, File, File2Document, Task
-from .dialog import Dialog, Conversation
-from .llm import LLMFactories, LLM, TenantLLM
+from .canvas import CanvasTemplate, UserCanvas
 from .connector import Connector, Connector2Kb, SyncLogs
-from .canvas import UserCanvas, CanvasTemplate
+from .dialog import Conversation, Dialog
 from .evaluation import (
-    EvaluationDataset,
     EvaluationCase,
-    EvaluationRun,
+    EvaluationDataset,
     EvaluationResult,
+    EvaluationRun,
 )
+from .knowledgebase import Document, File, File2Document, Knowledgebase, Task
+from .llm import LLM, LLMFactories, TenantLLM
 from .system import (
-    SystemSettings,
-    APIToken,
-    API4Conversation,
     MCP,
-    Search,
+    API4Conversation,
+    APIToken,
     PipelineOperationLog,
+    Search,
+    SystemSettings,
 )
+from .user import Tenant, User, UserTenant
 
 # ==================== Database Configuration ====================
 
 MYSQL_CONFIG = {
-    'host': settings.mysql_host,
-    'port': settings.mysql_port,
-    'user': settings.mysql_user,
-    'password': settings.mysql_password,
-    'database': settings.mysql_dbname,
-    'charset': 'utf8mb4',
-    'sql_mode': 'STRICT_TRANS_TABLES',
+    "host": settings.mysql_host,
+    "port": settings.mysql_port,
+    "user": settings.mysql_user,
+    "password": settings.mysql_password,
+    "database": settings.mysql_dbname,
+    "charset": "utf8mb4",
+    "sql_mode": "STRICT_TRANS_TABLES",
 }
 
 POOL_CONFIG = {
-    'max_connections': 900,
-    'stale_timeout': 300,
-    'max_retries': 5,
-    'retry_delay': 1,
+    "max_connections": 900,
+    "stale_timeout": 300,
+    "max_retries": 5,
+    "retry_delay": 1,
 }
 
 
@@ -86,13 +86,21 @@ class RetryingPooledMySQLDatabase(PooledMySQLDatabase):
                 return super().execute_sql(*args, **kwargs)
             except (peewee.OperationalError, peewee.InterfaceError) as e:
                 should_retry = (
-                    (hasattr(e, 'args') and e.args and e.args[0] in [2013, 2006]) or
-                    (str(e) in ['', 'Lost connection']) or
-                    (hasattr(e, '__class__') and e.__class__.__name__ == 'InterfaceError')
+                    (hasattr(e, "args") and e.args and e.args[0] in [2013, 2006])
+                    or (str(e) in ["", "Lost connection"])
+                    or (
+                        hasattr(e, "__class__")
+                        and e.__class__.__name__ == "InterfaceError"
+                    )
                 )
                 if should_retry and attempt < self.max_retries:
-                    _log.warning("Database connection issue (attempt %d/%d): %s", attempt+1, self.max_retries, e)
-                    time.sleep(self.retry_delay * (2 ** attempt))
+                    _log.warning(
+                        "Database connection issue (attempt %d/%d): %s",
+                        attempt + 1,
+                        self.max_retries,
+                        e,
+                    )
+                    time.sleep(self.retry_delay * (2**attempt))
                     try:
                         self.close()
                         self.connect()
@@ -119,7 +127,7 @@ def get_database() -> RetryingPooledMySQLDatabase:
 def _init_database() -> RetryingPooledMySQLDatabase:
     """Initialize database connection and create database if needed."""
     db_config = MYSQL_CONFIG.copy()
-    db_name = db_config.pop('database')
+    db_name = db_config.pop("database")
 
     # Add pool config
     db_config.update(POOL_CONFIG)
@@ -127,15 +135,18 @@ def _init_database() -> RetryingPooledMySQLDatabase:
     # Create database if it doesn't exist
     try:
         import pymysql
+
         conn = pymysql.connect(
-            host=db_config['host'],
-            port=db_config['port'],
-            user=db_config['user'],
-            password=db_config['password'],
-            charset='utf8mb4'
+            host=db_config["host"],
+            port=db_config["port"],
+            user=db_config["user"],
+            password=db_config["password"],
+            charset="utf8mb4",
         )
         with conn.cursor() as cursor:
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
             _log.info("Database '%s' created or already exists", db_name)
         conn.close()
     except Exception as e:
@@ -143,7 +154,7 @@ def _init_database() -> RetryingPooledMySQLDatabase:
         raise
 
     # Connect to the database
-    db_config['database'] = db_name
+    db_config["database"] = db_name
     database = RetryingPooledMySQLDatabase(**db_config)
 
     # Bind all models to this database
@@ -225,9 +236,9 @@ async def init_db() -> None:
                 Search,
                 PipelineOperationLog,
             ],
-            safe=True
+            safe=True,
         )
-    _log.info("All tables initialized (database: %s)", MYSQL_CONFIG['database'])
+    _log.info("All tables initialized (database: %s)", MYSQL_CONFIG["database"])
 
 
 def close_db() -> None:

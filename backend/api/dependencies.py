@@ -7,7 +7,7 @@ Provides:
 
 from __future__ import annotations
 
-from fastapi import Cookie, Depends, HTTPException, Request, status
+from fastapi import Cookie, HTTPException, Request, status
 
 from backend.models_peewee.user import User
 from backend.services.auth import decode_access_token

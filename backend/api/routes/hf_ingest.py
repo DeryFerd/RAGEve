@@ -6,6 +6,7 @@ Routes:
   GET /ingest/{ingest_id}/status — poll ingest progress
   POST /ingest/{ingest_id}/cancel — cancel an in-progress ingest
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -18,9 +19,9 @@ from typing import Any
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
 from backend.config import settings
-from backend.api.routes import hf_status
 
 _log = logging.getLogger("app")
 
@@ -41,7 +42,9 @@ class HuggingFaceIngestRequest(BaseModel):
         ),
     )
     metadata_columns: list[str] = Field(default_factory=list)
-    row_limit: int | None = Field(default=None, description="Cap rows for testing; leave unset for full ingestion")
+    row_limit: int | None = Field(
+        default=None, description="Cap rows for testing; leave unset for full ingestion"
+    )
     batch_size: int = Field(default=32, ge=1, le=256)
     chunk_overlap: int = Field(default=180, ge=0, le=500)
     max_tokens_per_chunk: int = Field(default=500, ge=50, le=2000)
@@ -98,10 +101,16 @@ async def _run_hf_background_ingest(
     payload_kwargs: dict[str, Any],
 ) -> None:
     """Background worker: run HF dataset through quality scoring → chunking → embedding → Qdrant upsert."""
+    from backend.services.ingestion_factory import (
+        get_embedder,
+        get_qdrant_store,
+        get_sparse_embedder,
+    )
     from rag.ingestion.hf_ingestion import ingest_hf_dataset as _run_hf_ingest
-    from backend.services.ingestion_factory import get_embedder, get_qdrant_store, get_sparse_embedder
 
-    _log.info("HF ingest worker started: ingest_id=%s dataset_id=%s", ingest_id, dataset_id)
+    _log.info(
+        "HF ingest worker started: ingest_id=%s dataset_id=%s", ingest_id, dataset_id
+    )
 
     hf_root = settings.data_root / "hf"
     local_path = hf_root / hf_status._normalize_dataset_dirname(dataset_id)
@@ -164,7 +173,11 @@ async def _run_hf_background_ingest(
                 "message": result.get("message", "Done"),
             },
         )
-        _log.info("HF ingest completed: ingest_id=%s chunks=%d", ingest_id, result.get("chunks_embedded", 0))
+        _log.info(
+            "HF ingest completed: ingest_id=%s chunks=%d",
+            ingest_id,
+            result.get("chunks_embedded", 0),
+        )
 
     except asyncio.CancelledError:
         await hf_status._set_hf_ingest_status(
@@ -266,7 +279,9 @@ async def submit_hf_ingest(
 
     _log.info(
         "HF ingest submitted: ingest_id=%s dataset_id=%s qdrant_id=%s",
-        ingest_id, dataset_id, qdrant_safe_id,
+        ingest_id,
+        dataset_id,
+        qdrant_safe_id,
     )
 
     return HFIngestSubmitResponse(
@@ -282,11 +297,15 @@ async def submit_hf_ingest(
     summary="Poll status of a background HF ingest",
 )
 @limiter.limit("120/minute")
-async def get_hf_ingest_status(request: Request, ingest_id: str) -> HFIngestStatusResponse:
+async def get_hf_ingest_status(
+    request: Request, ingest_id: str
+) -> HFIngestStatusResponse:
     """Return current status of a background HF ingest task."""
     entry = hf_status._hf_ingest_registry.get(ingest_id)
     if not entry:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Ingest task not found: '{ingest_id}'")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Ingest task not found: '{ingest_id}'"
+        )
 
     result_obj = entry.get("result")
     if result_obj:
@@ -312,7 +331,9 @@ async def cancel_hf_ingest(request: Request, ingest_id: str) -> dict:
     """Cancel a running or queued ingest task."""
     entry = hf_status._hf_ingest_registry.get(ingest_id)
     if not entry:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Ingest task not found: '{ingest_id}'")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Ingest task not found: '{ingest_id}'"
+        )
 
     s = entry.get("status", "unknown")
     if s in ("completed", "failed", "cancelled"):

@@ -10,14 +10,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 
 from backend.api.routes._limiter import limiter
 from backend.config import settings
 from backend.schemas.knowledgebases import DocumentResponse, FileUploadResponse
 from backend.services.database import run_db_operation
-from backend.services.knowledge_base_store import get_knowledge_base_store
 from backend.services.ingestion_factory import get_ingestion_service
+from backend.services.knowledge_base_store import get_knowledge_base_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -87,6 +95,7 @@ async def upload_file_to_document(
     # We'll import it from there to reuse.
     try:
         from backend.api.routes.knowledgebases import run_ingestion_background
+
         background_tasks.add_task(
             run_ingestion_background,
             task_id=task_rec.id,

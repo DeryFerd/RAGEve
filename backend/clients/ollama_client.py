@@ -103,7 +103,9 @@ class OllamaClient:
 
         return sorted(set(names)), details
 
-    async def validate_models(self, embedding_model: str, chat_model: str) -> tuple[bool, list[str], list[str]]:
+    async def validate_models(
+        self, embedding_model: str, chat_model: str
+    ) -> tuple[bool, list[str], list[str]]:
         """
         Validate that the requested embedding and chat models are available.
         Uses tag-normalized comparison so 'llama3.2' matches 'llama3.2:latest'.
@@ -115,4 +117,3 @@ class OllamaClient:
                 missing.append(model)
 
         return (len(missing) == 0, available, missing)
-

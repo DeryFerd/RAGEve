@@ -3,8 +3,13 @@ from __future__ import annotations
 import re
 
 from rag.chunking.high_accuracy import deepdoc_chunk_text
-from rag.deepdoc.layout_parser import Block, PageLayout, BlockType, _build_heading_hierarchy
-from rag.deepdoc.quality_scorer import ChunkProfile, PROFILE_PRESETS
+from rag.deepdoc.layout_parser import (
+    Block,
+    BlockType,
+    PageLayout,
+    _build_heading_hierarchy,
+)
+from rag.deepdoc.quality_scorer import PROFILE_PRESETS, ChunkProfile
 
 PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n+")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。！？])\s+")
@@ -79,10 +84,12 @@ def hierarchical_chunk_text(
         if is_heading:
             # Save previous section
             if current_section_blocks:
-                sections.append({
-                    "heading": current_heading,
-                    "blocks": current_section_blocks.copy(),
-                })
+                sections.append(
+                    {
+                        "heading": current_heading,
+                        "blocks": current_section_blocks.copy(),
+                    }
+                )
             # Start new section with this heading
             current_heading = block
             current_section_blocks = [block]
@@ -91,15 +98,19 @@ def hierarchical_chunk_text(
 
     # Save last section
     if current_section_blocks:
-        sections.append({
-            "heading": current_heading,
-            "blocks": current_section_blocks.copy(),
-        })
+        sections.append(
+            {
+                "heading": current_heading,
+                "blocks": current_section_blocks.copy(),
+            }
+        )
 
     # Chunk each section
     chunks: list[tuple[str, list[Block]]] = []
 
-    def _split_blocks_into_chunks(blocks: list[Block], max_size: int) -> list[list[Block]]:
+    def _split_blocks_into_chunks(
+        blocks: list[Block], max_size: int
+    ) -> list[list[Block]]:
         """Split a list of blocks into batches where each batch's total text length <= max_size."""
         batches: list[list[Block]] = []
         current_batch: list[Block] = []
@@ -153,7 +164,9 @@ def hierarchical_chunk_text(
         if not section_blocks:
             continue
 
-        section_text = " ".join(b.text for b in section_blocks if b != section["heading"])
+        section_text = " ".join(
+            b.text for b in section_blocks if b != section["heading"]
+        )
         heading_block = section["heading"]
 
         if len(section_text) <= chunk_size:
@@ -162,7 +175,9 @@ def hierarchical_chunk_text(
             if heading_block:
                 chunk_text_parts.append(heading_block.text)
                 chunk_text_parts.append("")
-            chunk_text_parts.extend(b.text for b in section_blocks if b != heading_block)
+            chunk_text_parts.extend(
+                b.text for b in section_blocks if b != heading_block
+            )
             chunk_text = "\n".join(chunk_text_parts).strip()
             if chunk_text:
                 chunks.append((chunk_text, section_blocks.copy()))
@@ -223,6 +238,7 @@ def adaptive_chunk_text(
         except Exception as e:
             # Fallback to text-only if hierarchical fails
             import logging
+
             logging.getLogger("rag.chunking.adaptive").warning(
                 "Hierarchical chunking failed, falling back to text-only: %s", e
             )

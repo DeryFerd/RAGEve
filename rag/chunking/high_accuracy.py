@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 
-
 PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n+")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。！？])\s+")
 
@@ -31,7 +30,10 @@ def _split_long_sentence(sentence: str, max_chars: int, overlap: int) -> list[st
     words = sentence.split()
     if len(words) <= 1:
         # Fall back to fixed-width slicing with overlap instead of zero-overlap stride
-        return [sentence[i : i + max_chars] for i in range(0, len(sentence), max_chars - overlap)]
+        return [
+            sentence[i : i + max_chars]
+            for i in range(0, len(sentence), max_chars - overlap)
+        ]
 
     result: list[str] = []
     buff: list[str] = []
@@ -80,17 +82,26 @@ def deepdoc_chunk_text(
         for sentence in _split_into_sentences(paragraph):
             for segment in _split_long_sentence(sentence, chunk_size, chunk_overlap):
                 seg_len = len(segment)
-                candidate_chars = current_chars + seg_len + (1 if current_sentences else 0)
-                candidate_tokens = _estimate_tokens(" ".join(current_sentences + [segment]))
+                candidate_chars = (
+                    current_chars + seg_len + (1 if current_sentences else 0)
+                )
+                candidate_tokens = _estimate_tokens(
+                    " ".join(current_sentences + [segment])
+                )
 
-                if current_sentences and (candidate_chars > chunk_size or candidate_tokens > max_tokens_per_chunk):
+                if current_sentences and (
+                    candidate_chars > chunk_size
+                    or candidate_tokens > max_tokens_per_chunk
+                ):
                     chunk_text = " ".join(current_sentences).strip()
                     if chunk_text:
                         chunks.append(chunk_text)
 
                     if chunk_overlap > 0 and chunks:
                         overlap_text = chunks[-1][-chunk_overlap:].strip()
-                        current_sentences = [overlap_text, segment] if overlap_text else [segment]
+                        current_sentences = (
+                            [overlap_text, segment] if overlap_text else [segment]
+                        )
                         current_chars = len(" ".join(current_sentences))
                     else:
                         current_sentences = [segment]

@@ -29,16 +29,16 @@ for _ in range(4):
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-import httpx
-
+from test.benchmark.evaluation import judge, retrieval
 from test.benchmark.evaluation._config import EvalConfig
 from test.benchmark.evaluation._ground_truth import SquadSample, load_squad_samples
-from test.benchmark.evaluation import retrieval, judge
 
+import httpx
 
 # ---------------------------------------------------------------------------
 # Answer generation via FastAPI streaming chat
 # ---------------------------------------------------------------------------
+
 
 async def _stream_chat_answer(
     agent_id: str,
@@ -143,6 +143,7 @@ async def generate_answers(
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
+
 async def run_full_evaluation(
     n_samples: int | None = None,
     top_k: int | None = None,
@@ -215,12 +216,17 @@ async def run_full_evaluation(
     for sample, metric_dict in zip(samples, ret_metrics.get("per_query", [])):
         # We need the actual chunk texts — retrieve them from the eval
         # Re-run a quick retrieval to get chunk texts for judge metrics
-        from rag.storage.qdrant_store import QdrantStore
         from rag.embedding.ollama_embedder import OllamaEmbedder
+        from rag.storage.qdrant_store import QdrantStore
+
         gc.collect()
         qdrant = QdrantStore(url=cfg.qdrant_url)
-        embedder = OllamaEmbedder(base_url=cfg.ollama_base_url, model=cfg.ollama_embed_model)
-        hits = await qdrant.dense_search(cfg.dataset_id, await embedder.embed_single(sample.question), top_k=top_k)
+        embedder = OllamaEmbedder(
+            base_url=cfg.ollama_base_url, model=cfg.ollama_embed_model
+        )
+        hits = await qdrant.dense_search(
+            cfg.dataset_id, await embedder.embed_single(sample.question), top_k=top_k
+        )
         retrieved_contexts.append([hit.chunk_text for hit in hits])
 
     # ── Step 5: LLM-as-judge metrics ───────────────────────────────────────
@@ -266,18 +272,23 @@ async def run_full_evaluation(
 # Summary printer
 # ---------------------------------------------------------------------------
 
+
 def _print_summary(report: dict) -> None:
     print(f"\n{'='*60}")
     print("  Evaluation Summary")
     print(f"{'='*60}")
 
     cfg = report.get("config", {})
-    print(f"\n  Config       : {cfg.get('n_samples')} samples, top_k={cfg.get('top_k')}, "
-          f"model={cfg.get('ollama_chat_model')}")
+    print(
+        f"\n  Config       : {cfg.get('n_samples')} samples, top_k={cfg.get('top_k')}, "
+        f"model={cfg.get('ollama_chat_model')}"
+    )
 
     rm = report.get("retrieval_metrics", {})
     if "error" not in rm:
-        print(f"\n  Retrieval Metrics (k={rm.get('k')}, {rm.get('n_queries')} queries):")
+        print(
+            f"\n  Retrieval Metrics (k={rm.get('k')}, {rm.get('n_queries')} queries):"
+        )
         print(f"    Precision@K  : {rm.get('precision_at_k', '?'):.4f}")
         print(f"    Recall@K     : {rm.get('recall_at_k', '?'):.4f}")
         print(f"    MRR          : {rm.get('mrr', '?'):.4f}")
@@ -289,16 +300,20 @@ def _print_summary(report: dict) -> None:
         nan = jm.get("n_nan", {})
         print(f"\n  LLM-Judge Metrics ({n} queries, nan=unparseable):")
         for metric, stats in [
-            ("  Faithfulness",      jm.get("faithfulness", {})),
-            ("  Answer Relevance",  jm.get("answer_relevance", {})),
+            ("  Faithfulness", jm.get("faithfulness", {})),
+            ("  Answer Relevance", jm.get("answer_relevance", {})),
             ("  Context Precision", jm.get("context_precision", {})),
             ("  Context Relevance", jm.get("context_relevance", {})),
-            ("  Groundedness",      jm.get("groundedness", {})),
+            ("  Groundedness", jm.get("groundedness", {})),
         ]:
             mean = stats.get("mean")
             std = stats.get("std")
             if mean is not None:
-                print(f"    {metric:<22}: {mean:.4f}  ±{std:.4f}" if std else f"    {metric}: {mean:.4f}")
+                print(
+                    f"    {metric:<22}: {mean:.4f}  ±{std:.4f}"
+                    if std
+                    else f"    {metric}: {mean:.4f}"
+                )
             else:
                 print(f"    {metric}: nan")
 

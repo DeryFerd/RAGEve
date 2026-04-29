@@ -63,7 +63,9 @@ def get_chat_client(model: str | None = None) -> OllamaChat:
 def get_agent_store() -> AgentStore:
     global _agent_store
     if _agent_store is None:
-        _agent_store = AgentStore(registry_path=settings.data_root / "agents" / "registry.json")
+        _agent_store = AgentStore(
+            registry_path=settings.data_root / "agents" / "registry.json"
+        )
     return _agent_store
 
 

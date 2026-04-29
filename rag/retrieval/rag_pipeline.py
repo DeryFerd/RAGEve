@@ -37,8 +37,7 @@ from rag.embedding.sparse_embedder import SparseEmbedder
 from rag.generation.ollama_chat import ChatMessage, OllamaChat
 from rag.llm.context_builder import build_context
 from rag.retrieval.cross_encoder_reranker import CrossEncoderReranker
-from rag.storage.qdrant_store import SearchResult
-from rag.storage.qdrant_store import QdrantStore
+from rag.storage.qdrant_store import QdrantStore, SearchResult
 
 _log = logging.getLogger(__name__)
 
@@ -137,10 +136,11 @@ def _results_to_sources(
     Blocks (PDF highlighting) are only included for chunks with score >= PREVIEW_BLOCK_SCORE_THRESHOLD
     to avoid showing irrelevant previews.
     """
+
     def _to_source(c: SearchResult) -> SourceChunk:
         # Prefer named dense/sparse attributes when present; fall back to score.
-        dense   = getattr(c, "dense_score", None) or c.score
-        sparse  = getattr(c, "sparse_score", None) or 0.0
+        dense = getattr(c, "dense_score", None) or c.score
+        sparse = getattr(c, "sparse_score", None) or 0.0
         blocks = c.metadata.get("blocks")
         # Only include block-level metadata for high-scoring chunks.
         if c.score < PREVIEW_BLOCK_SCORE_THRESHOLD[search_type]:
@@ -157,6 +157,7 @@ def _results_to_sources(
             blocks=blocks,
             datasetId=c.metadata.get("dataset_id"),
         )
+
     return [_to_source(c) for c in chunks]
 
 
@@ -253,7 +254,10 @@ class RAGPipeline:
             reranked = reranker.rerank(query=question, chunks=chunks, top_k=top_k)
             _log.info(
                 "[%s] Reranking: %d → %d chunks using %s",
-                collection_name, len(chunks), top_k, reranker_model,
+                collection_name,
+                len(chunks),
+                top_k,
+                reranker_model,
             )
             # Convert ScoredChunk (from reranker) back to SearchResult for downstream processing.
             # This preserves dense_score (bi-encoder cosine) and sparse_score for UI display.
@@ -303,7 +307,9 @@ class RAGPipeline:
             sources=sources,
             metadata={
                 "chunks_retrieved": len(chunks),
-                "chunks_reranked": len(context_chunks) if use_reranker and reranker_model else None,
+                "chunks_reranked": (
+                    len(context_chunks) if use_reranker and reranker_model else None
+                ),
                 "reranker_model": reranker_model if use_reranker else None,
                 "use_hybrid": use_hybrid,
                 "collection": collection_name,
@@ -344,7 +350,10 @@ class RAGPipeline:
             reranked = reranker.rerank(query=question, chunks=chunks, top_k=top_k)
             _log.info(
                 "[%s] Reranking: %d → %d chunks using %s",
-                collection_name, len(chunks), top_k, reranker_model,
+                collection_name,
+                len(chunks),
+                top_k,
+                reranker_model,
             )
             # Convert ScoredChunk (from reranker) back to SearchResult for downstream processing.
             # This preserves dense_score (bi-encoder cosine) and sparse_score for UI display.
@@ -447,7 +456,9 @@ class RAGPipeline:
             # ── Hybrid retrieval ────────────────────────────────────────
             _log.info(
                 "[%s] Retrieval: hybrid (dense+sparse) top_k=%d → %d chunks",
-                collection_name, top_k, overfetch_k,
+                collection_name,
+                top_k,
+                overfetch_k,
             )
 
             dense_vec, sparse_vec = await self._embed_both(question)
@@ -455,20 +466,27 @@ class RAGPipeline:
             chunks = await self.qdrant.hybrid_search(
                 collection_name=collection_name,
                 dense_query=dense_vec,
-                sparse_query={"indices": sparse_vec.indices, "values": sparse_vec.values},
+                sparse_query={
+                    "indices": sparse_vec.indices,
+                    "values": sparse_vec.values,
+                },
                 top_k=overfetch_k,
                 rrf_k=RRF_K,
             )
             _log.info(
                 "[%s] Hybrid search: %d results, max_score=%.4f",
-                collection_name, len(chunks), chunks[0].score if chunks else 0.0,
+                collection_name,
+                len(chunks),
+                chunks[0].score if chunks else 0.0,
             )
 
         else:
             # ── Dense-only retrieval (backward-compatible) ───────────────
             _log.info(
                 "[%s] Retrieval: dense-only top_k=%d → %d chunks",
-                collection_name, top_k, overfetch_k,
+                collection_name,
+                top_k,
+                overfetch_k,
             )
             dense_vec = await self.embedder.embed_single(question)
 
@@ -480,7 +498,9 @@ class RAGPipeline:
             )
             _log.info(
                 "[%s] Dense search: %d results, max_score=%.4f",
-                collection_name, len(chunks), chunks[0].score if chunks else 0.0,
+                collection_name,
+                len(chunks),
+                chunks[0].score if chunks else 0.0,
             )
 
         return chunks

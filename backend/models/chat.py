@@ -48,6 +48,7 @@ class FeedbackRating(str, PyEnum):
 
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
     pass
 
 
@@ -70,8 +71,12 @@ class ChatSession(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     agent_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False, default="New conversation")
-    agent_config_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    title: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="New conversation"
+    )
+    agent_config_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
@@ -123,7 +128,9 @@ class ChatMessage(Base):
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Raw Qdrant chunks at answer time — stored so follow-up questions can reuse this context
-    retrieval_context: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    retrieval_context: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSON, nullable=True
+    )
     # Formatted source references shown to the user in the UI
     sources: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
 

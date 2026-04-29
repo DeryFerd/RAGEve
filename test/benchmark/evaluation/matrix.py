@@ -42,8 +42,8 @@ import httpx
 import numpy as np
 import pandas as pd
 import torch
-from sentence_transformers import CrossEncoder
 from openai import OpenAI
+from sentence_transformers import CrossEncoder
 
 from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.storage.qdrant_store import QdrantStore
@@ -52,29 +52,30 @@ from rag.storage.qdrant_store import QdrantStore
 # Model & search-mode definitions
 # =============================================================================
 
+
 @dataclass
 class EmbedModel:
-    name: str          # Ollama model name
-    ollama_id: str     # Ollama API model ID
-    dim: int           # vector dimension
-    collection: str    # Qdrant collection name
+    name: str  # Ollama model name
+    ollama_id: str  # Ollama API model ID
+    dim: int  # vector dimension
+    collection: str  # Qdrant collection name
     base_url: str = "http://localhost:11434"
 
 
 @dataclass
 class LLMModel:
-    name: str          # display name
-    ollama_id: str     # Ollama API model ID
+    name: str  # display name
+    ollama_id: str  # Ollama API model ID
     is_vision: bool = False  # placeholder for vision models
 
 
 @dataclass
 class SearchMode:
-    id: str          # internal key
-    label: str        # display label
-    use_sparse: bool = False   # include bm25 sparse
-    use_rerank: bool = False   # apply bge reranker
-    top_k_fetch: int = 20     # fetch this many before reranking
+    id: str  # internal key
+    label: str  # display label
+    use_sparse: bool = False  # include bm25 sparse
+    use_rerank: bool = False  # apply bge reranker
+    top_k_fetch: int = 20  # fetch this many before reranking
 
 
 EMBED_MODELS = [
@@ -93,15 +94,34 @@ EMBED_MODELS = [
 ]
 
 LLM_MODELS = [
-    LLMModel(name="llama3.2",  ollama_id="llama3.2:latest"),
-    LLMModel(name="SmolLM2-1.7B", ollama_id="thirdeyeai/SmolLM2-1.7B-Instruct-Uncensored.gguf:Q4_0"),
+    LLMModel(name="llama3.2", ollama_id="llama3.2:latest"),
+    LLMModel(
+        name="SmolLM2-1.7B",
+        ollama_id="thirdeyeai/SmolLM2-1.7B-Instruct-Uncensored.gguf:Q4_0",
+    ),
 ]
 
 SEARCH_MODES = [
-    SearchMode(id="basic",      label="Dense",          use_sparse=False, use_rerank=False, top_k_fetch=5),
-    SearchMode(id="hybrid",      label="Hybrid",         use_sparse=True,  use_rerank=False, top_k_fetch=15),
-    SearchMode(id="hybrid_rerank", label="Hybrid+Rerank", use_sparse=True,  use_rerank=True,  top_k_fetch=15),
-    SearchMode(id="rerank",      label="Dense+Rerank",   use_sparse=False, use_rerank=True,  top_k_fetch=15),
+    SearchMode(
+        id="basic", label="Dense", use_sparse=False, use_rerank=False, top_k_fetch=5
+    ),
+    SearchMode(
+        id="hybrid", label="Hybrid", use_sparse=True, use_rerank=False, top_k_fetch=15
+    ),
+    SearchMode(
+        id="hybrid_rerank",
+        label="Hybrid+Rerank",
+        use_sparse=True,
+        use_rerank=True,
+        top_k_fetch=15,
+    ),
+    SearchMode(
+        id="rerank",
+        label="Dense+Rerank",
+        use_sparse=False,
+        use_rerank=True,
+        top_k_fetch=15,
+    ),
 ]
 
 # Default config
@@ -125,6 +145,7 @@ RERANKER_ID_HF = "BAAI/bge-reranker-base"
 # =============================================================================
 # Squad data
 # =============================================================================
+
 
 def load_squad(n: int | None = None) -> list[dict]:
     """Load n squad rows. Returns list of {question, ground_truth, context}."""
@@ -157,6 +178,7 @@ def load_squad(n: int | None = None) -> list[dict]:
 # Retrieval: embed + search + rerank
 # =============================================================================
 
+
 class RetrievalRunner:
     """
     Encapsulates retrieval for one embed model.
@@ -166,8 +188,12 @@ class RetrievalRunner:
     def __init__(self, embed_model: EmbedModel, top_k_fetch: int = 20):
         self.embed_model = embed_model
         self.top_k_fetch = top_k_fetch
-        self._client_openai = OpenAI(api_key="ollama", base_url=OLLAMA_V1_URL, timeout=60.0)
-        self._embedder = OllamaEmbedder(base_url=OLLAMA_BASE_URL, model=embed_model.ollama_id)
+        self._client_openai = OpenAI(
+            api_key="ollama", base_url=OLLAMA_V1_URL, timeout=60.0
+        )
+        self._embedder = OllamaEmbedder(
+            base_url=OLLAMA_BASE_URL, model=embed_model.ollama_id
+        )
         self._qdrant = QdrantStore(url=QDRANT_URL)
         # Lazy: cross-encoder and sparse embedder
         self._cross_encoder: CrossEncoder | None = None
@@ -176,6 +202,7 @@ class RetrievalRunner:
     def _ensure_sparse(self):
         if self._sparse_embedder is None:
             from fastembed import SparseTextEmbedding
+
             self._sparse_embedder = SparseTextEmbedding(BM25_MODEL_ID)
             print(f"      [sparse] loaded {BM25_MODEL_ID}")
 
@@ -202,7 +229,9 @@ class RetrievalRunner:
     async def embed_query(self, query: str) -> list[float]:
         return await self._embedder.embed_single(query)
 
-    async def embed_batch(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
+    async def embed_batch(
+        self, texts: list[str], batch_size: int = 32
+    ) -> list[list[float]]:
         return await self._embedder.embed_batch_api(texts, api_batch_size=batch_size)
 
     def _sparse_encode(self, texts: list[str]) -> list[dict]:
@@ -210,7 +239,13 @@ class RetrievalRunner:
         self._ensure_sparse()
         # SparseTextEmbedding yields dicts with indices/values
         results = list(self._sparse_embedder.query_embed(texts))
-        return [{"indices": [int(x) for x in r.indices], "values": [float(x) for x in r.values]} for r in results]
+        return [
+            {
+                "indices": [int(x) for x in r.indices],
+                "values": [float(x) for x in r.values],
+            }
+            for r in results
+        ]
 
     async def _dense_search(self, query_vec: list[float], top_k: int) -> list[dict]:
         hits = await self._qdrant.dense_search(
@@ -295,6 +330,7 @@ class RetrievalRunner:
 # Answer generation via streaming
 # =============================================================================
 
+
 async def stream_answer(
     agent_id: str,
     question: str,
@@ -369,10 +405,13 @@ async def direct_llm_answer(
 
 _JUDGE_CLIENT: OpenAI | None = None
 
+
 def _judge_client() -> OpenAI:
     global _JUDGE_CLIENT
     if _JUDGE_CLIENT is None:
-        _JUDGE_CLIENT = OpenAI(api_key="ollama", base_url=OLLAMA_V1_URL, timeout=120.0, max_retries=2)
+        _JUDGE_CLIENT = OpenAI(
+            api_key="ollama", base_url=OLLAMA_V1_URL, timeout=120.0, max_retries=2
+        )
     return _JUDGE_CLIENT
 
 
@@ -381,8 +420,16 @@ def _parse_judge_score(text: str) -> float | None:
     # Try JSON
     try:
         obj = json.loads(text)
-        for key in ("score", "rating", "faithfulness", "relevance",
-                    "precision", "result", "value", "groundedness"):
+        for key in (
+            "score",
+            "rating",
+            "faithfulness",
+            "relevance",
+            "precision",
+            "result",
+            "value",
+            "groundedness",
+        ):
             if key in obj and isinstance(obj[key], (int, float)):
                 return max(0.0, min(1.0, float(obj[key])))
         if isinstance(obj, (int, float)):
@@ -391,10 +438,11 @@ def _parse_judge_score(text: str) -> float | None:
         pass
     # Regex: find decimal number
     import re
-    m = re.search(r'0?\.\d+', text)
+
+    m = re.search(r"0?\.\d+", text)
     if m:
         return max(0.0, min(1.0, float(m.group())))
-    m = re.search(r'\b(\d+(?:\.\d+)?)\b', text)
+    m = re.search(r"\b(\d+(?:\.\d+)?)\b", text)
     if m:
         val = float(m.group(1))
         return max(0.0, min(1.0, val if val <= 1 else val / 100.0))
@@ -408,7 +456,7 @@ async def judge_faithfulness(contexts: list[str], answer: str) -> float:
     prompt = (
         "You are a precise RAG evaluator. Rate the FAITHFULNESS of the answer "
         "(does it stay within the provided contexts?) on a scale from 0.0 to 1.0.\n"
-        f"Return ONLY JSON: {{\"score\": 0.0 to 1.0}}\n\n"
+        f'Return ONLY JSON: {{"score": 0.0 to 1.0}}\n\n'
         f"CONTEXTS:\n{ctx_block}\n\n"
         f"ANSWER:\n{answer}"
     )
@@ -416,7 +464,8 @@ async def judge_faithfulness(contexts: list[str], answer: str) -> float:
         resp = _judge_client().chat.completions.create(
             model="llama3.2:latest",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=32,
+            temperature=0.1,
+            max_tokens=32,
         )
         score = _parse_judge_score(resp.choices[0].message.content or "")
         return score if score is not None else float("nan")
@@ -430,7 +479,7 @@ async def judge_answer_relevance(question: str, answer: str) -> float:
     prompt = (
         "You are a precise RAG evaluator. Rate ANSWER RELEVANCE "
         "(does the answer address the question?) on a scale from 0.0 to 1.0.\n"
-        f"Return ONLY JSON: {{\"score\": 0.0 to 1.0}}\n\n"
+        f'Return ONLY JSON: {{"score": 0.0 to 1.0}}\n\n'
         f"QUESTION: {question}\n\n"
         f"ANSWER:\n{answer}"
     )
@@ -438,7 +487,8 @@ async def judge_answer_relevance(question: str, answer: str) -> float:
         resp = _judge_client().chat.completions.create(
             model="llama3.2:latest",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=32,
+            temperature=0.1,
+            max_tokens=32,
         )
         score = _parse_judge_score(resp.choices[0].message.content or "")
         return score if score is not None else float("nan")
@@ -453,7 +503,7 @@ async def judge_context_relevance(question: str, contexts: list[str]) -> float:
     prompt = (
         "You are a precise RAG evaluator. Rate CONTEXT RELEVANCE "
         "(how relevant are the contexts to the question?) on a scale from 0.0 to 1.0.\n"
-        f"Return ONLY JSON: {{\"score\": 0.0 to 1.0}}\n\n"
+        f'Return ONLY JSON: {{"score": 0.0 to 1.0}}\n\n'
         f"QUESTION: {question}\n\n"
         f"CONTEXTS:\n{ctx_block}"
     )
@@ -461,7 +511,8 @@ async def judge_context_relevance(question: str, contexts: list[str]) -> float:
         resp = _judge_client().chat.completions.create(
             model="llama3.2:latest",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=32,
+            temperature=0.1,
+            max_tokens=32,
         )
         score = _parse_judge_score(resp.choices[0].message.content or "")
         return score if score is not None else float("nan")
@@ -476,7 +527,7 @@ async def judge_groundedness(contexts: list[str], answer: str) -> float:
     prompt = (
         "You are a precise RAG evaluator. Rate GROUNDEDNESS "
         "(can facts in the answer be traced to the contexts?) on a scale from 0.0 to 1.0.\n"
-        f"Return ONLY JSON: {{\"score\": 0.0 to 1.0}}\n\n"
+        f'Return ONLY JSON: {{"score": 0.0 to 1.0}}\n\n'
         f"CONTEXTS:\n{ctx_block}\n\n"
         f"ANSWER:\n{answer}"
     )
@@ -484,7 +535,8 @@ async def judge_groundedness(contexts: list[str], answer: str) -> float:
         resp = _judge_client().chat.completions.create(
             model="llama3.2:latest",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1, max_tokens=32,
+            temperature=0.1,
+            max_tokens=32,
         )
         score = _parse_judge_score(resp.choices[0].message.content or "")
         return score if score is not None else float("nan")
@@ -495,6 +547,7 @@ async def judge_groundedness(contexts: list[str], answer: str) -> float:
 # =============================================================================
 # Retrieval metrics
 # =============================================================================
+
 
 def _dcg(gains: list[float], k: int) -> float:
     dcg_val = 0.0
@@ -516,10 +569,11 @@ def compute_retrieval_metrics(
 
     # Binary relevance: chunk relevant if it contains any 3+ char token from the answer
     import re
+
     all_rels: list[list[int]] = []
     for gt, chunks in zip(ground_truths, retrieved_chunks):
         gt_lower = gt.lower()
-        tokens = [t for t in re.split(r'\s+', gt_lower) if len(t) >= 3]
+        tokens = [t for t in re.split(r"\s+", gt_lower) if len(t) >= 3]
         rels = []
         for chunk in chunks:
             text = chunk["text"].lower()
@@ -579,6 +633,7 @@ def compute_retrieval_metrics(
 # Per-cell evaluation
 # =============================================================================
 
+
 async def evaluate_cell(
     cell_id: str,
     samples: list[dict],
@@ -616,21 +671,24 @@ async def evaluate_cell(
 
         if agent_id is None:
             try:
-                r = await client.post("/agents/", json={
-                    "name": f"Matrix-{embed_model.name}",
-                    "description": "Auto-created by benchmark/evaluation/matrix.py",
-                    "config": {
-                        "system_prompt": (
-                            "You are a helpful assistant. Answer based ONLY on the provided context. "
-                            "If the context does not contain enough information, say so clearly."
-                        ),
-                        "dataset_id": embed_model.collection,
-                        "embedding_model": embed_model.ollama_id,
-                        "chat_model": llm_model.ollama_id,
-                        "temperature": 0.3,
-                        "top_k": top_k,
+                r = await client.post(
+                    "/agents/",
+                    json={
+                        "name": f"Matrix-{embed_model.name}",
+                        "description": "Auto-created by benchmark/evaluation/matrix.py",
+                        "config": {
+                            "system_prompt": (
+                                "You are a helpful assistant. Answer based ONLY on the provided context. "
+                                "If the context does not contain enough information, say so clearly."
+                            ),
+                            "dataset_id": embed_model.collection,
+                            "embedding_model": embed_model.ollama_id,
+                            "chat_model": llm_model.ollama_id,
+                            "temperature": 0.3,
+                            "top_k": top_k,
+                        },
                     },
-                })
+                )
                 if r.status_code in (200, 201):
                     agent_id = r.json().get("agent_id")
             except Exception:
@@ -654,7 +712,9 @@ async def evaluate_cell(
     # --- Answer generation pass ---
     for i, sample in enumerate(samples):
         if agent_id:
-            ans = await stream_answer(agent_id, sample["question"], llm_model, system_prompt)
+            ans = await stream_answer(
+                agent_id, sample["question"], llm_model, system_prompt
+            )
         else:
             # Fallback: direct LLM call
             ctx_text = " ".join(h["text"] for h in retrieved[i])
@@ -694,10 +754,10 @@ async def evaluate_cell(
         return round(float(np.std(nums, ddof=0)), 4)
 
     judge_metrics = {
-        "faithfulness":       {"mean": _mean(f_scores),  "std": _std(f_scores)},
-        "answer_relevance":    {"mean": _mean(ar_scores), "std": _std(ar_scores)},
-        "context_relevance":  {"mean": _mean(cr_scores), "std": _std(cr_scores)},
-        "groundedness":       {"mean": _mean(g_scores),   "std": _std(g_scores)},
+        "faithfulness": {"mean": _mean(f_scores), "std": _std(f_scores)},
+        "answer_relevance": {"mean": _mean(ar_scores), "std": _std(ar_scores)},
+        "context_relevance": {"mean": _mean(cr_scores), "std": _std(cr_scores)},
+        "groundedness": {"mean": _mean(g_scores), "std": _std(g_scores)},
     }
 
     # --- Retrieval metrics ---
@@ -733,6 +793,7 @@ async def evaluate_cell(
 # Collection setup: squad-qwen3
 # =============================================================================
 
+
 async def ensure_qwen3_collection(
     samples: list[dict],
     embed_model: EmbedModel,
@@ -760,6 +821,7 @@ async def ensure_qwen3_collection(
 
     # Load libraries
     from fastembed import SparseTextEmbedding
+
     embedder = OllamaEmbedder(base_url=OLLAMA_BASE_URL, model=embed_model.ollama_id)
     sparse_embedder = SparseTextEmbedding(BM25_MODEL_ID)
 
@@ -818,6 +880,7 @@ async def ensure_qwen3_collection(
 # Hybrid collection setup: add sparse vectors to squad
 # =============================================================================
 
+
 async def ensure_hybrid_squad() -> None:
     """
     squad collection uses an unnamed schema (flat list[float] vectors).
@@ -828,8 +891,9 @@ async def ensure_hybrid_squad() -> None:
       3. Recreate with named-vector schema (dense + sparse)
       4. Re-upsert all points using upsert_chunks (ChunkRecord)
     """
-    from rag.storage.qdrant_store import ChunkRecord
     from fastembed import SparseTextEmbedding
+
+    from rag.storage.qdrant_store import ChunkRecord
 
     qdrant = QdrantStore(url=QDRANT_URL)
     coll = "squad"
@@ -841,7 +905,9 @@ async def ensure_hybrid_squad() -> None:
 
     # Check if already named with sparse
     params = info.get("config", {}).get("params", {})
-    has_named = isinstance(params.get("vectors", {}), dict) and "dense" in params.get("vectors", {})
+    has_named = isinstance(params.get("vectors", {}), dict) and "dense" in params.get(
+        "vectors", {}
+    )
     has_sparse = bool(params.get("sparse_vectors"))
     if has_named and has_sparse:
         print(f"  [setup] squad already has named + sparse vectors — skipping")
@@ -858,7 +924,9 @@ async def ensure_hybrid_squad() -> None:
                 body: dict = {"limit": 1000, "with_vectors": True, "with_payload": True}
                 if offset:
                     body["offset"] = offset
-                r = await client.post(f"{QDRANT_URL}/collections/{coll}/points/scroll", json=body)
+                r = await client.post(
+                    f"{QDRANT_URL}/collections/{coll}/points/scroll", json=body
+                )
                 if r.status_code != 200:
                     print(f"  [setup] scroll failed: {r.status_code} {r.text[:200]}")
                     break
@@ -908,13 +976,15 @@ async def ensure_hybrid_squad() -> None:
     chunk_records: list[ChunkRecord] = []
     for pt, dv, sv in zip(all_pts, dense_vecs, sparse_vecs):
         payload = pt.get("payload", {})
-        chunk_records.append(ChunkRecord(
-            chunk_id=str(pt["id"]),
-            chunk_text=str(payload.get("text", "")),
-            metadata=dict(payload),
-            dense_vector=list(dv) if dv else [],
-            sparse_vector=sv,
-        ))
+        chunk_records.append(
+            ChunkRecord(
+                chunk_id=str(pt["id"]),
+                chunk_text=str(payload.get("text", "")),
+                metadata=dict(payload),
+                dense_vector=list(dv) if dv else [],
+                sparse_vector=sv,
+            )
+        )
 
     # 5. Delete and recreate with named schema
     print(f"  [setup] deleting squad and recreating with named+dense+sparse schema …")
@@ -936,6 +1006,7 @@ async def ensure_hybrid_squad() -> None:
 # =============================================================================
 # Main matrix runner
 # =============================================================================
+
 
 async def run_matrix(
     n_samples: int = DEFAULT_N_SAMPLES,
@@ -998,6 +1069,7 @@ async def run_matrix(
                 except Exception as exc:
                     print(f"  [{cell_id}] ERROR: {exc}")
                     import traceback
+
                     traceback.print_exc()
                     result = {
                         "cell_id": cell_id,
@@ -1012,7 +1084,9 @@ async def run_matrix(
                 result["_elapsed_s"] = round(cell_elapsed, 1)
                 results.append(result)
                 completed += 1
-                print(f"  [{cell_id}] Done in {cell_elapsed:.1f}s  ({completed}/{total_cells})")
+                print(
+                    f"  [{cell_id}] Done in {cell_elapsed:.1f}s  ({completed}/{total_cells})"
+                )
 
     total_elapsed = time.perf_counter() - t0
 
@@ -1052,10 +1126,10 @@ def _print_matrix_summary(results: list[dict], top_k: int) -> None:
     # Header
     modes = list(dict.fromkeys(r["search_mode"] for r in results))
     mode_labels = {
-        "basic":         "Dense",
-        "hybrid":        "Hybrid",
+        "basic": "Dense",
+        "hybrid": "Hybrid",
         "hybrid_rerank": "Hybrid+Rerank",
-        "rerank":       "Dense+Rerank",
+        "rerank": "Dense+Rerank",
     }
     print(f"\n{'Cell':<35}", end="")
     for m in modes:
@@ -1071,8 +1145,16 @@ def _print_matrix_summary(results: list[dict], top_k: int) -> None:
 
     for row_key, cell_results in rows.items():
         print(f"\n{row_key}")
-        for metric in ["ndcg_at_k", "mrr", "precision_at_k", "recall_at_k",
-                       "faithfulness", "answer_relevance", "context_relevance", "groundedness"]:
+        for metric in [
+            "ndcg_at_k",
+            "mrr",
+            "precision_at_k",
+            "recall_at_k",
+            "faithfulness",
+            "answer_relevance",
+            "context_relevance",
+            "groundedness",
+        ]:
             print(f"  {metric:<22}", end="")
             for r in cell_results:
                 if "error" in r:
@@ -1100,16 +1182,39 @@ if __name__ == "__main__":
     import argparse
 
     p = argparse.ArgumentParser(description="RAGEve Cross-Model Evaluation Matrix")
-    p.add_argument("--samples", type=int, default=DEFAULT_N_SAMPLES,
-                   help=f"Number of squad rows (default: {DEFAULT_N_SAMPLES})")
-    p.add_argument("--top-k", type=int, default=DEFAULT_TOP_K,
-                   help=f"Retrieval top_k (default: {DEFAULT_TOP_K})")
-    p.add_argument("--embed", nargs="+", choices=["nomic", "qwen3"], default=None,
-                   help="Which embed models to run")
-    p.add_argument("--llm", nargs="+", choices=["llama3.2", "SmolLM2"], default=None,
-                   help="Which LLM models to run")
-    p.add_argument("--mode", nargs="+", choices=["basic", "hybrid", "hybrid_rerank", "rerank"],
-                   default=None, help="Which search modes to run")
+    p.add_argument(
+        "--samples",
+        type=int,
+        default=DEFAULT_N_SAMPLES,
+        help=f"Number of squad rows (default: {DEFAULT_N_SAMPLES})",
+    )
+    p.add_argument(
+        "--top-k",
+        type=int,
+        default=DEFAULT_TOP_K,
+        help=f"Retrieval top_k (default: {DEFAULT_TOP_K})",
+    )
+    p.add_argument(
+        "--embed",
+        nargs="+",
+        choices=["nomic", "qwen3"],
+        default=None,
+        help="Which embed models to run",
+    )
+    p.add_argument(
+        "--llm",
+        nargs="+",
+        choices=["llama3.2", "SmolLM2"],
+        default=None,
+        help="Which LLM models to run",
+    )
+    p.add_argument(
+        "--mode",
+        nargs="+",
+        choices=["basic", "hybrid", "hybrid_rerank", "rerank"],
+        default=None,
+        help="Which search modes to run",
+    )
     args = p.parse_args()
 
     embed_map = {"nomic": EMBED_MODELS[0], "qwen3": EMBED_MODELS[1]}
@@ -1118,7 +1223,10 @@ if __name__ == "__main__":
 
     embeds = [embed_map[k] for k in (args.embed or ["nomic", "qwen3"])]
     llms = [llm_map[k] for k in (args.llm or ["llama3.2", "SmolLM2"])]
-    modes = [mode_map[k] for k in (args.mode or ["basic", "hybrid", "hybrid_rerank", "rerank"])]
+    modes = [
+        mode_map[k]
+        for k in (args.mode or ["basic", "hybrid", "hybrid_rerank", "rerank"])
+    ]
 
     print(f"\n{'='*60}")
     print("  RAGEve Cross-Model Evaluation Matrix")
@@ -1131,10 +1239,12 @@ if __name__ == "__main__":
     print(f"  Total cells  : {len(embeds) * len(llms) * len(modes)}")
     print()
 
-    result = asyncio.run(run_matrix(
-        n_samples=args.samples,
-        top_k=args.top_k,
-        embed_models=embeds,
-        llm_models=llms,
-        search_modes=modes,
-    ))
+    result = asyncio.run(
+        run_matrix(
+            n_samples=args.samples,
+            top_k=args.top_k,
+            embed_models=embeds,
+            llm_models=llms,
+            search_modes=modes,
+        )
+    )

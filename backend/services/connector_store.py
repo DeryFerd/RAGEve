@@ -117,8 +117,8 @@ class ConnectorStore:
             # Check if exists
             try:
                 link = Connector2Kb.get(
-                    (Connector2Kb.connector_id == connector_id) &
-                    (Connector2Kb.kb_id == kb_id)
+                    (Connector2Kb.connector_id == connector_id)
+                    & (Connector2Kb.kb_id == kb_id)
                 )
                 link.auto_parse = auto_parse
                 link.save()
@@ -129,10 +129,14 @@ class ConnectorStore:
                     kb_id=kb_id,
                     auto_parse=auto_parse,
                 )
-                _log.info("Linked connector %s to knowledgebase %s", connector_id, kb_id)
+                _log.info(
+                    "Linked connector %s to knowledgebase %s", connector_id, kb_id
+                )
                 return link
 
-    def get_knowledgebases_for_connector(self, connector_id: str) -> list[Knowledgebase]:
+    def get_knowledgebases_for_connector(
+        self, connector_id: str
+    ) -> list[Knowledgebase]:
         """Get all knowledgebases linked to a connector."""
         with get_database().connection_context():
             query = (
@@ -147,11 +151,13 @@ class ConnectorStore:
         with get_database().connection_context():
             try:
                 link = Connector2Kb.get(
-                    (Connector2Kb.connector_id == connector_id) &
-                    (Connector2Kb.kb_id == kb_id)
+                    (Connector2Kb.connector_id == connector_id)
+                    & (Connector2Kb.kb_id == kb_id)
                 )
                 link.delete_instance()
-                _log.info("Unlinked connector %s from knowledgebase %s", connector_id, kb_id)
+                _log.info(
+                    "Unlinked connector %s from knowledgebase %s", connector_id, kb_id
+                )
                 return True
             except Connector2Kb.DoesNotExist:
                 return False

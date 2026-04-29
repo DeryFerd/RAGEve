@@ -16,19 +16,22 @@ from backend.api.routes.agents import router as agents_router
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.chat import router as chat_router
 from backend.api.routes.chat_history import router as chat_history_router
+from backend.api.routes.conversations import router as conversations_router
 from backend.api.routes.datasets import router as datasets_router
+from backend.api.routes.dialogs import router as dialogs_router
+from backend.api.routes.documents import router as documents_router
 from backend.api.routes.files import router as files_router
 from backend.api.routes.huggingface import router as hf_router
+from backend.api.routes.knowledgebases import router as knowledgebases_router
 from backend.api.routes.ollama import router as ollama_router
 from backend.api.routes.rerank import router as rerank_router
-from backend.api.routes.dialogs import router as dialogs_router
-from backend.api.routes.conversations import router as conversations_router
-from backend.api.routes.knowledgebases import router as knowledgebases_router
-from backend.api.routes.documents import router as documents_router
 from backend.config import settings
 from backend.logging_config import setup_logging
-from backend.services.chat_store import close_db as sqlalchemy_close_db, init_db as sqlalchemy_init_db
-from backend.models_peewee import close_db as peewee_close_db, init_db as peewee_init_db, get_database
+from backend.models_peewee import close_db as peewee_close_db
+from backend.models_peewee import get_database
+from backend.models_peewee import init_db as peewee_init_db
+from backend.services.chat_store import close_db as sqlalchemy_close_db
+from backend.services.chat_store import init_db as sqlalchemy_init_db
 from backend.services.database import run_db_operation
 from backend.services.ingestion_factory import close_qdrant_store, get_qdrant_store
 
@@ -81,7 +84,9 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONR
 @app.exception_handler(Exception)
 async def _unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
     request_id = getattr(request.state, "request_id", "unknown")
-    _log.exception("Unhandled exception [%s] %s %s", request_id, request.method, request.url.path)
+    _log.exception(
+        "Unhandled exception [%s] %s %s", request_id, request.method, request.url.path
+    )
     return JSONResponse(
         status_code=500,
         content={"error": "Internal server error", "request_id": request_id},
@@ -127,6 +132,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ── Request logging middleware ─────────────────────────────────────────────────
 class RequestLogMiddleware(BaseHTTPMiddleware):
     """Log every HTTP request with method, path, status code, latency, and request ID."""
@@ -152,6 +158,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             request_id,
         )
         return response
+
 
 app.add_middleware(RequestLogMiddleware)
 
@@ -182,7 +189,10 @@ async def lifespan(app: FastAPI):
     _log.info("CORS origins: %s", _allowed_origins)
     _log.info("Trusted proxies (XFF): %d", settings.trusted_proxy_count)
     if settings.api_key:
-        _log.info("API Auth    : enabled (%d req/min limit per IP)", settings.rate_limit_per_minute)
+        _log.info(
+            "API Auth    : enabled (%d req/min limit per IP)",
+            settings.rate_limit_per_minute,
+        )
     else:
         _log.info("API Auth    : disabled (set API_KEY in .env to enable)")
     if settings.hf_token:
@@ -190,11 +200,18 @@ async def lifespan(app: FastAPI):
     else:
         _log.info("HF Token    : not set (public datasets only)")
     if settings.db_url:
-        db_desc = settings.db_url.split("@")[1] if "@" in settings.db_url else settings.db_url
+        db_desc = (
+            settings.db_url.split("@")[1] if "@" in settings.db_url else settings.db_url
+        )
         _log.info("Chat DB     : MySQL (%s)", db_desc)
     else:
         _log.info("Chat DB     : SQLite (%s)", settings.db_path)
-    _log.info("Peewee ORM DB        : MySQL (%s:%d/%s)", settings.mysql_host, settings.mysql_port, settings.mysql_dbname)
+    _log.info(
+        "Peewee ORM DB        : MySQL (%s:%d/%s)",
+        settings.mysql_host,
+        settings.mysql_port,
+        settings.mysql_dbname,
+    )
     _log.info("─" * 60)
     # Initialise DB tables (creates them on first run)
     await sqlalchemy_init_db()
@@ -211,6 +228,7 @@ async def lifespan(app: FastAPI):
 
 
 app.router.lifespan_context = lifespan
+
 
 # ── Health (verifies Ollama + Qdrant + Database connectivity) ────────────────────────────
 @app.get("/health")
@@ -245,6 +263,7 @@ async def health():
         "qdrant": "ok" if qdrant_ok else "unreachable",
         "database": "ok" if db_ok else "unreachable",
     }
+
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 app.include_router(auth_router)

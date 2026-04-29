@@ -9,11 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.models_peewee import (
-    UserCanvas,
-    CanvasTemplate,
-    get_database,
-)
+from backend.models_peewee import CanvasTemplate, UserCanvas, get_database
 
 _log = logging.getLogger(__name__)
 
@@ -139,7 +135,9 @@ class CanvasStore:
             query = query.order_by(CanvasTemplate.create_time.desc()).limit(limit)
             return [t.to_dict() for t in query]
 
-    def update_template(self, template_id: str, **updates: Any) -> CanvasTemplate | None:
+    def update_template(
+        self, template_id: str, **updates: Any
+    ) -> CanvasTemplate | None:
         """Update a template."""
         with get_database().connection_context():
             try:

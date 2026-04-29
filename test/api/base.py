@@ -9,31 +9,57 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 import asyncio
 import os
 import uuid
+
+import peewee
 from fastapi.testclient import TestClient
-from backend.main import app
+from playhouse.shortcuts import model_to_dict
+
+import backend.models_peewee as mp
 from backend.api.dependencies import get_current_user
+from backend.main import app
+from backend.models_peewee import (
+    LLM,
+    MCP,
+    API4Conversation,
+    APIToken,
+    CanvasTemplate,
+    Connector,
+    Connector2Kb,
+    Conversation,
+    Dialog,
+    Document,
+    EvaluationCase,
+    EvaluationDataset,
+    EvaluationResult,
+    EvaluationRun,
+    File,
+    File2Document,
+    Knowledgebase,
+    LLMFactories,
+    PipelineOperationLog,
+    Search,
+    SyncLogs,
+    SystemSettings,
+    Task,
+    Tenant,
+    TenantLLM,
+    User,
+    UserCanvas,
+    UserTenant,
+)
 from backend.services.auth import hash_password
+from backend.services.conversation_store import get_conversation_store
 from backend.services.database import run_db_operation
-from backend.services.tenant_user_store import get_tenant_user_store
 from backend.services.dialog_store import get_dialog_store
 from backend.services.knowledge_base_store import get_knowledge_base_store
-from backend.services.conversation_store import get_conversation_store
-import backend.models_peewee as mp
-from backend.models_peewee import (
-    User, Tenant, UserTenant, Knowledgebase, Document, File, File2Document, Task,
-    Dialog, Conversation, LLMFactories, LLM, TenantLLM, Connector, Connector2Kb,
-    SyncLogs, UserCanvas, CanvasTemplate, EvaluationDataset, EvaluationCase,
-    EvaluationRun, EvaluationResult, SystemSettings, APIToken, API4Conversation,
-    MCP, Search, PipelineOperationLog,
-)
-from playhouse.shortcuts import model_to_dict
-import peewee
+from backend.services.tenant_user_store import get_tenant_user_store
 
 # Test database file
 _test_db_path = "./test_api.db"
@@ -46,11 +72,34 @@ def setup_test_db():
     _test_db = peewee.SqliteDatabase(_test_db_path)
 
     models = [
-        User, Tenant, UserTenant, Knowledgebase, Document, File, File2Document, Task,
-        Dialog, Conversation, LLMFactories, LLM, TenantLLM, Connector, Connector2Kb,
-        SyncLogs, UserCanvas, CanvasTemplate, EvaluationDataset, EvaluationCase,
-        EvaluationRun, EvaluationResult, SystemSettings, APIToken, API4Conversation,
-        MCP, Search, PipelineOperationLog,
+        User,
+        Tenant,
+        UserTenant,
+        Knowledgebase,
+        Document,
+        File,
+        File2Document,
+        Task,
+        Dialog,
+        Conversation,
+        LLMFactories,
+        LLM,
+        TenantLLM,
+        Connector,
+        Connector2Kb,
+        SyncLogs,
+        UserCanvas,
+        CanvasTemplate,
+        EvaluationDataset,
+        EvaluationCase,
+        EvaluationRun,
+        EvaluationResult,
+        SystemSettings,
+        APIToken,
+        API4Conversation,
+        MCP,
+        Search,
+        PipelineOperationLog,
     ]
 
     for model in models:
@@ -63,22 +112,31 @@ def setup_test_db():
 
     # Reset store singletons so they pick up the new database
     import backend.services.tenant_user_store as tus
+
     tus._tenant_user_store = None
     import backend.services.dialog_store as ds
+
     ds._dialog_store = None
     import backend.services.knowledge_base_store as kbs
+
     kbs._knowledge_base_store = None
     import backend.services.conversation_store as cs
+
     cs._conversation_store = None
     import backend.services.llm_store as ls
+
     ls._llm_store = None
     import backend.services.connector_store as cons
+
     cons._connector_store = None
     import backend.services.canvas_store as cas
+
     cas._canvas_store = None
     import backend.services.evaluation_store as es
+
     es._evaluation_store = None
     import backend.services.system_store as ss
+
     ss._system_store = None
 
     print("✅ Test database initialized (SQLite file)")
@@ -154,20 +212,24 @@ class APITestBase:
         app.dependency_overrides = {}
         teardown_test_db()
 
-    def create_dialog(self, name="Test Dialog", llm_id="llama3.2:latest", kb_ids=None, **kwargs):
+    def create_dialog(
+        self, name="Test Dialog", llm_id="llama3.2:latest", kb_ids=None, **kwargs
+    ):
         """Helper to create a dialog for tests."""
         if kb_ids is None:
             kb_ids = []
         store = get_dialog_store()
-        dialog = asyncio.run(run_db_operation(
-            store.create_dialog,
-            tenant_id=self.test_tenant_id,
-            name=name,
-            llm_id=llm_id,
-            created_by=self.test_user_id,
-            kb_ids=kb_ids,
-            **kwargs
-        ))
+        dialog = asyncio.run(
+            run_db_operation(
+                store.create_dialog,
+                tenant_id=self.test_tenant_id,
+                name=name,
+                llm_id=llm_id,
+                created_by=self.test_user_id,
+                kb_ids=kb_ids,
+                **kwargs,
+            )
+        )
         return dialog
 
     def create_knowledgebase(self, name="Test KB", created_by=None, **kwargs):
@@ -175,11 +237,13 @@ class APITestBase:
         if created_by is None:
             created_by = self.test_user_id
         store = get_knowledge_base_store()
-        kb = asyncio.run(run_db_operation(
-            store.create_knowledgebase,
-            tenant_id=self.test_tenant_id,
-            name=name,
-            created_by=created_by,
-            **kwargs
-        ))
+        kb = asyncio.run(
+            run_db_operation(
+                store.create_knowledgebase,
+                tenant_id=self.test_tenant_id,
+                name=name,
+                created_by=created_by,
+                **kwargs,
+            )
+        )
         return kb

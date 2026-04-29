@@ -30,8 +30,8 @@ from pathlib import Path
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
-from rag.storage.qdrant_store import QdrantStore, ChunkRecord
 from rag.embedding.ollama_embedder import OllamaEmbedder
+from rag.storage.qdrant_store import ChunkRecord, QdrantStore
 
 # ---------------------------------------------------------------------------
 # Config
@@ -56,6 +56,7 @@ TEST_QUERIES = [
 # Benchmark helpers
 # ---------------------------------------------------------------------------
 
+
 async def _query_embedding(embedder: OllamaEmbedder, query: str) -> list[float]:
     gc.collect()
     return await embedder.embed_single(query)
@@ -70,14 +71,18 @@ async def bench_dense_search_latency(
     extra_queries: list[str] | None = None,
 ) -> dict:
     """Measure end-to-end retrieval latency for dense search at a given top_k."""
-    queries = (extra_queries or TEST_QUERIES) * (max(1, n_queries // len(TEST_QUERIES)) + 1)
+    queries = (extra_queries or TEST_QUERIES) * (
+        max(1, n_queries // len(TEST_QUERIES)) + 1
+    )
     queries = queries[:n_queries]
 
     latencies: list[float] = []
     for q in queries:
         t0 = time.perf_counter()
         vec = await _query_embedding(embedder, q)
-        hits = await qdrant.dense_search(collection_name=collection, query_vector=vec, top_k=top_k)
+        hits = await qdrant.dense_search(
+            collection_name=collection, query_vector=vec, top_k=top_k
+        )
         latencies.append(time.perf_counter() - t0)
 
     latencies.sort()
@@ -105,7 +110,9 @@ async def bench_multi_query_throughput(
     async def one_query(q: str):
         t0 = time.perf_counter()
         vec = await _query_embedding(embedder, q)
-        hits = await qdrant.dense_search(collection_name=collection, query_vector=vec, top_k=top_k)
+        hits = await qdrant.dense_search(
+            collection_name=collection, query_vector=vec, top_k=top_k
+        )
         return time.perf_counter() - t0, len(hits)
 
     gc.collect()
@@ -150,7 +157,9 @@ async def run_all(
     for k in top_ks:
         label = f"dense_search_top_{k}"
         print(f"  [retrieval] {label} latency …")
-        results[label] = await bench_dense_search_latency(qdrant, embedder, collection, k)
+        results[label] = await bench_dense_search_latency(
+            qdrant, embedder, collection, k
+        )
 
     print("  [retrieval] multi-query throughput …")
     results["multi_query_throughput"] = await bench_multi_query_throughput(
@@ -167,6 +176,7 @@ def add_to(run_dict: dict, results: dict) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
+
 
 async def _main() -> dict:
     parser = argparse.ArgumentParser(description="Retrieval benchmark")

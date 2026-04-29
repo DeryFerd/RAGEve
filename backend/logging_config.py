@@ -24,7 +24,7 @@ def _make_handler(log_path: Path, level: int = logging.INFO) -> RotatingFileHand
     handler = RotatingFileHandler(
         log_path,
         maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=5,               # keep 5 backups → max 60 MB per log
+        backupCount=5,  # keep 5 backups → max 60 MB per log
     )
     handler.setLevel(level)
     formatter = logging.Formatter(_LOG_FORMAT, datefmt=_DATE_FORMAT)

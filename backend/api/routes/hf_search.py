@@ -4,6 +4,7 @@ HuggingFace Hub search routes — GET /search.
 Provides:
   search_hf_datasets() — search HuggingFace Hub for datasets by query
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,13 +39,15 @@ async def search_hf_datasets(request: Request, q: str) -> list[dict[str, Any]]:
             data = resp.json()
             results: list[dict[str, Any]] = []
             for item in data[:10]:
-                results.append({
-                    "id": item.get("id", ""),
-                    "private": item.get("private", False),
-                    "downloads": item.get("downloads", 0),
-                    "likes": item.get("likes", 0),
-                    "tags": item.get("tags", [])[:5],
-                })
+                results.append(
+                    {
+                        "id": item.get("id", ""),
+                        "private": item.get("private", False),
+                        "downloads": item.get("downloads", 0),
+                        "likes": item.get("likes", 0),
+                        "tags": item.get("tags", [])[:5],
+                    }
+                )
             return results
     except Exception as exc:  # noqa: BLE001
         _log.warning("HF search failed for '%s': %s", q, exc)

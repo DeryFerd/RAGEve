@@ -5,6 +5,7 @@ Provides:
   _fetch_hf_card_metadata() — full card metadata (tags, license, language, paper, leaderboard)
   _fetch_hf_readme_html()   — README.md rendered as escaped HTML
 """
+
 from __future__ import annotations
 
 import html as _html_module
@@ -14,13 +15,17 @@ from typing import Any
 _log = logging.getLogger("app")
 
 
-def _fetch_hf_card_metadata(dataset_id: str, hf_token: str | None = None) -> dict[str, Any]:
+def _fetch_hf_card_metadata(
+    dataset_id: str, hf_token: str | None = None
+) -> dict[str, Any]:
     """Fetch full dataset card metadata using huggingface_hub HfApi."""
     try:
         from huggingface_hub import HfApi  # type: ignore[import-untyped]
 
         api = HfApi()
-        info = api.list_dataset_info(dataset_id, files_metadata=False, use_auth_token=hf_token)
+        info = api.list_dataset_info(
+            dataset_id, files_metadata=False, use_auth_token=hf_token
+        )
 
         tags: list[str] = list(info.tags) if info.tags else []
         license_str: str | None = info.license
@@ -34,9 +39,9 @@ def _fetch_hf_card_metadata(dataset_id: str, hf_token: str | None = None) -> dic
                 language = [str(l) for l in lang]
             elif lang:
                 language = [str(lang)]
-            paper_url = (
-                info.card_data.get("paper", {})
-            ).get("url") or info.card_data.get("paperswithcode_id")
+            paper_url = (info.card_data.get("paper", {})).get(
+                "url"
+            ) or info.card_data.get("paperswithcode_id")
             leaderboard = info.card_data.get("leaderboard")
 
         return {
@@ -73,6 +78,8 @@ def _fetch_hf_readme_html(dataset_id: str) -> str | None:
                 escaped = _html_module.escape(content)
                 return f"<pre style='font-size:12px;line-height:1.6;max-height:400px;overflow:auto'>{escaped}</pre>"
         except Exception as exc:  # noqa: BLE001
-            _log.warning("Failed to fetch README for '%s' (%s): %s", dataset_id, fname, exc)
+            _log.warning(
+                "Failed to fetch README for '%s' (%s): %s", dataset_id, fname, exc
+            )
             continue
     return None

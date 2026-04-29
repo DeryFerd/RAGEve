@@ -6,22 +6,22 @@ Unit tests for enhanced layout_parser features:
 - Hierarchical chunking
 """
 
-import pytest
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
+import pytest
+
+from rag.chunking.adaptive import hierarchical_chunk_text
 from rag.deepdoc.layout_parser import (
     BBox,
     Block,
     BlockType,
     ColumnRegion,
-    _detect_columns,
+    PageLayout,
     _assign_blocks_to_columns,
     _build_heading_hierarchy,
-    PageLayout,
+    _detect_columns,
 )
-from rag.chunking.adaptive import hierarchical_chunk_text
-
 
 # ----------------------------------------------------------------------
 # Test helpers to construct synthetic layouts
@@ -60,7 +60,9 @@ def make_block(
     return block
 
 
-def make_page_layout(blocks: list[Block], page_num: int = 1, width: float = 612.0, height: float = 792.0) -> PageLayout:
+def make_page_layout(
+    blocks: list[Block], page_num: int = 1, width: float = 612.0, height: float = 792.0
+) -> PageLayout:
     """Create a PageLayout with given blocks."""
     layout = PageLayout(
         page_num=page_num,
@@ -120,7 +122,11 @@ def test_column_detection_three_columns():
     blocks = []
     for y in range(100, 400, 40):
         for col_start in [30, 210, 390]:
-            blocks.append(make_block(f"Col@{col_start}", y0=y, x0=col_start, x1=col_start+col_width))
+            blocks.append(
+                make_block(
+                    f"Col@{col_start}", y0=y, x0=col_start, x1=col_start + col_width
+                )
+            )
 
     columns = _detect_columns(page_width, blocks, bins=30, threshold=0.3)
     assert len(columns) >= 3, "Should detect at least 3 columns"
@@ -173,10 +179,16 @@ def test_build_heading_hierarchy_simple():
     """Simple three-level hierarchy: H1, H2, H3."""
     blocks = [
         make_block("Title", block_type=BlockType.TITLE, y0=100, avg_font_size=24.0),
-        make_block("Heading A", block_type=BlockType.HEADING, y0=200, avg_font_size=18.0),
-        make_block("Heading B", block_type=BlockType.HEADING, y0=300, avg_font_size=16.0),
+        make_block(
+            "Heading A", block_type=BlockType.HEADING, y0=200, avg_font_size=18.0
+        ),
+        make_block(
+            "Heading B", block_type=BlockType.HEADING, y0=300, avg_font_size=16.0
+        ),
         make_block("Paragraph 1", block_type=BlockType.PARAGRAPH, y0=320),
-        make_block("Heading C", block_type=BlockType.HEADING, y0=400, avg_font_size=18.0),
+        make_block(
+            "Heading C", block_type=BlockType.HEADING, y0=400, avg_font_size=18.0
+        ),
         make_block("Paragraph 2", block_type=BlockType.PARAGRAPH, y0=420),
     ]
     blocks = _build_heading_hierarchy(blocks)
@@ -222,8 +234,12 @@ def test_build_heading_hierarchy_no_headings():
 def test_hierarchical_chunk_small_section():
     """A section with text less than chunk_size should become one chunk."""
     # Create a layout with one heading and one paragraph
-    heading = make_block("Section 1", block_type=BlockType.HEADING, y0=100, avg_font_size=18.0, level=2)
-    para = make_block("This is a short paragraph.", block_type=BlockType.PARAGRAPH, y0=150)
+    heading = make_block(
+        "Section 1", block_type=BlockType.HEADING, y0=100, avg_font_size=18.0, level=2
+    )
+    para = make_block(
+        "This is a short paragraph.", block_type=BlockType.PARAGRAPH, y0=150
+    )
     layout = make_page_layout([heading, para])
 
     chunks = hierarchical_chunk_text(layout, chunk_size=500, chunk_overlap=50)
@@ -235,7 +251,13 @@ def test_hierarchical_chunk_small_section():
 def test_hierarchical_chunk_large_section():
     """A section larger than chunk_size should be split into multiple chunks."""
     long_text = " ".join(["word"] * 200)  # ~1000 chars
-    heading = make_block("Long Section", block_type=BlockType.HEADING, y0=100, avg_font_size=18.0, level=2)
+    heading = make_block(
+        "Long Section",
+        block_type=BlockType.HEADING,
+        y0=100,
+        avg_font_size=18.0,
+        level=2,
+    )
     para = make_block(long_text, block_type=BlockType.PARAGRAPH, y0=150)
 
     layout = make_page_layout([heading, para])
@@ -251,10 +273,14 @@ def test_hierarchical_chunk_large_section():
 
 def test_hierarchical_chunk_multiple_sections():
     """Multiple sections should produce separate chunks."""
-    h1 = make_block("Chapter 1", block_type=BlockType.TITLE, y0=100, avg_font_size=24.0, level=1)
+    h1 = make_block(
+        "Chapter 1", block_type=BlockType.TITLE, y0=100, avg_font_size=24.0, level=1
+    )
     p1 = make_block("First chapter content.", block_type=BlockType.PARAGRAPH, y0=150)
 
-    h2 = make_block("Section 2.1", block_type=BlockType.HEADING, y0=300, avg_font_size=18.0, level=2)
+    h2 = make_block(
+        "Section 2.1", block_type=BlockType.HEADING, y0=300, avg_font_size=18.0, level=2
+    )
     p2 = make_block("Second section content.", block_type=BlockType.PARAGRAPH, y0=350)
 
     layout = make_page_layout([h1, p1, h2, p2])
@@ -280,8 +306,8 @@ def test_enhanced_parsing_with_real_pdf():
     if not pdf_path.exists():
         pytest.skip(f"Test PDF not found: {pdf_path}")
 
-    from rag.ingestion.pipeline import run_deepdoc_ingestion
     from backend.config import Settings
+    from rag.ingestion.pipeline import run_deepdoc_ingestion
 
     # Override settings to enable features
     # We can temporarily patch settings if needed, or rely on defaults (enabled)

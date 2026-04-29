@@ -35,7 +35,7 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_EMBED_MODEL = "nomic-embed-text:latest"
 DEFAULT_BATCH_SIZES = [32, 64, 128, 256]
 CHUNK_COUNT_SMALL = 100
-CHUNK_COUNT_LARGE = 1000   # used to measure sustained throughput
+CHUNK_COUNT_LARGE = 1000  # used to measure sustained throughput
 
 # Representative text samples of varying length (characters).
 SAMPLE_TEXTS = [
@@ -56,7 +56,7 @@ SAMPLE_TEXTS = [
     "mid-sentence and that each chunk carries sufficient semantic coherence "
     "for retrieval. Overlap is added between adjacent chunks to prevent "
     "important information from sitting exactly at a boundary.",
-] * 40   # tile to reach desired chunk count
+] * 40  # tile to reach desired chunk count
 
 
 def _make_chunks(n: int) -> list[str]:
@@ -67,6 +67,7 @@ def _make_chunks(n: int) -> list[str]:
 # ---------------------------------------------------------------------------
 # Benchmark scenarios
 # ---------------------------------------------------------------------------
+
 
 async def bench_batch_throughput(
     embedder: OllamaEmbedder,
@@ -144,11 +145,15 @@ async def run_all(
     embedder: OllamaEmbedder | None = None,
     batch_sizes: list[int] | None = None,
 ) -> dict:
-    embedder = embedder or OllamaEmbedder(base_url=OLLAMA_BASE_URL, model=OLLAMA_EMBED_MODEL)
+    embedder = embedder or OllamaEmbedder(
+        base_url=OLLAMA_BASE_URL, model=OLLAMA_EMBED_MODEL
+    )
     batch_sizes = batch_sizes or DEFAULT_BATCH_SIZES
 
     print("\n  [embedding] batch throughput …")
-    batch_results = await bench_batch_throughput(embedder, batch_sizes, CHUNK_COUNT_LARGE)
+    batch_results = await bench_batch_throughput(
+        embedder, batch_sizes, CHUNK_COUNT_LARGE
+    )
 
     print("  [embedding] query latency …")
     latency_results = await bench_query_latency(embedder)
@@ -173,6 +178,7 @@ def add_to(run_dict: dict, embedder_results: dict) -> None:
 # CLI entry-point (run standalone or imported)
 # ---------------------------------------------------------------------------
 
+
 async def _main() -> dict:
     parser = argparse.ArgumentParser(description="Embedding benchmark")
     parser.add_argument(
@@ -189,4 +195,5 @@ async def _main() -> dict:
 if __name__ == "__main__":
     result = asyncio.run(_main())
     import json
+
     print(json.dumps(result, indent=2))

@@ -1,5 +1,6 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, List, Any, Dict
 
 
 class KnowledgebaseCreate(BaseModel):
@@ -7,7 +8,9 @@ class KnowledgebaseCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(default=None)
     avatar: Optional[str] = Field(default=None)
-    parser_ids: str = Field(default="", description="Comma-separated parser IDs, e.g., 'pdf,docx'")
+    parser_ids: str = Field(
+        default="", description="Comma-separated parser IDs, e.g., 'pdf,docx'"
+    )
     language: str = Field(default="English", max_length=32)
     created_by: str = Field(..., min_length=32, max_length=32)
     pagerank: int = Field(default=0, ge=0)

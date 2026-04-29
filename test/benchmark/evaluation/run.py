@@ -29,8 +29,8 @@ for _ in range(4):
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from test.benchmark.evaluation.suite import run_full_evaluation
 from test.benchmark.evaluation._config import EvalConfig
+from test.benchmark.evaluation.suite import run_full_evaluation
 
 
 def _build_parser() -> argparse.ArgumentParser:

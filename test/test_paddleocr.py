@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Test PaddleOCR integration."""
+
 from __future__ import annotations
 
 import sys
@@ -8,12 +9,13 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from PIL import Image, ImageDraw, ImageFont
 import tempfile
 
+from PIL import Image, ImageDraw, ImageFont
+
 from backend.config import settings
-from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
 from rag.ingestion.extractors import Extractors
+from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
 
 
 def create_test_image(text: str, output_path: Path) -> None:
@@ -34,9 +36,12 @@ def create_test_image(text: str, output_path: Path) -> None:
 def create_test_pdf_with_text(output_path: Path) -> None:
     """Create a PDF with embedded text (non-scanned)."""
     import pymupdf
+
     doc = pymupdf.open()
     page = doc.new_page()
-    page.insert_text((50, 100), "This is a regular PDF with embedded text.", fontsize=12)
+    page.insert_text(
+        (50, 100), "This is a regular PDF with embedded text.", fontsize=12
+    )
     doc.save(output_path)
     doc.close()
     print(f"Created test PDF (text-based): {output_path}")
@@ -69,6 +74,7 @@ def test_ocr_engine() -> None:
 
         # Direct engine test
         from PIL import Image
+
         image = Image.open(img_path)
         text = engine.image_to_string(image)
         print(f"   OCR result: '{text.strip()[:50]}...'")
@@ -118,5 +124,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nTest failed: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

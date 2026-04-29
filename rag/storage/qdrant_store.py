@@ -25,7 +25,7 @@ _log = logging.getLogger("rag.storage.qdrant_store")
 # Constants
 # ----------------------------------------------------------------------
 
-DENSE_VECTOR_NAME = "dense"   # Named vector field for Ollama dense embeddings
+DENSE_VECTOR_NAME = "dense"  # Named vector field for Ollama dense embeddings
 SPARSE_VECTOR_NAME = "sparse"  # Named vector field for fastembed sparse vectors
 
 # nomic-embed-text outputs 768-dimensional dense vectors
@@ -263,10 +263,13 @@ class QdrantStore:
 
             self.client.upsert(collection_name=collection_name, points=points)
 
-        _log.debug("upsert_chunks: %s — %d points → batch %d/%d",
-                   collection_name, len(chunks),
-                   (len(chunks) + batch_size - 1) // batch_size,
-                   (len(chunks) + batch_size - 1) // batch_size)
+        _log.debug(
+            "upsert_chunks: %s — %d points → batch %d/%d",
+            collection_name,
+            len(chunks),
+            (len(chunks) + batch_size - 1) // batch_size,
+            (len(chunks) + batch_size - 1) // batch_size,
+        )
 
         return len(chunks)
 
@@ -287,7 +290,13 @@ class QdrantStore:
             with httpx.Client(base_url=self.base_url, timeout=10.0) as client:
                 r = client.get(f"/collections/{collection_name}")
                 r.raise_for_status()
-                vectors_cfg = r.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
+                vectors_cfg = (
+                    r.json()
+                    .get("result", {})
+                    .get("config", {})
+                    .get("params", {})
+                    .get("vectors", {})
+                )
                 if isinstance(vectors_cfg, dict) and DENSE_VECTOR_NAME in vectors_cfg:
                     _collection_schema_cache[collection_name] = "named"
                     return "named"
@@ -344,8 +353,12 @@ class QdrantStore:
             _log.error("dense_search: %s — HTTP error: %s", collection_name, exc)
             return []
 
-        _log.debug("dense_search: %s — top_k=%d returned %d results",
-                   collection_name, top_k, len(hits))
+        _log.debug(
+            "dense_search: %s — top_k=%d returned %d results",
+            collection_name,
+            top_k,
+            len(hits),
+        )
         return self._hits_to_search_results(hits)
 
     def _hits_to_search_results(
@@ -432,7 +445,10 @@ class QdrantStore:
         payload: dict[str, Any] = {
             "prefetch": [
                 # "vector" (not "query") is required in Qdrant 1.17+ prefetch items
-                {"vector": {"name": DENSE_VECTOR_NAME, "vector": dense_query}, "limit": rrf_k},
+                {
+                    "vector": {"name": DENSE_VECTOR_NAME, "vector": dense_query},
+                    "limit": rrf_k,
+                },
                 {"vector": sparse_query, "limit": rrf_k},
             ],
             "query": {"fusion": "rrf"},
@@ -446,7 +462,9 @@ class QdrantStore:
                 json=payload,
             )
             response.raise_for_status()
-            hits: list[dict[str, Any]] = response.json().get("result", {}).get("points", [])
+            hits: list[dict[str, Any]] = (
+                response.json().get("result", {}).get("points", [])
+            )
         except Exception as exc:
             _log.error("hybrid_search: %s — HTTP error: %s", collection_name, exc)
             return []
@@ -544,7 +562,7 @@ class QdrantStore:
         chunk_ids: list[str],
     ) -> int:
         try:
-            from qdrant_client.http.models import Filter, FieldCondition, MatchAny
+            from qdrant_client.http.models import FieldCondition, Filter, MatchAny
 
             self.client.delete(
                 collection_name=collection_name,

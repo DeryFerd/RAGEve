@@ -8,7 +8,6 @@ from enum import Enum
 from pathlib import Path
 
 
-
 class Converter(str, Enum):
     LIBREOFFICE = "libreoffice"
     PYTHON_DOCX = "python-docx"  # fallback only: reads .doc as raw bytes / basic text

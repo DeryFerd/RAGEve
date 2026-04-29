@@ -26,10 +26,22 @@ SUPPORTED_FORMATS = {".parquet", ".json", ".jsonl", ".csv"}
 
 # Default text-like column names to auto-detect if text_column is not specified
 TEXT_COLUMN_CANDIDATES = [
-    "text", "content", "document", "passage", "body", "article",
-    "context", "story", "summary", "description",
+    "text",
+    "content",
+    "document",
+    "passage",
+    "body",
+    "article",
+    "context",
+    "story",
+    "summary",
+    "description",
     # Common HF dataset column names
-    "review", "sentence", "query", "input", "output",
+    "review",
+    "sentence",
+    "query",
+    "input",
+    "output",
 ]
 
 
@@ -102,9 +114,17 @@ def _load_hf_dataset(local_path: Path, *, row_limit: int | None = None) -> pd.Da
                             rows_loaded += take
                             logger.info(
                                 "Loaded %d/%d rows from %s via row-group %d/%d",
-                                take, total_rows_in_file, file_path.name, rg_idx + 1, num_row_groups,
+                                take,
+                                total_rows_in_file,
+                                file_path.name,
+                                rg_idx + 1,
+                                num_row_groups,
                             )
-                        file_df = pd.concat(file_chunks, ignore_index=True) if file_chunks else None
+                        file_df = (
+                            pd.concat(file_chunks, ignore_index=True)
+                            if file_chunks
+                            else None
+                        )
                         # Continue past the parquet block; file_df will be appended below
                 if isinstance(file_df, pd.DataFrame) and not file_df.empty:
                     file_df["_source_file"] = file_path.name
@@ -119,7 +139,9 @@ def _load_hf_dataset(local_path: Path, *, row_limit: int | None = None) -> pd.Da
             elif ext == ".json":
                 file_df = pd.read_json(file_path, encoding="utf-8")
                 if not isinstance(file_df, pd.DataFrame):
-                    file_df = pd.DataFrame(file_df if isinstance(file_df, list) else [file_df])
+                    file_df = pd.DataFrame(
+                        file_df if isinstance(file_df, list) else [file_df]
+                    )
             elif ext == ".jsonl":
                 if row_limit is not None:
                     rows: list[dict] = []
@@ -134,7 +156,10 @@ def _load_hf_dataset(local_path: Path, *, row_limit: int | None = None) -> pd.Da
             elif ext == ".csv":
                 if row_limit is not None:
                     file_df = pd.read_csv(
-                        file_path, encoding="utf-8", low_memory=False, nrows=row_limit,
+                        file_path,
+                        encoding="utf-8",
+                        low_memory=False,
+                        nrows=row_limit,
                     )
                 else:
                     file_df = pd.read_csv(file_path, encoding="utf-8", low_memory=False)
@@ -208,6 +233,7 @@ def _clear_cuda_cache() -> None:
     """Clear PyTorch CUDA memory cache. No-op if torch not available."""
     try:
         import torch
+
         torch.cuda.empty_cache()
     except Exception:
         pass
@@ -247,7 +273,9 @@ async def ingest_hf_dataset(
 
     async def _emit(stage: str, pct: int, msg: str, **kw: Any) -> None:
         if progress_callback:
-            maybe = progress_callback({"stage": stage, "progress": pct, "message": msg, **kw})
+            maybe = progress_callback(
+                {"stage": stage, "progress": pct, "message": msg, **kw}
+            )
             if _asyncio.iscoroutine(maybe):
                 await maybe
 
@@ -273,15 +301,17 @@ async def ingest_hf_dataset(
                     break
             else:
                 raise ValueError(
-                        f"Could not auto-detect text column. Columns: {all_columns}. "
-                        "Please specify text_columns explicitly."
-                    )
+                    f"Could not auto-detect text column. Columns: {all_columns}. "
+                    "Please specify text_columns explicitly."
+                )
     else:
         tc = text_columns
 
     missing = [c for c in tc if c not in all_columns]
     if missing:
-        raise ValueError(f"text_column(s) not found: {missing}. Available: {all_columns}")
+        raise ValueError(
+            f"text_column(s) not found: {missing}. Available: {all_columns}"
+        )
 
     if row_limit:
         df = df.head(row_limit)
@@ -310,7 +340,9 @@ async def ingest_hf_dataset(
     total_rows_processed = 0
     total_upserted = 0
 
-    async def _flush_batch(window_chunks: list[str], window_meta: list[dict[str, Any]]) -> int:
+    async def _flush_batch(
+        window_chunks: list[str], window_meta: list[dict[str, Any]]
+    ) -> int:
         """Embed + sparse + upsert one sub-batch, then clear it from memory."""
         nonlocal total_upserted
         if not window_chunks:
@@ -318,7 +350,8 @@ async def ingest_hf_dataset(
         batch_idx = 0  # used only for progress math below
 
         async for batch_embs, batch_start, batch_end in embedder.embed_batches(
-            window_chunks, batch_size=batch_size,
+            window_chunks,
+            batch_size=batch_size,
         ):
             bc = window_chunks[batch_start:batch_end]
             bm = window_meta[batch_start:batch_end]
@@ -398,12 +431,14 @@ async def ingest_hf_dataset(
         # Flush when the window is full — release memory before the next row
         if len(all_chunks) >= SUB_BATCH_THRESHOLD:
             await _emit(
-                "chunking", 30,
+                "chunking",
+                30,
                 f"Flushing {len(all_chunks):,} chunks to embed…",
             )
             flushed = await _flush_batch(all_chunks, all_meta)
             await _emit(
-                "embedding", 40,
+                "embedding",
+                40,
                 f"Embedded {total_upserted:,} chunks so far…",
             )
 
@@ -432,7 +467,10 @@ async def ingest_hf_dataset(
 
     logger.info(
         "Dataset '%s': ingested %d rows → %d chunks into '%s'",
-        dataset_id, total_rows_processed, total_upserted, dataset_id,
+        dataset_id,
+        total_rows_processed,
+        total_upserted,
+        dataset_id,
     )
 
     return {

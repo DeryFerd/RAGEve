@@ -11,6 +11,7 @@ Usage:
   uv run python test/benchmark/parsing_enhanced.py --pdf <path> [--pdf <path> ...]
   uv run python test/benchmark/parsing_enhanced.py --corpus <directory>
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,8 +25,8 @@ _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 from rag.chunking.high_accuracy import deepdoc_chunk_text
+from rag.deepdoc.layout_parser import layout_to_readable_text, parse_pdf_layout
 from rag.ingestion.extractors import Extractors
-from rag.deepdoc.layout_parser import parse_pdf_layout, layout_to_readable_text
 
 
 def legacy_parse(pdf_path: Path) -> dict[str, Any]:
@@ -69,6 +70,7 @@ def enhanced_parse(pdf_path: Path) -> dict[str, Any]:
     t1 = time.perf_counter()
     # Hierarchical chunking using layouts
     from rag.chunking.adaptive import hierarchical_chunk_text
+
     chunks = hierarchical_chunk_text(
         layouts,
         chunk_size=1200,
@@ -109,8 +111,10 @@ def benchmark_pdf(pdf_path: Path) -> dict[str, Any]:
     enhanced = enhanced_parse(pdf_path)
     print(f"  Enhanced: {enhanced['num_chunks']} chunks, {enhanced['total_time']:.2f}s")
 
-    delta_pct = (enhanced['total_time'] - legacy['total_time']) / legacy['total_time'] * 100
-    chunk_delta = enhanced['num_chunks'] - legacy['num_chunks']
+    delta_pct = (
+        (enhanced["total_time"] - legacy["total_time"]) / legacy["total_time"] * 100
+    )
+    chunk_delta = enhanced["num_chunks"] - legacy["num_chunks"]
 
     print(f"  Time delta: {delta_pct:+.1f}%")
     print(f"  Chunk delta: {chunk_delta:+d}")
@@ -118,18 +122,18 @@ def benchmark_pdf(pdf_path: Path) -> dict[str, Any]:
     return {
         "file": pdf_path.name,
         "legacy": {
-            "chunks": legacy['num_chunks'],
-            "time": legacy['total_time'],
-            "extract": legacy['extract_time'],
-            "chunk": legacy['chunk_time'],
+            "chunks": legacy["num_chunks"],
+            "time": legacy["total_time"],
+            "extract": legacy["extract_time"],
+            "chunk": legacy["chunk_time"],
         },
         "enhanced": {
-            "chunks": enhanced['num_chunks'],
-            "time": enhanced['total_time'],
-            "extract": enhanced['extract_time'],
-            "chunk": enhanced['chunk_time'],
-            "pages": enhanced['num_pages'],
-            "columns": enhanced['columns_detected'],
+            "chunks": enhanced["num_chunks"],
+            "time": enhanced["total_time"],
+            "extract": enhanced["extract_time"],
+            "chunk": enhanced["chunk_time"],
+            "pages": enhanced["num_pages"],
+            "columns": enhanced["columns_detected"],
         },
         "delta_pct": delta_pct,
         "chunk_delta": chunk_delta,
@@ -164,6 +168,7 @@ def main():
         except Exception as e:
             print(f"Error benchmarking {pdf}: {e}")
             import traceback
+
             traceback.print_exc()
 
     # Summary
@@ -171,11 +176,14 @@ def main():
     print("Summary")
     print("=" * 64)
     for r in results:
-        print(f"{r['file'][:30]:30}  legacy={r['legacy']['chunks']:4d}  enhanced={r['enhanced']['chunks']:4d}  "
-              f"time: {r['legacy']['time']:5.1f}s -> {r['enhanced']['time']:5.1f}s  ({r['delta_pct']:+5.1f}%)")
+        print(
+            f"{r['file'][:30]:30}  legacy={r['legacy']['chunks']:4d}  enhanced={r['enhanced']['chunks']:4d}  "
+            f"time: {r['legacy']['time']:5.1f}s -> {r['enhanced']['time']:5.1f}s  ({r['delta_pct']:+5.1f}%)"
+        )
 
     if args.output:
         import json
+
         with open(args.output, "w") as f:
             json.dump(results, f, indent=2)
         print(f"\nResults saved to {args.output}")

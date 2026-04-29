@@ -12,18 +12,22 @@ import uuid
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField
 
 
 class UserCanvas(BaseModel):
     """Agent workflow canvas created by users."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     user_id = peewee.CharField(max_length=255, null=False, index=True)
     title = peewee.CharField(max_length=255, null=True)
     permission = peewee.CharField(max_length=16, null=False, default="me", index=True)
     description = peewee.TextField(null=True)
     canvas_type = peewee.CharField(max_length=32, null=True, index=True)
-    canvas_category = peewee.CharField(max_length=32, null=False, default="agent_canvas", index=True)
+    canvas_category = peewee.CharField(
+        max_length=32, null=False, default="agent_canvas", index=True
+    )
     dsl = JSONTextField(null=True, default={})  # Workflow definition
 
     class Meta:
@@ -55,11 +59,14 @@ class UserCanvas(BaseModel):
 
 class CanvasTemplate(BaseModel):
     """Pre-built workflow templates."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     title = JSONTextField(null=True, default=dict)
     description = JSONTextField(null=True, default=dict)
     canvas_type = peewee.CharField(max_length=32, null=True, index=True)
-    canvas_category = peewee.CharField(max_length=32, null=False, default="agent_canvas", index=True)
+    canvas_category = peewee.CharField(
+        max_length=32, null=False, default="agent_canvas", index=True
+    )
     dsl = JSONTextField(null=True, default={})
 
     class Meta:

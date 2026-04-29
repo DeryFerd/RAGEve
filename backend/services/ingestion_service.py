@@ -8,22 +8,28 @@ import uuid
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
+from backend.config import settings
 from rag.chunking.adaptive import adaptive_chunk_text
-from rag.chunking.high_accuracy import deepdoc_chunk_text
-from rag.deepdoc.analyzer import analyze_text
 from rag.deepdoc.layout_parser import layout_to_readable_text, parse_pdf_layout
 from rag.deepdoc.quality_scorer import ChunkProfile, score_and_select_profile
 from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.embedding.sparse_embedder import SparseEmbedder
-from rag.ingestion.doc_converter import ConversionResult
-from rag.ingestion.extractors import Extractors
+from rag.ingestion.doc_converter import Extractors
 from rag.storage.qdrant_store import ChunkRecord, QdrantStore
 from rag.utils.memory import recommend_embed_batch_size
 
-from backend.config import settings
-
-
-SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xlsx",
+    ".txt",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".tiff",
+}
 
 # Memory guard: reject PDFs larger than this before attempting any parsing.
 MAX_PDF_SIZE_BYTES = 500 * 1024 * 1024  # 500 MB
@@ -37,6 +43,7 @@ def _clear_cuda_cache() -> None:
     """Clear PyTorch CUDA memory if available. No-op otherwise."""
     try:
         import torch
+
         torch.cuda.empty_cache()
     except Exception:
         pass
@@ -88,7 +95,7 @@ class IngestionService:
         chunk_overlap: int | None = None,
         max_tokens_per_chunk: int | None = None,
         force_profile: ChunkProfile | None = None,
-        overwrite: bool = False,
+        overwrite: bool = False,  # noqa: ARG002 - reserved for future overwrite functionality
         progress_callback: ProgressCallback | None = None,
     ) -> dict:
         ext = file_path.suffix.lower()
@@ -101,11 +108,16 @@ class IngestionService:
 
         await _emit_progress(
             progress_callback,
-            {"stage": "extracting", "message": f"Extracting text from {file_path.name}", "progress": 5},
+            {
+                "stage": "extracting",
+                "message": f"Extracting text from {file_path.name}",
+                "progress": 5,
+            },
         )
 
         # ── 1. Extract text ─────────────────────────────────────────────────
         extraction_meta: dict = {}
+        layouts: list[Any] | None = None
         if ext == ".pdf":
             # Size guard — reject oversized PDFs before allocating huge buffers
             file_size = file_path.stat().st_size
@@ -144,8 +156,13 @@ class IngestionService:
                 )
             # OCR fallback for scanned PDFs if text is still too short
             if len(raw_text.strip()) < settings.ocr_threshold_chars:
-                _log.info("[%s] PDF text length %d below threshold; attempting OCR", dataset_id, len(raw_text))
+                _log.info(
+                    "[%s] PDF text length %d below threshold; attempting OCR",
+                    dataset_id,
+                    len(raw_text),
+                )
                 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
+
                 engine = get_ocr_engine(settings.ocr_engine)
                 ocr_text = ocr_pdf(file_path, engine)
                 if ocr_text:
@@ -153,7 +170,10 @@ class IngestionService:
                     extraction_meta["extractor"] = f"{settings.ocr_engine}-ocr"
                     extraction_meta["layout_aware"] = False
                 else:
-                    _log.warning("[%s] OCR produced no text; keeping layout-parsed text", dataset_id)
+                    _log.warning(
+                        "[%s] OCR produced no text; keeping layout-parsed text",
+                        dataset_id,
+                    )
         elif ext == ".doc":
             raw_text, conv_result = Extractors.from_doc(file_path)
             extraction_meta = {
@@ -167,6 +187,9 @@ class IngestionService:
         elif ext == ".xlsx":
             raw_text = Extractors.from_xlsx(file_path)
             extraction_meta = {"extractor": "pandas"}
+        elif ext == ".txt":
+            raw_text = file_path.read_text(encoding="utf-8")
+            extraction_meta = {"extractor": "plain-text"}
         elif ext in {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}:
             raw_text = Extractors.from_image(file_path)
             extraction_meta = {"extractor": f"{settings.ocr_engine}-ocr"}
@@ -178,7 +201,11 @@ class IngestionService:
         # ── 2. Quality analysis → profile selection ────────────────────────
         await _emit_progress(
             progress_callback,
-            {"stage": "analyzing", "message": "Scoring document quality", "progress": 18},
+            {
+                "stage": "analyzing",
+                "message": "Scoring document quality",
+                "progress": 18,
+            },
         )
 
         quality_report = score_and_select_profile(raw_text)
@@ -188,17 +215,29 @@ class IngestionService:
 
         _log.info(
             "[%s] Stage=analyzing — profile=%s quality_score=%.3f",
-            dataset_id, selected_profile.value, quality_report.quality_score,
+            dataset_id,
+            selected_profile.value,
+            quality_report.quality_score,
         )
 
         eff_chunk_size = chunk_size if chunk_size is not None else config.chunk_size
-        eff_overlap = chunk_overlap if chunk_overlap is not None else config.chunk_overlap
-        eff_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else config.max_tokens_per_chunk
+        eff_overlap = (
+            chunk_overlap if chunk_overlap is not None else config.chunk_overlap
+        )
+        eff_tokens = (
+            max_tokens_per_chunk
+            if max_tokens_per_chunk is not None
+            else config.max_tokens_per_chunk
+        )
 
         # ── 3. Adaptive chunking ────────────────────────────────────────────
         await _emit_progress(
             progress_callback,
-            {"stage": "chunking", "message": "Splitting into semantic chunks", "progress": 30},
+            {
+                "stage": "chunking",
+                "message": "Splitting into semantic chunks",
+                "progress": 30,
+            },
         )
 
         # adaptive_chunk_text returns list[tuple[chunk_text, source_blocks]]
@@ -215,7 +254,10 @@ class IngestionService:
         chunk_count = len(chunks_with_blocks)
         _log.info(
             "[%s] Stage=chunking — %d chunks (size=%d overlap=%d)",
-            dataset_id, chunk_count, eff_chunk_size, eff_overlap,
+            dataset_id,
+            chunk_count,
+            eff_chunk_size,
+            eff_overlap,
         )
 
         # raw_text is no longer needed — free it immediately so GC can reclaim
@@ -248,7 +290,11 @@ class IngestionService:
             },
         )
 
-        _log.info("[%s] Stage=embedding — streaming %d chunks per batch", dataset_id, chunk_count)
+        _log.info(
+            "[%s] Stage=embedding — streaming %d chunks per batch",
+            dataset_id,
+            chunk_count,
+        )
 
         # Ensure collection exists before streaming upserts
         if not self.qdrant.collection_exists(dataset_id):
@@ -300,7 +346,9 @@ class IngestionService:
             "text_columns_used": None,  # N/A for single-file manual ingest; HF path uses a list
             # Embedding model tracking — stored so query-time can detect mismatches.
             "embedding_model": self.embedder.model,
-            "sparse_model": self.sparse_embedder.model_id if self.sparse_embedder else None,
+            "sparse_model": (
+                self.sparse_embedder.model_id if self.sparse_embedder else None
+            ),
         }
 
         # Stream over batches: embed → sparse → upsert → cleanup → next
@@ -313,6 +361,7 @@ class IngestionService:
 
             # ── Sparse embed this batch ──────────────────────────────────
             batch_sparse: list[dict[str, Any] | None] = [None] * batch_size_actual
+            sparse_results = None
             if self.sparse_embedder is not None:
                 sparse_results = await asyncio.to_thread(
                     self.sparse_embedder.embed_batch, batch_texts
@@ -335,7 +384,12 @@ class IngestionService:
                     blocks_meta = [
                         {
                             "page": b.page,
-                            "bbox": {"x0": b.bbox.x0, "y0": b.bbox.y0, "x1": b.bbox.x1, "y1": b.bbox.y1},
+                            "bbox": {
+                                "x0": b.bbox.x0,
+                                "y0": b.bbox.y0,
+                                "x1": b.bbox.x1,
+                                "y1": b.bbox.y1,
+                            },
                             "type": b.block_type.value,
                         }
                         for b in block_list
@@ -361,25 +415,46 @@ class IngestionService:
                 )
                 total_upserted += upserted
             except Exception as exc:
-                _log.error("[%s] Upsert failed at batch %d-%d: %s",
-                           dataset_id, batch_start, batch_end, exc)
+                _log.error(
+                    "[%s] Upsert failed at batch %d-%d: %s",
+                    dataset_id,
+                    batch_start,
+                    batch_end,
+                    exc,
+                )
                 raise
 
             # ── Memory release for this batch ───────────────────────────
             # Delete all large intermediate objects before the next batch.
             # `chunk_texts` and `chunk_blocks` lists themselves are kept (referenced by next slice)
             # but the sliced portions for this batch become eligible for GC.
-            del batch_embs, batch_sparse, batch_texts, batch_blocks, records, sparse_results
+            del (
+                batch_embs,
+                batch_sparse,
+                batch_texts,
+                batch_blocks,
+                records,
+                sparse_results,
+            )
             gc.collect()
             _clear_cuda_cache()
 
-        _log.info("[%s] Stage=upserting — %d points total upserted", dataset_id, total_upserted)
+        _log.info(
+            "[%s] Stage=upserting — %d points total upserted",
+            dataset_id,
+            total_upserted,
+        )
 
         # ── 5. All batches done ───────────────────────────────────────────────
         await _emit_progress(
             progress_callback,
-            {"stage": "completed", "message": "Ingestion completed", "progress": 100,
-             "chunks_done": chunk_count, "chunks_total": chunk_count},
+            {
+                "stage": "completed",
+                "message": "Ingestion completed",
+                "progress": 100,
+                "chunks_done": chunk_count,
+                "chunks_total": chunk_count,
+            },
         )
 
         # Final cleanup — the chunk lists can now be freed
@@ -390,7 +465,10 @@ class IngestionService:
         elapsed = time.monotonic() - t0
         _log.info(
             "[%s] Completed: %s — %d chunks in %.1fs",
-            dataset_id, file_path.name, chunk_count, elapsed,
+            dataset_id,
+            file_path.name,
+            chunk_count,
+            elapsed,
         )
 
         quality_dict = {

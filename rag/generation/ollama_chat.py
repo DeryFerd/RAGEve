@@ -12,6 +12,7 @@ _log = logging.getLogger("rag.generation.ollama_chat")
 
 # ── Circuit breaker ────────────────────────────────────────────────────────────
 
+
 @dataclass
 class _CircuitBreaker:
     """
@@ -24,10 +25,11 @@ class _CircuitBreaker:
     request through; that probe either resets the circuit (on success) or
     reopens it (on failure).
     """
-    failures: int = 0
-    open_until: float = 0.0   # 0 = closed, > now = open
 
-    FAIL_THRESHOLD: int = 5    # consecutive failures before opening
+    failures: int = 0
+    open_until: float = 0.0  # 0 = closed, > now = open
+
+    FAIL_THRESHOLD: int = 5  # consecutive failures before opening
     COOLDOWN_SECS: float = 30.0
 
     def check(self) -> None:
@@ -36,7 +38,12 @@ class _CircuitBreaker:
             raise httpx.HTTPStatusError(
                 "Ollama circuit breaker is open",
                 request=None,
-                response=httpx.Response(503, json={"error": "Ollama unavailable — service is temporarily overloaded. Please retry."}),
+                response=httpx.Response(
+                    503,
+                    json={
+                        "error": "Ollama unavailable — service is temporarily overloaded. Please retry."
+                    },
+                ),
             )
 
     def record_success(self) -> None:
@@ -61,9 +68,10 @@ _circuit = _CircuitBreaker()
 
 # ── Chat models ────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ChatMessage:
-    role: str   # "system" | "user" | "assistant"
+    role: str  # "system" | "user" | "assistant"
     content: str
 
 
@@ -76,6 +84,7 @@ class ChatResponse:
 
 
 # ── Ollama chat ────────────────────────────────────────────────────────────────
+
 
 class OllamaChat:
     def __init__(self, base_url: str, model: str, timeout: float = 120.0) -> None:
@@ -154,7 +163,10 @@ class OllamaChat:
 
         raw_msg = data.get("message", {})
         return ChatResponse(
-            message=ChatMessage(role=raw_msg.get("role", "assistant"), content=raw_msg.get("content", "")),
+            message=ChatMessage(
+                role=raw_msg.get("role", "assistant"),
+                content=raw_msg.get("content", ""),
+            ),
             done=data.get("done", True),
             total_duration_ns=data.get("total_duration"),
             model=data.get("model"),

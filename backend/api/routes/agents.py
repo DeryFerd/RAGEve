@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.routes._limiter import limiter
-from backend.schemas.agents import AgentCreate, AgentListResponse, AgentResponse, AgentUpdate
-from backend.services.ingestion_factory import get_agent_store, set_active_models
-
+from backend.schemas.agents import (
+    AgentCreate,
+    AgentListResponse,
+    AgentResponse,
+    AgentUpdate,
+)
+from backend.services.ingestion_factory import get_agent_store
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -75,9 +79,9 @@ async def get_agent(request: Request, agent_id: str) -> AgentResponse:
 
 @router.put("/{agent_id}", response_model=AgentResponse)
 @limiter.limit("60/minute")
-async def update_agent(request: Request, agent_id: str, payload: AgentUpdate) -> AgentResponse:
-    from rag.storage.agent_store import AgentConfig
-
+async def update_agent(
+    request: Request, agent_id: str, payload: AgentUpdate
+) -> AgentResponse:
     store = get_agent_store()
     updates: dict = {}
     if payload.name is not None:

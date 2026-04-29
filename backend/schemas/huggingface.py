@@ -24,18 +24,31 @@ class HuggingFaceDownloadRequest(BaseModel):
         description="Dataset config name (required for multi-config datasets like wikitext). "
         "Use GET /datasets/hf/preview/{id} to discover available configs.",
     )
-    auto_ingest: bool = Field(default=False, description="Auto-run ingestion after download.")
+    auto_ingest: bool = Field(
+        default=False, description="Auto-run ingestion after download."
+    )
     row_limit: int | None = Field(
-        default=None, ge=1, description="Row cap for auto-ingest.",
+        default=None,
+        ge=1,
+        description="Row cap for auto-ingest.",
     )
     batch_size: int | None = Field(
-        default=None, ge=1, le=2048, description="Embedding batch size for auto-ingest.",
+        default=None,
+        ge=1,
+        le=2048,
+        description="Embedding batch size for auto-ingest.",
     )
     chunk_overlap: int | None = Field(
-        default=None, ge=0, le=500, description="Chunk overlap for auto-ingest.",
+        default=None,
+        ge=0,
+        le=500,
+        description="Chunk overlap for auto-ingest.",
     )
     max_tokens_per_chunk: int | None = Field(
-        default=None, ge=50, le=2000, description="Max tokens per chunk.",
+        default=None,
+        ge=50,
+        le=2000,
+        description="Max tokens per chunk.",
     )
     text_columns: list[str] = Field(
         default_factory=list,
@@ -63,8 +76,12 @@ class HuggingFaceDownloadStatusResponse(BaseModel):
     updated_at: str | None = None
     rows_downloaded: int | None = None
     splits_downloaded: list[str] = Field(default_factory=list)
-    bytes_downloaded: int | None = Field(default=None, description="Bytes downloaded so far")
-    total_bytes: int | None = Field(default=None, description="Total bytes to download (estimated)")
+    bytes_downloaded: int | None = Field(
+        default=None, description="Bytes downloaded so far"
+    )
+    total_bytes: int | None = Field(
+        default=None, description="Total bytes to download (estimated)"
+    )
     config: str | None = None
     auto_ingest: bool = False
     ingest_status: str | None = None  # idle | ingesting | completed | failed
@@ -153,7 +170,9 @@ class DiscoveredDataset(BaseModel):
     total_size_bytes: int = 0
     readable_columns: list[str] = Field(default_factory=list)
     description: str | None = None
-    is_ingested: bool = Field(default=False, description="True if dataset is already indexed in Qdrant.")
+    is_ingested: bool = Field(
+        default=False, description="True if dataset is already indexed in Qdrant."
+    )
 
 
 class HuggingFaceDiscoveryResponse(BaseModel):
@@ -167,7 +186,9 @@ class HuggingFaceRegisterRequest(BaseModel):
     local_path: str = Field(...)
     dataset_id: str = Field(...)
     split: str = Field(default="train")
-    text_columns: list[str] = Field(default_factory=list, description="Column names to combine for embedding.")
+    text_columns: list[str] = Field(
+        default_factory=list, description="Column names to combine for embedding."
+    )
     metadata_columns: list[str] = Field(default_factory=list)
 
 

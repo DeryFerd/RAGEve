@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
@@ -10,6 +11,8 @@ from test.api.base import APITestBase
 
 class TestDialogsAPI(APITestBase):
     """Tests for dialog (agent) CRUD operations via API."""
+
+    dialog_id: str | None = None
 
     def test_create_dialog(self):
         """Test POST /dialogs creates a new dialog."""
@@ -38,11 +41,13 @@ class TestDialogsAPI(APITestBase):
         assert data["tenant_id"] == self.test_tenant_id
         assert data["llm_id"] == "llama3.2:latest"
         # Store for later tests
-        self.dialog_id = data["id"]
+        self.__class__.dialog_id = data["id"]
 
     def test_list_dialogs(self):
         """Test GET /dialogs returns list with our dialog."""
-        response = self.client.get("/dialogs/", params={"tenant_id": self.test_tenant_id})
+        response = self.client.get(
+            "/dialogs/", params={"tenant_id": self.test_tenant_id}
+        )
         assert response.status_code == 200
         data = response.json()
         assert "dialogs" in data

@@ -16,11 +16,13 @@ import uuid
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField
 
 
 class SystemSettings(BaseModel):
     """System configuration settings (key-value store)."""
+
     name = peewee.CharField(max_length=128, primary_key=True)
     source = peewee.CharField(max_length=32, null=False)
     data_type = peewee.CharField(max_length=32, null=False)
@@ -39,7 +41,9 @@ class SystemSettings(BaseModel):
             return default
 
     @classmethod
-    def set_value(cls, name: str, value: str, source: str = "system", data_type: str = "string"):
+    def set_value(
+        cls, name: str, value: str, source: str = "system", data_type: str = "string"
+    ):
         """Set setting value (create or update)."""
         setting, created = cls.get_or_create(
             name=name,
@@ -47,7 +51,7 @@ class SystemSettings(BaseModel):
                 "source": source,
                 "data_type": data_type,
                 "value": value,
-            }
+            },
         )
         if not created:
             setting.source = source
@@ -59,6 +63,7 @@ class SystemSettings(BaseModel):
 
 class APIToken(BaseModel):
     """API authentication tokens (tenant-based)."""
+
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     token = peewee.CharField(max_length=255, null=False, index=True)
     dialog_id = peewee.CharField(max_length=32, null=True, index=True)
@@ -90,6 +95,7 @@ class APIToken(BaseModel):
 
 class API4Conversation(BaseModel):
     """API conversation tracking (for usage analytics)."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     dialog_id = peewee.CharField(max_length=32, null=False, index=True)
     user_id = peewee.CharField(max_length=255, null=False, index=True)
@@ -140,6 +146,7 @@ class API4Conversation(BaseModel):
 
 class MCP(BaseModel):
     """Model Context Protocol server configuration."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=False)
@@ -178,28 +185,32 @@ class MCP(BaseModel):
 
 class Search(BaseModel):
     """Saved search configurations."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=128, null=False, index=True)
     description = peewee.TextField(null=True)
     created_by = peewee.CharField(max_length=32, null=False, index=True)
-    search_config = JSONTextField(null=False, default={
-        "kb_ids": [],
-        "doc_ids": [],
-        "similarity_threshold": 0.2,
-        "vector_similarity_weight": 0.3,
-        "use_kg": False,
-        "rerank_id": "",
-        "top_k": 1024,
-        "summary": False,
-        "chat_id": "",
-        "chat_settingcross_languages": [],
-        "highlight": False,
-        "keyword": False,
-        "web_search": False,
-        "related_search": False,
-        "query_mindmap": False,
-    })
+    search_config = JSONTextField(
+        null=False,
+        default={
+            "kb_ids": [],
+            "doc_ids": [],
+            "similarity_threshold": 0.2,
+            "vector_similarity_weight": 0.3,
+            "use_kg": False,
+            "rerank_id": "",
+            "top_k": 1024,
+            "summary": False,
+            "chat_id": "",
+            "chat_settingcross_languages": [],
+            "highlight": False,
+            "keyword": False,
+            "web_search": False,
+            "related_search": False,
+            "query_mindmap": False,
+        },
+    )
     status = peewee.CharField(max_length=1, null=True, default="1", index=True)
 
     class Meta:
@@ -222,7 +233,8 @@ class Search(BaseModel):
             name=name,
             description=description,
             created_by=created_by,
-            search_config=search_config or {
+            search_config=search_config
+            or {
                 "kb_ids": [],
                 "doc_ids": [],
                 "similarity_threshold": 0.2,
@@ -245,6 +257,7 @@ class Search(BaseModel):
 
 class PipelineOperationLog(BaseModel):
     """Document processing pipeline logs."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     document_id = peewee.CharField(max_length=32, null=False, index=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)

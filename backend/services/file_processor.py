@@ -58,7 +58,9 @@ class FileProcessorService:
         )
 
         chunks = result["chunks"]
-        self._persist_chunks(dataset_id=dataset_id, source_file=file_path.name, chunks=chunks)
+        self._persist_chunks(
+            dataset_id=dataset_id, source_file=file_path.name, chunks=chunks
+        )
 
         return {
             "dataset_id": dataset_id,
@@ -74,7 +76,9 @@ class FileProcessorService:
             "extraction": result["extraction"],
         }
 
-    def _persist_chunks(self, dataset_id: str, source_file: str, chunks: list[tuple[str, list]]) -> None:
+    def _persist_chunks(
+        self, dataset_id: str, source_file: str, chunks: list[tuple[str, list]]
+    ) -> None:
         out_dir = settings.chunk_root / dataset_id
         out_dir.mkdir(parents=True, exist_ok=True)
 

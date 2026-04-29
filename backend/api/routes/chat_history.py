@@ -20,7 +20,7 @@ from __future__ import annotations
 import json as _json
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
@@ -34,7 +34,6 @@ from backend.schemas.chat_history import (
     ChatSessionListResponse,
     ChatSessionResponse,
     ChatSessionWithMessages,
-    ChatStreamResponse,
     FeedbackRating,
     MessageRole,
     SourceChunkPayload,
@@ -88,9 +87,11 @@ def _message_to_response(message, feedback=None) -> ChatMessageResponse:
         role=MessageRole(message.role.value),
         content=message.content,
         token_count=message.token_count,
-        sources=[
-            SourceChunkPayload(**s) for s in (message.sources or [])
-        ] if message.sources else None,
+        sources=(
+            [SourceChunkPayload(**s) for s in (message.sources or [])]
+            if message.sources
+            else None
+        ),
         feedback=feedback,
         created_at=message.created_at,
     )
@@ -101,9 +102,11 @@ def _message_to_response(message, feedback=None) -> ChatMessageResponse:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-@router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("60/minute")
-async def create_session(request: Request, payload: ChatSessionCreate):
+async def create_session(payload: ChatSessionCreate):
     """
     Create a new conversation session for an agent.
     The agent's configuration is snapshotted at creation time.
@@ -112,7 +115,9 @@ async def create_session(request: Request, payload: ChatSessionCreate):
     agent_store = get_agent_store()
     agent = agent_store.get(payload.agent_id)
     if not agent:
-        raise HTTPException(status_code=404, detail=f"Agent '{payload.agent_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Agent '{payload.agent_id}' not found"
+        )
 
     session = await store.create_session(
         agent_id=payload.agent_id,
@@ -125,14 +130,15 @@ async def create_session(request: Request, payload: ChatSessionCreate):
 @router.get("/sessions", response_model=ChatSessionListResponse)
 @limiter.limit("120/minute")
 async def list_sessions(
-    request: Request,
-    agent_id: str | None = Query(default=None),
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    agent_id: str | None = Query(default=None),  # noqa: B008
+    limit: int = Query(default=20, ge=1, le=100),  # noqa: B008
+    offset: int = Query(default=0, ge=0),  # noqa: B008
 ):
     """List sessions, optionally filtered by agent_id."""
     store = get_chat_store()
-    sessions, total = await store.list_sessions(agent_id=agent_id, limit=limit, offset=offset)
+    sessions, total = await store.list_sessions(
+        agent_id=agent_id, limit=limit, offset=offset
+    )
     return ChatSessionListResponse(
         sessions=[_session_to_response(s) for s in sessions],
         total=total,
@@ -143,7 +149,7 @@ async def list_sessions(
 
 @router.get("/sessions/{session_id}", response_model=ChatSessionWithMessages)
 @limiter.limit("120/minute")
-async def get_session_with_messages(request: Request, session_id: str):
+async def get_session_with_messages(session_id: str):
     """Get a session and its full message history."""
     store = get_chat_store()
     session = await store.get_session(session_id)
@@ -155,7 +161,9 @@ async def get_session_with_messages(request: Request, session_id: str):
     # Load feedback in one batch query
     feedback_map: dict[str, ChatFeedbackResponse | None] = {}
     if messages:
-        fb_rows = await store.get_feedback_for_messages([m.message_id for m in messages])
+        fb_rows = await store.get_feedback_for_messages(
+            [m.message_id for m in messages]
+        )
         for msg in messages:
             fb = fb_rows.get(msg.message_id)
             feedback_map[msg.message_id] = (
@@ -166,21 +174,21 @@ async def get_session_with_messages(request: Request, session_id: str):
                     comment=fb.comment,
                     created_at=fb.created_at,
                 )
-                if fb else None
+                if fb
+                else None
             )
 
     return ChatSessionWithMessages(
         session=_session_to_response(session),
         messages=[
-            _message_to_response(m, feedback_map.get(m.message_id))
-            for m in messages
+            _message_to_response(m, feedback_map.get(m.message_id)) for m in messages
         ],
     )
 
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_session(request: Request, session_id: str):
+async def delete_session(session_id: str):
     """Delete a session and all its messages."""
     store = get_chat_store()
     deleted = await store.delete_session(session_id)
@@ -231,16 +239,17 @@ async def _stream_with_history(
     if history:
         history_block = (
             "## Conversation history\n"
-            + "\n".join(
-                f"{m['role'].capitalize()}: {m['content']}"
-                for m in history
-            )
+            + "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in history)
             + "\n\n"
         )
 
     system_prompt_raw = cfg.get("system_prompt", "")
     if history_block:
-        system_prompt = f"{system_prompt_raw}\n\n{history_block}" if system_prompt_raw else history_block
+        system_prompt = (
+            f"{system_prompt_raw}\n\n{history_block}"
+            if system_prompt_raw
+            else history_block
+        )
     else:
         system_prompt = system_prompt_raw
 
@@ -289,40 +298,48 @@ async def _stream_with_history(
                     use_hybrid = token.get("use_hybrid", False)
 
                     elapsed = _time.monotonic() - t0
-                    yield _json.dumps({
-                        "event": "end",
-                        "sources": retrieved_sources,
-                        "reranker_model": reranker_model,
-                        "use_hybrid": use_hybrid,
-                        "message_id": user_msg.message_id,
-                        "elapsed_s": round(elapsed, 2),
-                    }) + "\n"
+                    yield _json.dumps(
+                        {
+                            "event": "end",
+                            "sources": retrieved_sources,
+                            "reranker_model": reranker_model,
+                            "use_hybrid": use_hybrid,
+                            "message_id": user_msg.message_id,
+                            "elapsed_s": round(elapsed, 2),
+                        }
+                    ) + "\n"
                 else:
                     full_answer_parts.append(token)
                     yield _json.dumps({"event": "chunk", "content": token}) + "\n"
 
             if not done_emitted:
-                yield _json.dumps({
-                    "event": "end",
-                    "sources": retrieved_sources,
-                    "reranker_model": reranker_model,
-                    "use_hybrid": use_hybrid,
-                    "message_id": user_msg.message_id,
-                }) + "\n"
+                yield _json.dumps(
+                    {
+                        "event": "end",
+                        "sources": retrieved_sources,
+                        "reranker_model": reranker_model,
+                        "use_hybrid": use_hybrid,
+                        "message_id": user_msg.message_id,
+                    }
+                ) + "\n"
 
     except (_asyncio.TimeoutError, TimeoutError) as exc:
-        raise HTTPException(status_code=504, detail="Request timed out after 120 seconds") from exc
+        raise HTTPException(
+            status_code=504, detail="Request timed out after 120 seconds"
+        ) from exc
     except Exception as exc:
-        yield _json.dumps({
-            "event": "error",
-            "error": str(exc),
-            "message_id": user_msg.message_id,
-        }) + "\n"
+        yield _json.dumps(
+            {
+                "event": "error",
+                "error": str(exc),
+                "message_id": user_msg.message_id,
+            }
+        ) + "\n"
         return
 
     # 5. Save assistant message with retrieval context + sources
     full_answer = "".join(full_answer_parts)
-    assistant_msg = await store.create_message(
+    _ = await store.create_message(
         session_id=session_id,
         role="assistant",
         content=full_answer,
@@ -342,7 +359,6 @@ async def _stream_with_history(
 )
 @limiter.limit("120/minute")
 async def chat_stream_with_history(
-    request: Request,
     session_id: str,
     payload: ChatMessageCreate,
 ) -> StreamingResponse:
@@ -369,7 +385,6 @@ async def chat_stream_with_history(
 @router.post("/sessions/{session_id}/messages", response_model=ChatMessageResponse)
 @limiter.limit("120/minute")
 async def chat_non_streaming_with_history(
-    request: Request,
     session_id: str,
     payload: ChatMessageCreate,
 ) -> ChatMessageResponse:
@@ -391,10 +406,7 @@ async def chat_non_streaming_with_history(
     if history:
         history_block = (
             "## Conversation history\n"
-            + "\n".join(
-                f"{m['role'].capitalize()}: {m['content']}"
-                for m in history
-            )
+            + "\n".join(f"{m['role'].capitalize()}: {m['content']}" for m in history)
             + "\n\n"
         )
 
@@ -406,7 +418,7 @@ async def chat_non_streaming_with_history(
     )
 
     # Save user message
-    user_msg = await store.create_message(
+    _ = await store.create_message(
         session_id=session_id,
         role="user",
         content=payload.question,
@@ -449,7 +461,11 @@ async def chat_non_streaming_with_history(
         session_id=session_id,
         role=MessageRole.ASSISTANT,
         content=assistant_msg.content,
-        sources=[SourceChunkPayload(**s.__dict__) for s in answer.sources] if answer.sources else None,
+        sources=(
+            [SourceChunkPayload(**s.__dict__) for s in answer.sources]
+            if answer.sources
+            else None
+        ),
         created_at=assistant_msg.created_at,
     )
 
@@ -465,7 +481,9 @@ async def chat_non_streaming_with_history(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("60/minute")
-async def upsert_feedback(request: Request, message_id: str, payload: ChatFeedbackUpsert):
+async def upsert_feedback(
+    message_id: str, payload: ChatFeedbackUpsert
+):
     """
     Submit or update feedback for an assistant message.
     Idempotent — a second POST replaces the previous feedback.

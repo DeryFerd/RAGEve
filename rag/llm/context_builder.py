@@ -24,6 +24,7 @@ Every chunk stored in Qdrant carries these fields in its payload:
   Manual-only (present when ingested via ingestion_service.py):
     extension           — str — source file extension e.g. ".pdf"
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

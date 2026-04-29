@@ -13,9 +13,12 @@ All logic lives in focused sub-modules:
 Keeping routes in this file makes the FastAPI include_router call simpler
 and keeps all HF prefixes under /datasets/hf.
 """
+
 from fastapi import APIRouter
 
-from backend.api.routes._limiter import limiter  # noqa: F401 — re-exported for other modules
+from backend.api.routes._limiter import (  # noqa: F401 — re-exported for other modules
+    limiter,
+)
 from backend.api.routes.hf_download import router as hf_download_router
 from backend.api.routes.hf_ingest import router as hf_ingest_router
 from backend.api.routes.hf_preview import router as hf_preview_router

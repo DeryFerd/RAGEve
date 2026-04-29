@@ -9,28 +9,37 @@ import asyncio
 import io
 import sys
 from pathlib import Path
+
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 from test.api.base import APITestBase
-from backend.services.knowledge_base_store import get_knowledge_base_store
+
 from backend.services.database import run_db_operation
+from backend.services.knowledge_base_store import get_knowledge_base_store
 
 
 class TestKnowledgebasesAPI(APITestBase):
     """Tests for knowledgebase and document management via API."""
+
+    kb_id: str | None = None
+    other_kb_id: str | None = None
+    doc_id: str | None = None
+    task_id: str | None = None
 
     @classmethod
     def setup_class(cls):
         super().setup_class()
         # Create a KB for document tests
         store = get_knowledge_base_store()
-        kb = asyncio.run(run_db_operation(
-            store.create_knowledgebase,
-            tenant_id=cls.test_tenant_id,
-            name="Test KB for Documents",
-            created_by=cls.test_user_id,
-        ))
+        kb = asyncio.run(
+            run_db_operation(
+                store.create_knowledgebase,
+                tenant_id=cls.test_tenant_id,
+                name="Test KB for Documents",
+                created_by=cls.test_user_id,
+            )
+        )
         cls.kb_id = kb.id
 
     def test_create_knowledgebase(self):
@@ -50,11 +59,13 @@ class TestKnowledgebasesAPI(APITestBase):
         assert data["id"] is not None
         assert data["name"] == "Another KB"
         assert data["tenant_id"] == self.test_tenant_id
-        self.other_kb_id = data["id"]
+        self.__class__.other_kb_id = data["id"]
 
     def test_list_knowledgebases(self):
         """Test GET /knowledgebases returns list with our KBs."""
-        response = self.client.get("/knowledgebases/", params={"tenant_id": self.test_tenant_id})
+        response = self.client.get(
+            "/knowledgebases/", params={"tenant_id": self.test_tenant_id}
+        )
         assert response.status_code == 200
         data = response.json()
         assert "knowledgebases" in data
@@ -93,13 +104,15 @@ class TestKnowledgebasesAPI(APITestBase):
             "parser_id": "pdf",
             "created_by": self.test_user_id,
         }
-        response = self.client.post(f"/knowledgebases/{self.kb_id}/documents", json=payload)
+        response = self.client.post(
+            f"/knowledgebases/{self.kb_id}/documents", json=payload
+        )
         assert response.status_code == 201, f"Failed: {response.text}"
         data = response.json()
         assert data["id"] is not None
         assert data["name"] == "Test Document"
         assert data["kb_id"] == self.kb_id
-        self.doc_id = data["id"]
+        self.__class__.doc_id = data["id"]
 
     def test_get_document(self):
         """Test GET /documents/{doc_id} returns the document."""
@@ -135,11 +148,12 @@ class TestKnowledgebasesAPI(APITestBase):
         assert data["doc_id"] == self.doc_id
         assert data["task_id"] is not None
         self.file_id = data["file_id"]
-        self.task_id = data["task_id"]
+        self.__class__.task_id = data["task_id"]
 
     def test_get_task(self):
         """Task created by file upload should be retrievable via store indirectly?
-        There is no direct GET /tasks/{id} endpoint currently, but we can check it via document or just store test."""
+        There is no direct GET /tasks/{id} endpoint currently, but we can check it via document or just store test.
+        """
         # For API tests, we might not have a direct task endpoint; we can skip or check via knowledgebase store.
         # We'll just verify the task_id is not None and move on.
         assert hasattr(self, "task_id")

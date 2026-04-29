@@ -53,6 +53,7 @@ TEST_QUERIES = [
 # Benchmark helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_or_create_agent() -> str | None:
     """Find an agent pointing at 'squad' collection, or create one."""
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
@@ -97,7 +98,9 @@ async def _stream_chat(
     Send a streaming /chat/{agent_id}/stream request and collect
     timing / token / source metrics.
     """
-    async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=REQUEST_TIMEOUT_S) as client:
+    async with httpx.AsyncClient(
+        base_url=API_BASE_URL, timeout=REQUEST_TIMEOUT_S
+    ) as client:
         t0_request = time.perf_counter()
         first_token_ts: float | None = None
         tokens: list[str] = []
@@ -149,14 +152,17 @@ async def _stream_chat(
         "question": question,
         "error": error,
         "request_latency_s": round(t_total, 3),
-        "first_token_latency_s": round(first_token_latency, 3) if first_token_latency is not None else None,
+        "first_token_latency_s": (
+            round(first_token_latency, 3) if first_token_latency is not None else None
+        ),
         "tokens_received": len(tokens),
         "response_chars": len(assembled),
         "response_words": len(assembled.split()),
         "sources_count": len(sources),
         "avg_source_score": (
             round(sum(s.get("score", 0) for s in sources) / len(sources), 4)
-            if sources else None
+            if sources
+            else None
         ),
     }
 
@@ -181,7 +187,11 @@ async def bench_streaming_latency(
     failed = [r for r in results if r.get("error") is not None]
 
     total_latencies = [r["request_latency_s"] for r in successful]
-    first_token_latencies = [r["first_token_latency_s"] for r in successful if r.get("first_token_latency_s") is not None]
+    first_token_latencies = [
+        r["first_token_latency_s"]
+        for r in successful
+        if r.get("first_token_latency_s") is not None
+    ]
 
     def _p(values: list[float], pct: float) -> float | None:
         if not values:
@@ -197,12 +207,20 @@ async def bench_streaming_latency(
             "p50": _p(total_latencies, 0.50),
             "p90": _p(total_latencies, 0.90),
             "p99": _p(total_latencies, 0.99),
-            "mean": round(sum(total_latencies) / len(total_latencies), 3) if total_latencies else None,
+            "mean": (
+                round(sum(total_latencies) / len(total_latencies), 3)
+                if total_latencies
+                else None
+            ),
         },
         "first_token_latency_s": {
             "p50": _p(first_token_latencies, 0.50),
             "p90": _p(first_token_latencies, 0.90),
-            "mean": round(sum(first_token_latencies) / len(first_token_latencies), 3) if first_token_latencies else None,
+            "mean": (
+                round(sum(first_token_latencies) / len(first_token_latencies), 3)
+                if first_token_latencies
+                else None
+            ),
         },
         "per_query": results,
     }
@@ -214,7 +232,9 @@ async def bench_session_crud(agent_id: str) -> dict:
         timings: dict[str, float] = {}
 
         t0 = time.perf_counter()
-        r = await client.post("/chat/sessions", json={"agent_id": agent_id, "title": "Benchmark session"})
+        r = await client.post(
+            "/chat/sessions", json={"agent_id": agent_id, "title": "Benchmark session"}
+        )
         timings["create_session_ms"] = round((time.perf_counter() - t0) * 1000, 2)
         if r.status_code not in (200, 201):
             return {"error": f"create failed: HTTP {r.status_code}"}
@@ -265,6 +285,7 @@ def add_to(run_dict: dict, results: dict) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry-point
 # ---------------------------------------------------------------------------
+
 
 async def _main() -> dict:
     parser = argparse.ArgumentParser(description="Streaming benchmark")

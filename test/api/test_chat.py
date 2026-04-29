@@ -3,13 +3,15 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 from test.api.base import APITestBase
+
+from backend.services.database import run_db_operation
 from backend.services.dialog_store import get_dialog_store
 from backend.services.knowledge_base_store import get_knowledge_base_store
-from backend.services.database import run_db_operation
 
 
 class TestChatAPI(APITestBase):
@@ -20,23 +22,27 @@ class TestChatAPI(APITestBase):
         super().setup_class()
         # Create a knowledgebase (empty) and a dialog pointing to it
         kb_store = get_knowledge_base_store()
-        kb = asyncio.run(run_db_operation(
-            kb_store.create_knowledgebase,
-            tenant_id=cls.test_tenant_id,
-            name="Chat Test KB",
-            created_by=cls.test_user_id,
-        ))
+        kb = asyncio.run(
+            run_db_operation(
+                kb_store.create_knowledgebase,
+                tenant_id=cls.test_tenant_id,
+                name="Chat Test KB",
+                created_by=cls.test_user_id,
+            )
+        )
         cls.kb_id = kb.id
 
         dialog_store = get_dialog_store()
-        dialog = asyncio.run(run_db_operation(
-            dialog_store.create_dialog,
-            tenant_id=cls.test_tenant_id,
-            name="Chat Test Dialog",
-            llm_id="llama3.2:latest",  # may not matter if no data
-            created_by=cls.test_user_id,
-            kb_ids=[cls.kb_id],
-        ))
+        dialog = asyncio.run(
+            run_db_operation(
+                dialog_store.create_dialog,
+                tenant_id=cls.test_tenant_id,
+                name="Chat Test Dialog",
+                llm_id="llama3.2:latest",  # may not matter if no data
+                created_by=cls.test_user_id,
+                kb_ids=[cls.kb_id],
+            )
+        )
         cls.dialog_id = dialog.id
 
     def test_chat_non_streaming(self):

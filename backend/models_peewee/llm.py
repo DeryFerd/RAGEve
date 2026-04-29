@@ -13,13 +13,21 @@ import uuid
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField
 
 
 class LLMFactories(BaseModel):
     """LLM provider/factory definition."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
-    name = peewee.CharField(max_length=128, null=False, unique=True, index=True, help_text="Provider name: OpenAI, Anthropic, etc.")
+    name = peewee.CharField(
+        max_length=128,
+        null=False,
+        unique=True,
+        index=True,
+        help_text="Provider name: OpenAI, Anthropic, etc.",
+    )
     llm_name = peewee.CharField(max_length=256, null=False, help_text="Model name")
     api_base = peewee.CharField(max_length=512, null=True, help_text="API endpoint URL")
     api_key = peewee.TextField(null=True, help_text="API key (encrypted)")
@@ -56,14 +64,27 @@ class LLMFactories(BaseModel):
 
 class LLM(BaseModel):
     """Individual LLM model configuration within a factory."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
-    fid = peewee.CharField(max_length=128, null=False, index=True, help_text="Factory ID (foreign key to llm_factories.name)")
+    fid = peewee.CharField(
+        max_length=128,
+        null=False,
+        index=True,
+        help_text="Factory ID (foreign key to llm_factories.name)",
+    )
     llm_name = peewee.CharField(max_length=256, null=False, help_text="Model name")
-    model_type = peewee.CharField(max_length=32, null=False, default="chat", help_text="chat/embedding/rerank/asr/image2text")
+    model_type = peewee.CharField(
+        max_length=32,
+        null=False,
+        default="chat",
+        help_text="chat/embedding/rerank/asr/image2text",
+    )
     max_tokens = peewee.IntegerField(null=False, default=8192)
     used_tokens = peewee.BigIntegerField(null=False, default=0)
     tags = JSONTextField(null=True, default=[])
-    is_tools = peewee.BooleanField(null=False, default=False, help_text="Support tool calling")
+    is_tools = peewee.BooleanField(
+        null=False, default=False, help_text="Support tool calling"
+    )
 
     class Meta:
         table_name = "llm"
@@ -93,11 +114,16 @@ class LLM(BaseModel):
 
 class TenantLLM(BaseModel):
     """Tenant-specific LLM configuration (overrides factory defaults)."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
-    llm_factory = peewee.CharField(max_length=128, null=False, help_text="Provider name")
+    llm_factory = peewee.CharField(
+        max_length=128, null=False, help_text="Provider name"
+    )
     llm_name = peewee.CharField(max_length=256, null=False, help_text="Model name")
-    model_type = peewee.CharField(max_length=32, null=False, help_text="chat/embedding/rerank")
+    model_type = peewee.CharField(
+        max_length=32, null=False, help_text="chat/embedding/rerank"
+    )
     api_key = peewee.TextField(null=True, help_text="API key (overrides factory)")
     max_tokens = peewee.IntegerField(null=False, default=8192)
     used_tokens = peewee.BigIntegerField(null=False, default=0)

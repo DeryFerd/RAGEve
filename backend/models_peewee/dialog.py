@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField, ListField
 
 
@@ -21,32 +22,43 @@ class Dialog(BaseModel):
 
     This replaces RAGEve's JSON file-based agents.
     """
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=True, index=True)
     description = peewee.TextField(null=True)
     language = peewee.CharField(max_length=32, null=True, default="English", index=True)
     llm_id = peewee.CharField(max_length=128, null=False, help_text="Default LLM ID")
-    llm_setting = JSONTextField(null=False, default={
-        "temperature": 0.1,
-        "top_p": 0.3,
-        "frequency_penalty": 0.7,
-        "presence_penalty": 0.4,
-        "max_tokens": 512
-    })
-    prompt_type = peewee.CharField(max_length=16, null=False, default="simple", index=True)
-    prompt_config = JSONTextField(null=False, default={
-        "system": "",
-        "prologue": "Hi! I'm your assistant. What can I do for you?",
-        "parameters": [],
-        "empty_response": "Sorry! No relevant content was found in the knowledge base!"
-    })
+    llm_setting = JSONTextField(
+        null=False,
+        default={
+            "temperature": 0.1,
+            "top_p": 0.3,
+            "frequency_penalty": 0.7,
+            "presence_penalty": 0.4,
+            "max_tokens": 512,
+        },
+    )
+    prompt_type = peewee.CharField(
+        max_length=16, null=False, default="simple", index=True
+    )
+    prompt_config = JSONTextField(
+        null=False,
+        default={
+            "system": "",
+            "prologue": "Hi! I'm your assistant. What can I do for you?",
+            "parameters": [],
+            "empty_response": "Sorry! No relevant content was found in the knowledge base!",
+        },
+    )
     meta_data_filter = JSONTextField(null=True, default={})
     similarity_threshold = peewee.FloatField(null=False, default=0.2)
     vector_similarity_weight = peewee.FloatField(null=False, default=0.3)
     top_n = peewee.IntegerField(null=False, default=6)
     top_k = peewee.IntegerField(null=False, default=1024)
-    do_refer = peewee.CharField(max_length=1, null=False, default="1", help_text="Include references (1=yes)")
+    do_refer = peewee.CharField(
+        max_length=1, null=False, default="1", help_text="Include references (1=yes)"
+    )
     rerank_id = peewee.CharField(max_length=128, null=False, default="")
     kb_ids = ListField(null=False, default=[])
     status = peewee.CharField(max_length=1, null=True, default="1", index=True)
@@ -85,19 +97,21 @@ class Dialog(BaseModel):
             description=description,
             language=language,
             llm_id=llm_id,
-            llm_setting=llm_setting or {
+            llm_setting=llm_setting
+            or {
                 "temperature": 0.1,
                 "top_p": 0.3,
                 "frequency_penalty": 0.7,
                 "presence_penalty": 0.4,
-                "max_tokens": 512
+                "max_tokens": 512,
             },
             prompt_type=prompt_type,
-            prompt_config=prompt_config or {
+            prompt_config=prompt_config
+            or {
                 "system": "",
                 "prologue": "Hi! I'm your assistant. What can I do for you?",
                 "parameters": [],
-                "empty_response": "Sorry! No relevant content was found in the knowledge base!"
+                "empty_response": "Sorry! No relevant content was found in the knowledge base!",
             },
             meta_data_filter=meta_data_filter or {},
             similarity_threshold=similarity_threshold,
@@ -121,10 +135,13 @@ class Conversation(BaseModel):
     Messages are stored as a JSON array in the `message` field.
     Each message object should have: {"role": "user"|"assistant"|"system", "content": "..."}
     """
+
     id = peewee.CharField(max_length=32, primary_key=True)
     dialog_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=True, index=True)
-    message = JSONTextField(null=True)  # Array of message objects: [{"role": "...", "content": "...", ...}, ...]
+    message = JSONTextField(
+        null=True
+    )  # Array of message objects: [{"role": "...", "content": "...", ...}, ...]
     reference = JSONTextField(null=True, default=[])
     user_id = peewee.CharField(max_length=255, null=True, index=True)
 
@@ -185,5 +202,5 @@ class Conversation(BaseModel):
         """
         msgs = self.message or []
         if max_turns and len(msgs) > max_turns * 2:
-            msgs = msgs[-(max_turns * 2):]
+            msgs = msgs[-(max_turns * 2) :]
         return msgs

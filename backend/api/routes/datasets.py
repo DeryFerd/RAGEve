@@ -1,19 +1,38 @@
 from __future__ import annotations
 
 import asyncio
-import httpx
 import json
 import logging
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, Request, UploadFile
+import httpx
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, StreamingResponse
 
+from backend.api.routes._limiter import limiter
 from backend.config import settings
+from backend.schemas.datasets import (
+    CollectionDeleteResponse,
+    DatasetInfo,
+    DatasetListResponse,
+    IngestRequest,
+    IngestResponse,
+    IngestStatusResponse,
+    IngestSubmitResponse,
+)
+from backend.services.file_processor import SUPPORTED_EXTENSIONS, FileProcessorService
+from rag.deepdoc.quality_scorer import ChunkProfile
 
 _log = logging.getLogger(__name__)
 
@@ -47,7 +66,7 @@ def _check_content_length(request: Request) -> None:
 
 _DATASET_REGISTRY_FILE = settings.upload_root / "_dataset_registry.json"
 _DATASET_REGISTRY_LOCK = asyncio.Lock()
-_dataset_bytes: dict[str, int] = {}   # in-memory copy
+_dataset_bytes: dict[str, int] = {}  # in-memory copy
 
 
 def _load_dataset_registry() -> dict[str, int]:
@@ -58,7 +77,9 @@ def _load_dataset_registry() -> dict[str, int]:
                 raw: dict[str, dict[str, Any]] = json.load(f)
             return {k: v.get("bytes", 0) for k, v in raw.items()}
     except (json.JSONDecodeError, OSError) as exc:
-        _log.warning("Could not load dataset registry from %s: %s", _DATASET_REGISTRY_FILE, exc)
+        _log.warning(
+            "Could not load dataset registry from %s: %s", _DATASET_REGISTRY_FILE, exc
+        )
     return {}
 
 
@@ -131,19 +152,6 @@ def _check_dataset_size(dataset_id: str, incoming_bytes: int) -> None:
         )
 
 
-from backend.api.routes._limiter import limiter
-
-from backend.schemas.datasets import (
-    CollectionDeleteResponse,
-    DatasetInfo,
-    DatasetListResponse,
-    IngestRequest,
-    IngestResponse,
-    IngestSubmitResponse,
-    IngestStatusResponse,
-)
-from backend.services.file_processor import FileProcessorService, SUPPORTED_EXTENSIONS
-from rag.deepdoc.quality_scorer import ChunkProfile
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 processor = FileProcessorService()
@@ -189,16 +197,14 @@ def _ingest_status_file() -> Path:
 def _load_ingest_registry() -> dict[str, dict[str, Any]]:
     """Load non-terminal ingest statuses from disk on startup."""
     terminal = {"completed", "failed", "cancelled"}
+    fpath = _ingest_status_file()
     try:
-        fpath = _ingest_status_file()
         if fpath.exists():
             with open(fpath, "r", encoding="utf-8") as f:
                 raw: dict[str, dict[str, Any]] = json.load(f)
             # Prune terminal entries — they have no useful polling state.
             return {k: v for k, v in raw.items() if v.get("status") not in terminal}
     except (json.JSONDecodeError, OSError) as exc:
-        # JSONDecodeError: file is corrupted; OSError: permission / missing file edge cases.
-        # Neither should crash the app on startup — start with an empty registry.
         _log.warning("Could not load ingest registry from %s: %s", fpath, exc)
     return {}
 
@@ -210,7 +216,7 @@ def _persist_ingest_registry() -> None:
         tmp = fpath.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(_ingest_registry, f)
-        tmp.replace(fpath)          # atomic on POSIX
+        tmp.replace(fpath)  # atomic on POSIX
     except Exception as exc:
         _log.warning("Failed to persist ingest registry: %s", exc)
 
@@ -218,12 +224,18 @@ def _persist_ingest_registry() -> None:
 # Rehydrate non-terminal statuses from disk on module load.
 _ingest_registry = _load_ingest_registry()
 for iid, st in _ingest_registry.items():
-    _log.info("Resuming ingest %s [%s] — stage=%s", iid, st.get("dataset_id"), st.get("current_stage"))
+    _log.info(
+        "Resuming ingest %s [%s] — stage=%s",
+        iid,
+        st.get("dataset_id"),
+        st.get("current_stage"),
+    )
 
 
 # ------------------------------------------------------------------
 # Helper to update a status entry (writes in-memory + persists to disk)
 # ------------------------------------------------------------------
+
 
 async def _set_ingest_status(ingest_id: str, **kwargs: Any) -> dict[str, Any]:
     """Atomically merge kwargs into the in-memory registry and flush to disk."""
@@ -240,10 +252,11 @@ async def _set_ingest_status(ingest_id: str, **kwargs: Any) -> dict[str, Any]:
 # Background ingest submit + status polling
 # ------------------------------------------------------------------
 
+
 async def _run_background_ingest(
     ingest_id: str,
     dataset_id: str,
-    file_paths: list[tuple[str, Path]],   # (original_filename, saved_path)
+    file_paths: list[tuple[str, Path]],  # (original_filename, saved_path)
     req: IngestRequest,
     selected_profile: ChunkProfile | None,
 ) -> None:
@@ -307,7 +320,12 @@ async def _run_background_ingest(
                 # while processing this file; bail immediately if so.
                 entry = _ingest_registry.get(ingest_id)
                 if entry and entry.get("status") == "cancelled":
-                    _log.info("Ingest %s cancelled mid-run; stopping after file %d/%d", ingest_id, file_idx, total_files)
+                    _log.info(
+                        "Ingest %s cancelled mid-run; stopping after file %d/%d",
+                        ingest_id,
+                        file_idx,
+                        total_files,
+                    )
                     return
 
                 await _set_ingest_status(
@@ -320,7 +338,11 @@ async def _run_background_ingest(
                 )
 
             except Exception as exc:
-                _log.exception("Ingest failed for file %s in ingest_id=%s", original_filename, ingest_id)
+                _log.exception(
+                    "Ingest failed for file %s in ingest_id=%s",
+                    original_filename,
+                    ingest_id,
+                )
                 await _set_ingest_status(
                     ingest_id,
                     status="failed",
@@ -404,12 +426,14 @@ async def submit_background_ingest(
     # Read bytes first so we can validate per-file size before saving.
     # SpooledTemporaryFile can only be read once — store the full bytes.
     file_bytes_list: list[bytes] = []
+    total_incoming = 0
     for upload in files:
         file_bytes = await upload.read()
         _check_file_size(upload, len(file_bytes))
         file_bytes_list.append(file_bytes)
+        total_incoming += len(file_bytes)
 
-    _check_dataset_size(dataset_id, sum(file_bytes_list))
+    _check_dataset_size(dataset_id, total_incoming)
 
     for upload, file_bytes in zip(files, file_bytes_list):
         try:
@@ -422,7 +446,9 @@ async def submit_background_ingest(
             # Rollback already-saved files.
             for _, p in file_paths:
                 p.unlink(missing_ok=True)
-            raise HTTPException(status_code=500, detail=f"Failed to save {upload.filename}: {exc}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to save {upload.filename}: {exc}"
+            )
 
     # Register initial status before scheduling the background task.
     started_at = datetime.now(timezone.utc).isoformat()
@@ -453,7 +479,9 @@ async def submit_background_ingest(
 
     _log.info(
         "Submitted background ingest ingest_id=%s dataset_id=%s files=%d",
-        ingest_id, dataset_id, len(file_paths),
+        ingest_id,
+        dataset_id,
+        len(file_paths),
     )
 
     return IngestSubmitResponse(
@@ -465,10 +493,7 @@ async def submit_background_ingest(
 
 @router.get("/ingest/{ingest_id}/status", response_model=IngestStatusResponse)
 @limiter.limit("120/minute")
-async def get_ingest_status(
-    request: Request,
-    ingest_id: str
-) -> IngestStatusResponse:
+async def get_ingest_status(ingest_id: str) -> IngestStatusResponse:
     """
     Poll ingest progress.  Returns current stage, percentage, chunk counters,
     and (when finished) the full per-file results.
@@ -484,23 +509,6 @@ async def get_ingest_status(
             status_code=404,
             detail=f"No ingest found for id '{ingest_id}'.",
         )
-
-    # Compute ETA when running and we have enough data.
-    eta_seconds: str | None = None
-    if entry.get("status") == "running" and entry.get("chunks_total", 0) > 0:
-        done = entry.get("chunks_done", 0) or 0
-        total = entry["chunks_total"]
-        started_str = entry.get("started_at")
-        if done > 0 and started_str:
-            try:
-                started = datetime.fromisoformat(started_str)
-                elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-                rate = done / elapsed if elapsed > 0 else 0
-                if rate > 0:
-                    remaining = int((total - done) / rate)
-                    eta_seconds = f"{remaining}s"
-            except Exception:
-                pass
 
     return IngestStatusResponse(
         ingest_id=ingest_id,
@@ -523,10 +531,7 @@ async def get_ingest_status(
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_ingest(
-    request: Request,
-    ingest_id: str
-) -> dict:
+async def cancel_ingest(ingest_id: str) -> dict:
     """
     Cancel a running or queued ingest.  Marks the status as cancelled;
     the background task checks this flag on every stage transition and
@@ -540,7 +545,9 @@ async def cancel_ingest(
         entry = _ingest_registry.get(ingest_id)
 
     if entry is None:
-        raise HTTPException(status_code=404, detail=f"No ingest found for id '{ingest_id}'.")
+        raise HTTPException(
+            status_code=404, detail=f"No ingest found for id '{ingest_id}'."
+        )
 
     current_status = entry.get("status", "")
     if current_status in ("completed", "failed", "cancelled"):
@@ -558,26 +565,31 @@ async def cancel_ingest(
     )
 
     _log.info("Ingest %s marked cancelled.", ingest_id)
-    return {"ingest_id": ingest_id, "status": "cancelled", "message": "Cancellation requested."}
+    return {
+        "ingest_id": ingest_id,
+        "status": "cancelled",
+        "message": "Cancellation requested.",
+    }
 
 
 # ------------------------------------------------------------------
 # List all datasets (collections in Qdrant)
 # ------------------------------------------------------------------
 
+
 @router.get("/", response_model=DatasetListResponse)
 @limiter.limit("120/minute")
 async def list_datasets(
-    request: Request,
     skip: int = Query(0, ge=0, description="Number of collections to skip"),
-    limit: int = Query(50, ge=1, le=200, description="Maximum number of collections to return"),
+    limit: int = Query(
+        50, ge=1, le=200, description="Maximum number of collections to return"
+    ),
 ) -> DatasetListResponse:
     """
     List all datasets by enumerating Qdrant collections.
     Returns metadata for each collection (chunks count, vector size, status).
     """
     from backend.services.ingestion_factory import get_qdrant_store
-    import httpx
 
     store = get_qdrant_store()
 
@@ -591,7 +603,11 @@ async def list_datasets(
                 c["name"] for c in data.get("result", {}).get("collections", [])
             ]
     except httpx.HTTPStatusError as exc:
-        _log.error("Qdrant returned HTTP %d while listing collections: %s", exc.response.status_code, exc)
+        _log.error(
+            "Qdrant returned HTTP %d while listing collections: %s",
+            exc.response.status_code,
+            exc,
+        )
         from fastapi import HTTPException
 
         raise HTTPException(
@@ -629,7 +645,9 @@ async def list_datasets(
                 )
             )
 
-    return DatasetListResponse(datasets=datasets, total=len(collection_names), skip=skip, limit=limit)
+    return DatasetListResponse(
+        datasets=datasets, total=len(collection_names), skip=skip, limit=limit
+    )
 
 
 # ------------------------------------------------------------------
@@ -691,7 +709,9 @@ async def upload_and_ingest(
 
     # ── Phase 2: save + ingest each file (reusing bytes from Phase 1) ──────
     for upload, file_bytes in zip(files, file_bytes_list):
-        saved_file = await processor.save_upload(dataset_id=dataset_id, upload=upload, file_bytes=file_bytes)
+        saved_file = await processor.save_upload(
+            dataset_id=dataset_id, upload=upload, file_bytes=file_bytes
+        )
         await _add_dataset_bytes(dataset_id, len(file_bytes))
 
         result = await ingestion.ingest_file(
@@ -778,16 +798,20 @@ async def _stream_upload_and_ingest(
             }
         ) + "\n"
 
-        saved_file = await processor.save_upload(dataset_id=dataset_id, upload=upload, file_bytes=file_bytes)
+        saved_file = await processor.save_upload(
+            dataset_id=dataset_id, upload=upload, file_bytes=file_bytes
+        )
         await _add_dataset_bytes(dataset_id, len(file_bytes))
 
         progress_queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-        async def on_progress(evt: dict) -> None:
-            file_share = 100 / max(total_files, 1)
-            base_progress = (idx - 1) * file_share
+        async def on_progress(evt: dict, _idx=idx, _upload=upload, _total_files=total_files) -> None:
+            file_share = 100 / max(_total_files, 1)
+            base_progress = (_idx - 1) * file_share
             local_progress = (evt.get("progress") or 0) / 100
-            total_progress = int(min(100, base_progress + (local_progress * file_share)))
+            total_progress = int(
+                min(100, base_progress + (local_progress * file_share))
+            )
 
             payload = {
                 "event": "status",
@@ -795,9 +819,9 @@ async def _stream_upload_and_ingest(
                 "message": evt.get("message", "Processing"),
                 "progress": total_progress,
                 "dataset_id": dataset_id,
-                "file": upload.filename,
-                "file_index": idx,
-                "file_total": total_files,
+                "file": _upload.filename,
+                "file_index": _idx,
+                "file_total": _total_files,
             }
             if "chunks_done" in evt:
                 payload["chunks_done"] = evt["chunks_done"]
@@ -908,7 +932,6 @@ async def upload_and_ingest_stream(
 @router.post("/{dataset_id}/ingest", response_model=IngestResponse)
 @limiter.limit("60/minute")
 async def ingest_existing_files(
-    request: Request,
     dataset_id: str,
     req: IngestRequest | None = None,
 ) -> IngestResponse:
@@ -926,7 +949,10 @@ async def ingest_existing_files(
     upload_dir = resolved
 
     if not upload_dir.exists():
-        raise HTTPException(status_code=404, detail=f"No uploaded files found for dataset '{dataset_id}'")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No uploaded files found for dataset '{dataset_id}'",
+        )
 
     selected_profile: ChunkProfile | None = None
     if req.force_profile:
@@ -967,7 +993,10 @@ async def ingest_existing_files(
         collection=dataset_id,
         chunks_embedded=total_chunks,
         total_chars=total_chars,
-        quality_report={"average_score": sum(r.get("quality_score", 0) for r in quality_reports) / max(len(quality_reports), 1)},
+        quality_report={
+            "average_score": sum(r.get("quality_score", 0) for r in quality_reports)
+            / max(len(quality_reports), 1)
+        },
         message=f"Ingested {total_chunks} chunks from {len(quality_reports)} file(s).",
     )
 
@@ -979,17 +1008,16 @@ async def ingest_existing_files(
 
 @router.get("/{dataset_id}", response_model=DatasetInfo)
 @limiter.limit("120/minute")
-async def get_dataset_info(
-    request: Request,
-    dataset_id: str
-) -> DatasetInfo:
+async def get_dataset_info(dataset_id: str) -> DatasetInfo:
     from backend.services.ingestion_factory import get_qdrant_store
 
     store = get_qdrant_store()
     info = store.get_collection_info(dataset_id)
 
     if info is None:
-        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_id}' not found in vector store.")
+        raise HTTPException(
+            status_code=404, detail=f"Dataset '{dataset_id}' not found in vector store."
+        )
 
     return DatasetInfo(
         dataset_id=dataset_id,
@@ -1003,7 +1031,6 @@ async def get_dataset_info(
 @router.get("/{dataset_id}/download/{filename}")
 @limiter.limit("120/minute")
 async def download_dataset_file(
-    request: Request,
     dataset_id: str,
     filename: str,
 ) -> FileResponse:
@@ -1031,10 +1058,7 @@ async def download_dataset_file(
 
 @router.delete("/{dataset_id}", response_model=CollectionDeleteResponse)
 @limiter.limit("60/minute")
-async def delete_dataset(
-    request: Request,
-    dataset_id: str
-) -> CollectionDeleteResponse:
+async def delete_dataset(dataset_id: str) -> CollectionDeleteResponse:
     from backend.services.ingestion_factory import get_qdrant_store
 
     store = get_qdrant_store()
@@ -1054,5 +1078,9 @@ async def delete_dataset(
     return CollectionDeleteResponse(
         dataset_id=dataset_id,
         deleted=deleted,
-        message=f"Dataset '{dataset_id}' deleted from vector store and local files." if deleted else "Deletion failed or collection did not exist.",
+        message=(
+            f"Dataset '{dataset_id}' deleted from vector store and local files."
+            if deleted
+            else "Deletion failed or collection did not exist."
+        ),
     )

@@ -71,7 +71,8 @@ def clear_cuda_cache() -> None:
     total_mb = cuda_memory_free() / (1024 * 1024)
     _log.debug(
         "CUDA cache cleared — used=%.1f MB, free≈%.1f MB",
-        allocated_mb, total_mb,
+        allocated_mb,
+        total_mb,
     )
 
 
@@ -93,6 +94,7 @@ def log_memory_snapshot(label: str) -> None:
     # RAM
     try:
         import psutil
+
         proc = psutil.Process()
         ram_mb = proc.memory_info().rss / (1024 * 1024)
     except ImportError:

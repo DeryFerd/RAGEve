@@ -9,12 +9,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from backend.models_peewee import (
-    LLMFactories,
-    LLM,
-    TenantLLM,
-    get_database,
-)
+from backend.models_peewee import LLM, LLMFactories, TenantLLM, get_database
 
 _log = logging.getLogger(__name__)
 
@@ -105,7 +100,9 @@ class LLMStore:
                 tags=tags,
                 is_tools=is_tools,
             )
-            _log.info("Created LLM %s (factory: %s, type: %s)", llm_name, fid, model_type)
+            _log.info(
+                "Created LLM %s (factory: %s, type: %s)", llm_name, fid, model_type
+            )
             return llm
 
     def get_llm(self, llm_id: str) -> LLM | None:
@@ -160,9 +157,9 @@ class LLMStore:
             # Check if exists
             try:
                 tllm = TenantLLM.get(
-                    (TenantLLM.tenant_id == tenant_id) &
-                    (TenantLLM.llm_factory == llm_factory) &
-                    (TenantLLM.model_type == model_type)
+                    (TenantLLM.tenant_id == tenant_id)
+                    & (TenantLLM.llm_factory == llm_factory)
+                    & (TenantLLM.model_type == model_type)
                 )
                 tllm.llm_name = llm_name
                 tllm.api_key = api_key
@@ -193,9 +190,9 @@ class LLMStore:
         with get_database().connection_context():
             try:
                 return TenantLLM.get(
-                    (TenantLLM.tenant_id == tenant_id) &
-                    (TenantLLM.model_type == model_type) &
-                    (TenantLLM.status == "1")
+                    (TenantLLM.tenant_id == tenant_id)
+                    & (TenantLLM.model_type == model_type)
+                    & (TenantLLM.status == "1")
                 )
             except TenantLLM.DoesNotExist:
                 return None
@@ -211,11 +208,15 @@ class LLMStore:
         with get_database().connection_context():
             try:
                 tllm = TenantLLM.get(
-                    (TenantLLM.tenant_id == tenant_id) &
-                    (TenantLLM.model_type == model_type)
+                    (TenantLLM.tenant_id == tenant_id)
+                    & (TenantLLM.model_type == model_type)
                 )
                 tllm.delete_instance()
-                _log.info("Deleted tenant LLM override (tenant %s, type: %s)", tenant_id, model_type)
+                _log.info(
+                    "Deleted tenant LLM override (tenant %s, type: %s)",
+                    tenant_id,
+                    model_type,
+                )
                 return True
             except TenantLLM.DoesNotExist:
                 return False

@@ -9,12 +9,14 @@ import io
 import sys
 import time
 from pathlib import Path
+
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 from test.api.base import APITestBase
-from backend.services.knowledge_base_store import get_knowledge_base_store
+
 from backend.services.database import run_db_operation
+from backend.services.knowledge_base_store import get_knowledge_base_store
 
 
 class TestIngestionAPI(APITestBase):
@@ -25,21 +27,25 @@ class TestIngestionAPI(APITestBase):
         super().setup_class()
         # Create a knowledgebase
         store = get_knowledge_base_store()
-        kb = asyncio.run(run_db_operation(
-            store.create_knowledgebase,
-            tenant_id=cls.test_tenant_id,
-            name="Ingestion Test KB",
-            created_by=cls.test_user_id,
-        ))
+        kb = asyncio.run(
+            run_db_operation(
+                store.create_knowledgebase,
+                tenant_id=cls.test_tenant_id,
+                name="Ingestion Test KB",
+                created_by=cls.test_user_id,
+            )
+        )
         cls.kb_id = kb.id
         # Create a document to attach the file to
-        doc = asyncio.run(run_db_operation(
-            store.create_document,
-            kb_id=cls.kb_id,
-            name="test_document.txt",
-            parser_id="txt",
-            created_by=cls.test_user_id,
-        ))
+        doc = asyncio.run(
+            run_db_operation(
+                store.create_document,
+                kb_id=cls.kb_id,
+                name="test_document.txt",
+                parser_id="txt",
+                created_by=cls.test_user_id,
+            )
+        )
         cls.doc_id = doc.id
 
     def test_file_upload_triggers_ingestion(self):

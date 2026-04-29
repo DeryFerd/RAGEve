@@ -5,6 +5,7 @@ Provides:
   preview_hf_dataset()  — full dataset preview (configs, splits, columns, card metadata)
   get_hf_download_instructions() — static download instructions + local path info
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,12 +14,15 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.api.routes._limiter import limiter
+from backend.api.routes.hf_metadata import (
+    _fetch_hf_card_metadata,
+    _fetch_hf_readme_html,
+)
 from backend.config import settings
 from backend.schemas.huggingface import (
     HuggingFaceInstructionsResponse,
     HuggingFacePreviewResponse,
 )
-from backend.api.routes.hf_metadata import _fetch_hf_card_metadata, _fetch_hf_readme_html
 
 _log = logging.getLogger("app")
 
@@ -45,7 +49,9 @@ def _fmt_size(n: int | None) -> str:
 
 @router.get("/preview/{dataset_id:path}", response_model=HuggingFacePreviewResponse)
 @limiter.limit("60/minute")
-async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePreviewResponse:
+async def preview_hf_dataset(
+    request: Request, dataset_id: str
+) -> HuggingFacePreviewResponse:
     """
     Return a full preview of a HuggingFace dataset: configs, splits, columns,
     description, downloads, likes, and rich card metadata (tags, language, license, etc).
@@ -87,7 +93,9 @@ async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePr
                 if isinstance(description, dict):
                     description = description.get("en")
                 if not description:
-                    description = hub_data.get("annotations", {}).get("default", {}).get("en")
+                    description = (
+                        hub_data.get("annotations", {}).get("default", {}).get("en")
+                    )
                 estimated_bytes = hub_data.get("size_bytes")
                 downloads = hub_data.get("downloads")
                 likes = hub_data.get("likes")
@@ -109,7 +117,9 @@ async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePr
         )
 
     try:
-        detected_configs = list(get_dataset_config_names(dataset_id, use_auth_token=settings.hf_token))
+        detected_configs = list(
+            get_dataset_config_names(dataset_id, use_auth_token=settings.hf_token)
+        )
     except Exception as exc:  # noqa: BLE001
         _log.warning("get_dataset_config_names failed for '%s': %s", dataset_id, exc)
         detected_configs = []
@@ -119,10 +129,15 @@ async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePr
 
         for cfg in detected_configs:
             try:
-                from datasets import get_dataset_split_names, load_dataset  # type: ignore[import-untyped]
+                from datasets import (  # type: ignore[import-untyped]
+                    get_dataset_split_names,
+                    load_dataset,
+                )
 
                 detected_splits = list(
-                    get_dataset_split_names(dataset_id, config_name=cfg, use_auth_token=settings.hf_token)
+                    get_dataset_split_names(
+                        dataset_id, config_name=cfg, use_auth_token=settings.hf_token
+                    )
                 )
                 if detected_splits:
                     sample_ds = load_dataset(
@@ -198,7 +213,8 @@ async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePr
         likes=likes,
         estimated_size_bytes=estimated_bytes,
         estimated_size_human=_fmt_size(estimated_bytes) if estimated_bytes else None,
-        splits=detected_splits or (list(preview_data.get("splits", {}).keys()) if preview_data else []),
+        splits=detected_splits
+        or (list(preview_data.get("splits", {}).keys()) if preview_data else []),
         columns=columns or (preview_data.get("features", {}) if preview_data else {}),
         source=source,
         tags=card_meta.get("tags", []),
@@ -209,14 +225,22 @@ async def preview_hf_dataset(request: Request, dataset_id: str) -> HuggingFacePr
         readme_html=readme_html,
         leaderboard=card_meta.get("leaderboard"),
         source_detail="HuggingFace Hub" if source == "hf-hub" else "datasets-server",
-        message="Dataset preview loaded successfully." if (detected_configs or detected_splits or columns) else "Dataset metadata loaded. Full column list unavailable.",
+        message=(
+            "Dataset preview loaded successfully."
+            if (detected_configs or detected_splits or columns)
+            else "Dataset metadata loaded. Full column list unavailable."
+        ),
         valid=True,
     )
 
 
-@router.get("/instructions/{dataset_id:path}", response_model=HuggingFaceInstructionsResponse)
+@router.get(
+    "/instructions/{dataset_id:path}", response_model=HuggingFaceInstructionsResponse
+)
 @limiter.limit("120/minute")
-async def get_hf_download_instructions(request: Request, dataset_id: str) -> HuggingFaceInstructionsResponse:
+async def get_hf_download_instructions(
+    request: Request, dataset_id: str
+) -> HuggingFaceInstructionsResponse:
     """Return download command + expected local path info."""
     safe_id = dataset_id.replace("/", "__")
     local_path = str(settings.data_root / "hf" / safe_id)

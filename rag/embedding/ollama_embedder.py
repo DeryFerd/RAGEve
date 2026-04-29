@@ -5,7 +5,7 @@ import gc
 import logging
 import math
 import os
-from typing import Any, Awaitable, Callable, AsyncIterator
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 import httpx
 
@@ -18,6 +18,7 @@ def _get_torch():
     if _torch_cache is None:
         try:
             import torch
+
             _torch_cache = torch
         except ImportError:
             _torch_cache = False
@@ -30,6 +31,7 @@ def _clear_cuda_cache() -> None:
     if torch:
         torch.cuda.empty_cache()
 
+
 _log = logging.getLogger(__name__)
 
 BatchProgressCallback = Callable[[int, int], Awaitable[None] | None]
@@ -41,7 +43,7 @@ MAX_RETRIES = 3
 BACKOFF_BASE_SECS = 30.0
 
 # Concurrency: GPU workers can overlap; CPU workers are limited to avoid OOM.
-DEFAULT_CPU_CONCURRENCY = 4   # safe ceiling for CPU-mode Ollama
+DEFAULT_CPU_CONCURRENCY = 4  # safe ceiling for CPU-mode Ollama
 DEFAULT_GPU_CONCURRENCY = 16  # nominal; actual parallelism is GPU-bound
 
 
@@ -63,6 +65,7 @@ def _detect_ollama_cuda() -> bool:
 
     try:
         import socket
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(2)
         sock.connect(("localhost", 11434))
@@ -72,6 +75,7 @@ def _detect_ollama_cuda() -> bool:
 
     try:
         import urllib.request
+
         req = urllib.request.Request(
             "http://localhost:11434/api/ps",
             headers={"Accept": "application/json"},
@@ -79,6 +83,7 @@ def _detect_ollama_cuda() -> bool:
         with urllib.request.urlopen(req, timeout=3) as resp:
             data = resp.read()
         import json
+
         payload = json.loads(data)
         # `nvidia_accel` is True when a CUDA GPU is detected (newer Ollama versions).
         if payload.get("nvidia_accel") is True:
@@ -92,7 +97,9 @@ def _detect_ollama_cuda() -> bool:
             if (model.get("size_vram") or 0) > 0:
                 return True
         # Fallback: check environment variables set by the Ollama process.
-        for val in os.environ.get("CUDA_VISIBLE_DEVICES", ""), os.environ.get("ROCM_PATH", ""):
+        for val in os.environ.get("CUDA_VISIBLE_DEVICES", ""), os.environ.get(
+            "ROCM_PATH", ""
+        ):
             if val:
                 return True
     except Exception:
@@ -168,7 +175,9 @@ class OllamaEmbedder:
                     "Embedding vector is NOT unit-normalized: norm=%.6f "
                     "(deviation=%.4f). Model='%s'. Normalizing in-place. "
                     "(This warning will not repeat for this session.)",
-                    norm, abs(norm - 1.0), self.model,
+                    norm,
+                    abs(norm - 1.0),
+                    self.model,
                 )
                 self._normalization_warned = True
             return False
@@ -212,7 +221,9 @@ class OllamaEmbedder:
                     data: dict[str, Any] = response.json()
                 embedding: list[float] = data.get("embedding", [])
                 if not embedding:
-                    raise ValueError(f"Ollama returned no embedding for model '{self.model}'")
+                    raise ValueError(
+                        f"Ollama returned no embedding for model '{self.model}'"
+                    )
                 if not self.verify_normalization(embedding):
                     self._normalize(embedding)
                 return embedding
@@ -226,8 +237,12 @@ class OllamaEmbedder:
             except httpx.HTTPStatusError:
                 raise
 
-        raise last_error if last_error is not None else RuntimeError(
-            f"OllamaEmbedder.embed_single failed after {MAX_RETRIES} retries"
+        raise (
+            last_error
+            if last_error is not None
+            else RuntimeError(
+                f"OllamaEmbedder.embed_single failed after {MAX_RETRIES} retries"
+            )
         )
 
     # ------------------------------------------------------------------
@@ -271,9 +286,7 @@ class OllamaEmbedder:
             batch = texts[batch_start:batch_end]
 
             # Launch all texts in this batch concurrently, gated by the semaphore.
-            tasks = [
-                self._embed_single_impl(text) for text in batch
-            ]
+            tasks = [self._embed_single_impl(text) for text in batch]
             batch_results = await asyncio.gather(*tasks)
 
             # Write results back into the pre-allocated list.
@@ -404,7 +417,9 @@ class OllamaEmbedder:
             last_error: Exception | None = None
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
-                    async with httpx.AsyncClient(timeout=max(120.0, batch_size * 2.0)) as client:
+                    async with httpx.AsyncClient(
+                        timeout=max(120.0, batch_size * 2.0)
+                    ) as client:
                         response = await client.post(
                             url,
                             json={"model": self.model, "input": batch},
@@ -416,7 +431,8 @@ class OllamaEmbedder:
                     if len(embeddings) != batch_size:
                         _log.warning(
                             "embed_batch_api: expected %d embeddings, got %d — retrying",
-                            batch_size, len(embeddings),
+                            batch_size,
+                            len(embeddings),
                         )
                         raise ValueError(
                             f"Ollama returned {len(embeddings)} embeddings for {batch_size} inputs"
@@ -424,7 +440,10 @@ class OllamaEmbedder:
 
                     for idx, emb in enumerate(embeddings):
                         if not emb:
-                            _log.warning("embed_batch_api: empty embedding at index %d", batch_start + idx)
+                            _log.warning(
+                                "embed_batch_api: empty embedding at index %d",
+                                batch_start + idx,
+                            )
                         else:
                             if not self.verify_normalization(emb):
                                 self._normalize(emb)
@@ -432,14 +451,23 @@ class OllamaEmbedder:
 
                     break  # success
 
-                except (httpx.ReadTimeout, httpx.TimeoutException, httpx.HTTPStatusError, ValueError) as exc:
+                except (
+                    httpx.ReadTimeout,
+                    httpx.TimeoutException,
+                    httpx.HTTPStatusError,
+                    ValueError,
+                ) as exc:
                     last_error = exc
                     if attempt < MAX_RETRIES:
                         delay = _backoff_delay(attempt)
                         _log.warning(
                             "embed_batch_api batch %d-%d failed (attempt %d/%d): %s — retrying in %.0fs",
-                            batch_start, batch_start + batch_size,
-                            attempt, MAX_RETRIES, exc, delay,
+                            batch_start,
+                            batch_start + batch_size,
+                            attempt,
+                            MAX_RETRIES,
+                            exc,
+                            delay,
                         )
                         await asyncio.sleep(delay)
                     # else: fall through to re-raise

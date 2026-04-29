@@ -14,11 +14,13 @@ from datetime import datetime
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField
 
 
 class User(BaseModel):
     """User account."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     email = peewee.CharField(max_length=255, unique=True, index=True)
     password = peewee.CharField(max_length=255, null=False)
@@ -101,14 +103,25 @@ class User(BaseModel):
 
 class Tenant(BaseModel):
     """Organization/tenant with default LLM and embedding configurations."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     name = peewee.CharField(max_length=255, null=False, index=True)
-    llm_id = peewee.CharField(max_length=128, null=False, help_text="Default chat model ID")
-    embd_id = peewee.CharField(max_length=128, null=False, help_text="Default embedding model ID")
-    asr_id = peewee.CharField(max_length=256, null=True, help_text="Default ASR model ID")
+    llm_id = peewee.CharField(
+        max_length=128, null=False, help_text="Default chat model ID"
+    )
+    embd_id = peewee.CharField(
+        max_length=128, null=False, help_text="Default embedding model ID"
+    )
+    asr_id = peewee.CharField(
+        max_length=256, null=True, help_text="Default ASR model ID"
+    )
     parser_ids = peewee.TextField(null=False, help_text="Comma-separated parser IDs")
-    img2txt_id = peewee.CharField(max_length=256, null=True, help_text="Default image-to-text model ID")
-    rerank_id = peewee.CharField(max_length=128, null=False, default="BAAI/bge-reranker-v2-m3")
+    img2txt_id = peewee.CharField(
+        max_length=256, null=True, help_text="Default image-to-text model ID"
+    )
+    rerank_id = peewee.CharField(
+        max_length=128, null=False, default="BAAI/bge-reranker-v2-m3"
+    )
 
     class Meta:
         table_name = "tenant"
@@ -147,10 +160,13 @@ class UserTenant(BaseModel):
 
     Composite primary key: (user_id, tenant_id)
     """
+
     user_id = peewee.CharField(max_length=255, null=False, index=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     invited_by = peewee.CharField(max_length=32, null=False)
-    role = peewee.CharField(max_length=16, null=False, default="normal", index=True)  # owner/admin/normal/invite
+    role = peewee.CharField(
+        max_length=16, null=False, default="normal", index=True
+    )  # owner/admin/normal/invite
 
     class Meta:
         table_name = "user_tenant"

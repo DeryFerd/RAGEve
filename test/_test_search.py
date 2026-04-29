@@ -27,8 +27,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from rag.chunking.adaptive import adaptive_chunk_text
 from rag.deepdoc.quality_scorer import score_and_select_profile
 from rag.embedding.ollama_embedder import OllamaEmbedder
-from rag.ingestion.hf_ingestion import _load_hf_dataset, _detect_text_column
-from rag.storage.qdrant_store import QdrantStore, ChunkRecord
+from rag.ingestion.hf_ingestion import _detect_text_column, _load_hf_dataset
+from rag.storage.qdrant_store import ChunkRecord, QdrantStore
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -38,12 +38,13 @@ QDRANT_URL = "http://localhost:6333"
 
 DATASET_PATH = Path("data/hf/squad")
 DATASET_ID = "squad"
-COLLECTION_NAME = DATASET_ID          # one collection per dataset
-ROW_LIMIT = 50                        # ingest N rows for the test
+COLLECTION_NAME = DATASET_ID  # one collection per dataset
+ROW_LIMIT = 50  # ingest N rows for the test
 QUERY = "Who did Beyonce marry?"
 TOP_K = 4
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def print_section(title: str) -> None:
     sep = "=" * 60
@@ -55,6 +56,7 @@ def fmt_score(score: float) -> str:
 
 
 # ── Main test ─────────────────────────────────────────────────────────────────
+
 
 async def main() -> None:
     # 1. Initialise stores
@@ -100,15 +102,17 @@ async def main() -> None:
 
         for c_idx, chunk_text in enumerate(chunks):
             all_chunks.append(chunk_text)
-            all_meta.append({
-                "dataset_id": DATASET_ID,
-                "split": "train",
-                "source_row": int(idx),
-                "chunk_index": c_idx,
-                "total_chunks_in_row": len(chunks),
-                "quality_score": round(report.quality_score, 4),
-                "profile": report.profile.profile.value,
-            })
+            all_meta.append(
+                {
+                    "dataset_id": DATASET_ID,
+                    "split": "train",
+                    "source_row": int(idx),
+                    "chunk_index": c_idx,
+                    "total_chunks_in_row": len(chunks),
+                    "quality_score": round(report.quality_score, 4),
+                    "profile": report.profile.profile.value,
+                }
+            )
 
     print(f"  Rows processed : {len(df_subset)}")
     print(f"  Chunks created  : {len(all_chunks)}")
@@ -116,7 +120,9 @@ async def main() -> None:
     # 4. Embed chunks
     print_section("Embedding chunks via Ollama")
     embeddings = await embedder.embed_batch(all_chunks, batch_size=16)
-    print(f"  Embeddings : {len(embeddings)} vectors, dim={len(embeddings[0]) if embeddings else 0}")
+    print(
+        f"  Embeddings : {len(embeddings)} vectors, dim={len(embeddings[0]) if embeddings else 0}"
+    )
 
     # 5. Upsert to Qdrant -- wipe collection first for a clean test
     print_section("Upserting to Qdrant")
@@ -140,7 +146,9 @@ async def main() -> None:
     # Verify collection
     info = qdrant.get_collection_info(COLLECTION_NAME)
     if info:
-        print(f"  Collection status : {info['status']}  |  points: {info['points_count']}")
+        print(
+            f"  Collection status : {info['status']}  |  points: {info['points_count']}"
+        )
 
     # 6. Embed the query
     print_section("Retrieving")
@@ -159,7 +167,9 @@ async def main() -> None:
     )
 
     if not hits:
-        print("  [No hits returned -- check Qdrant is running and collection is indexed]")
+        print(
+            "  [No hits returned -- check Qdrant is running and collection is indexed]"
+        )
         return
 
     print(f"  Retrieved {len(hits)} chunks:\n")
@@ -167,8 +177,12 @@ async def main() -> None:
     for i, hit in enumerate(hits, start=1):
         meta = hit.metadata
         preview = hit.chunk_text[:120].replace("\n", " ")
-        print(f"  [{i}] score={fmt_score(hit.score)}  profile={meta.get('profile', '?')}  quality={meta.get('quality_score', 0):.3f}")
-        print(f"       [row {meta.get('source_row', '?')} | chunk {meta.get('chunk_index', '?')}/{meta.get('total_chunks_in_row', '?')}]")
+        print(
+            f"  [{i}] score={fmt_score(hit.score)}  profile={meta.get('profile', '?')}  quality={meta.get('quality_score', 0):.3f}"
+        )
+        print(
+            f"       [row {meta.get('source_row', '?')} | chunk {meta.get('chunk_index', '?')}/{meta.get('total_chunks_in_row', '?')}]"
+        )
         print(f"       \"{preview}{'...' if len(hit.chunk_text) > 120 else ''}\"")
         print()
 

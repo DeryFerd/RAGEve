@@ -6,7 +6,9 @@ class OllamaModelDetails(BaseModel):
 
     name: str
     model: str = Field(description="Full model name (same as name in most cases)")
-    modified_at: str | None = Field(default=None, description="ISO timestamp of last modification")
+    modified_at: str | None = Field(
+        default=None, description="ISO timestamp of last modification"
+    )
     size: int = Field(default=0, description="Size in bytes")
     digest: str | None = Field(default=None, description="SHA256 digest")
     details: dict = Field(
@@ -35,7 +37,10 @@ class OllamaModelListResponse(BaseModel):
     """Ollama model list — includes both a flat name list (backward-compatible)
     and per-model detail objects for the Models page."""
 
-    models: list[str] = Field(default_factory=list, description="Flat list of model names (backward-compatible)")
+    models: list[str] = Field(
+        default_factory=list,
+        description="Flat list of model names (backward-compatible)",
+    )
     has_models: bool = Field(default=False)
     message: str | None = Field(default=None)
     model_details: list[OllamaModelDetails] = Field(

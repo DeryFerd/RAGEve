@@ -26,24 +26,24 @@ for _ in range(4):
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
+from test.benchmark.evaluation._config import EvalConfig
+from test.benchmark.evaluation._ground_truth import SquadSample, derive_binary_relevance
+
 import numpy as np
 
 from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.storage.qdrant_store import QdrantStore
 
-from test.benchmark.evaluation._config import EvalConfig
-from test.benchmark.evaluation._ground_truth import SquadSample, derive_binary_relevance
-
-
 # ---------------------------------------------------------------------------
 # Core metric functions
 # ---------------------------------------------------------------------------
+
 
 def _dcg(gains: list[float], k: int) -> float:
     """Discounted Cumulative Gain."""
     dcg = 0.0
     for i, g in enumerate(gains[:k]):
-        dcg += g / log(i + 2, 2)   # i=0 → position 1 → denominator log(2)
+        dcg += g / log(i + 2, 2)  # i=0 → position 1 → denominator log(2)
     return dcg
 
 
@@ -54,10 +54,7 @@ def _ndcg(relevances: list[list[int]], k: int) -> float:
     """
     idcgs = [_dcg([1.0] * min(k, len(rel)), k) for rel in relevances]
     dcg_vals = [_dcg(rel, k) for rel in relevances]
-    ndcg_vals = [
-        dcg / idcg if idcg > 0 else 0.0
-        for dcg, idcg in zip(dcg_vals, idcgs)
-    ]
+    ndcg_vals = [dcg / idcg if idcg > 0 else 0.0 for dcg, idcg in zip(dcg_vals, idcgs)]
     return float(np.mean(ndcg_vals))
 
 
@@ -97,14 +94,14 @@ def compute_retrieval_metrics(
 
     # ── Recall@K ────────────────────────────────────────────────────────────
     recalls: list[float] = []
-    total_rel_per_q: list[int] = []   # how many relevant chunks exist in the full set
+    total_rel_per_q: list[int] = []  # how many relevant chunks exist in the full set
     for rels in all_relevances:
         total_rel_per_q.append(sum(rels))
         top = rels[:k]
         recalls.append(sum(top) / sum(rels) if sum(rels) > 0 else 0.0)
 
     # ── MRR ─────────────────────────────────────────────────────────────────
-    rr: list[float] = []   # reciprocal rank
+    rr: list[float] = []  # reciprocal rank
     for rels in all_relevances:
         for rank, rel in enumerate(rels[:k], start=1):
             if rel == 1:
@@ -137,8 +134,7 @@ def compute_retrieval_metrics(
                 "relevant_in_top_k": sum(rel[:k]),
                 "total_relevant": sum(rel),
             }
-            for q, p, r, rel
-            in zip(questions, precisions, recalls, all_relevances)
+            for q, p, r, rel in zip(questions, precisions, recalls, all_relevances)
         ],
     }
 
@@ -146,6 +142,7 @@ def compute_retrieval_metrics(
 # ---------------------------------------------------------------------------
 # Full retrieval run (Qdrant search per question)
 # ---------------------------------------------------------------------------
+
 
 async def run_retrieval_eval(
     cfg: EvalConfig,
@@ -157,7 +154,9 @@ async def run_retrieval_eval(
     """
     print(f"  [retrieval] embedding {len(samples)} queries …")
     qdrant = QdrantStore(url=cfg.qdrant_url)
-    embedder = OllamaEmbedder(base_url=cfg.ollama_base_url, model=cfg.ollama_embed_model)
+    embedder = OllamaEmbedder(
+        base_url=cfg.ollama_base_url, model=cfg.ollama_embed_model
+    )
 
     if not qdrant.collection_exists(cfg.dataset_id):
         return {

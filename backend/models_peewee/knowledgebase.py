@@ -16,11 +16,13 @@ from datetime import datetime
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField, ListField
 
 
 class Knowledgebase(BaseModel):
     """Knowledge base - a collection of documents."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=False, index=True)
@@ -30,7 +32,9 @@ class Knowledgebase(BaseModel):
     language = peewee.CharField(max_length=32, null=True, default="English", index=True)
     created_by = peewee.CharField(max_length=32, null=False, index=True)
     pagerank = peewee.IntegerField(null=False, default=0)
-    pipeline_id = peewee.CharField(max_length=32, null=True, index=True, help_text="Pipeline configuration ID")
+    pipeline_id = peewee.CharField(
+        max_length=32, null=True, index=True, help_text="Pipeline configuration ID"
+    )
     graphrag_task_id = peewee.CharField(max_length=32, null=True, index=True)
     raptor_task_id = peewee.CharField(max_length=32, null=True, index=True)
     mindmap_task_id = peewee.CharField(max_length=32, null=True, index=True)
@@ -79,6 +83,7 @@ class Knowledgebase(BaseModel):
 
 class Document(BaseModel):
     """Document metadata - represents a processed document within a knowledge base."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     kb_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=False)
@@ -86,7 +91,9 @@ class Document(BaseModel):
     created_by = peewee.CharField(max_length=32, null=False, index=True)
     progress = peewee.FloatField(null=False, default=0, index=True)
     progress_msg = peewee.TextField(null=True, default="")
-    process_duation = peewee.FloatField(null=False, default=0, help_text="Processing time in seconds")
+    process_duation = peewee.FloatField(
+        null=False, default=0, help_text="Processing time in seconds"
+    )
     doc_type = peewee.CharField(max_length=32, null=True, help_text="Document type")
     doc_metadata = JSONTextField(null=True, default={}, help_text="Document metadata")
     meta_fields = JSONTextField(null=True, default={})
@@ -134,11 +141,20 @@ class Document(BaseModel):
 
 class File(BaseModel):
     """Uploaded file metadata."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     name = peewee.CharField(max_length=255, null=False)
     size = peewee.BigIntegerField(null=False, default=0)
-    type = peewee.CharField(max_length=32, null=False, help_text="File type: pdf, doc, visual, etc.")
-    source_type = peewee.CharField(max_length=128, null=False, default="", index=True, help_text="Source: upload, connector, etc.")
+    type = peewee.CharField(
+        max_length=32, null=False, help_text="File type: pdf, doc, visual, etc."
+    )
+    source_type = peewee.CharField(
+        max_length=128,
+        null=False,
+        default="",
+        index=True,
+        help_text="Source: upload, connector, etc.",
+    )
     created_by = peewee.CharField(max_length=32, null=False, index=True)
 
     class Meta:
@@ -166,6 +182,7 @@ class File(BaseModel):
 
 class File2Document(BaseModel):
     """Many-to-many mapping between files and documents."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     file_id = peewee.CharField(max_length=32, null=False, index=True)
     doc_id = peewee.CharField(max_length=32, null=False, index=True)
@@ -185,6 +202,7 @@ class File2Document(BaseModel):
 
 class Task(BaseModel):
     """Asynchronous processing task for document ingestion."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     doc_id = peewee.CharField(max_length=32, null=False, index=True)
     from_page = peewee.IntegerField(null=False, default=0)
@@ -231,6 +249,7 @@ class Task(BaseModel):
     def start(self):
         """Mark task as started."""
         from datetime import datetime
+
         self.begin_at = datetime.now()
         self.save()
 

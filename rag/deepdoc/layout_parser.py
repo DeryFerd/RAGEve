@@ -11,7 +11,6 @@ import pymupdf
 
 from rag.deepdoc.analyzer import classify_char
 
-
 # ----------------------------------------------------------------------
 # Original data models and classification (preserved from legacy)
 # ----------------------------------------------------------------------
@@ -299,7 +298,9 @@ OCR_NOISE_RE = re.compile(r"[_]{5,}|\.{4,}|[~]{3,}|[\^]{3,}")
 REPEATED_CHAR_RE = re.compile(r"([a-zA-Z0-9])\1{4,}")
 # Matches markdown pipe tables and CSV-like lines with 2+ columns
 TABLE_LINE_RE = re.compile(r"^\s*\|.*\|.*\|")
-CODE_DELIM_RE = re.compile(r"[\{\}\[\]\(\)]|    +|  {2}|^\s{0,4}(if|else|for|while|def|class|import|return)\b")
+CODE_DELIM_RE = re.compile(
+    r"[\{\}\[\]\(\)]|    +|  {2}|^\s{0,4}(if|else|for|while|def|class|import|return)\b"
+)
 HEADER_FOOTER_RE = re.compile(
     r"^(page\s+\d+|chapter\s+\d|section\s+\d|©|\||\*{3,}|confidential|draft)",
     re.IGNORECASE,
@@ -354,7 +355,11 @@ def compute_quality_signals(text: str) -> QualitySignals:
     total_lines = len(lines)
 
     # 1. Alpha ratio (from analyzer)
-    alpha_chars = sum(1 for ch in text if classify_char(ch) != "whitespace" and classify_char(ch) != "other")
+    alpha_chars = sum(
+        1
+        for ch in text
+        if classify_char(ch) != "whitespace" and classify_char(ch) != "other"
+    )
     alpha_ratio = alpha_chars / max(total_chars, 1)
 
     # 2. OCR noise ratio
@@ -388,10 +393,9 @@ def compute_quality_signals(text: str) -> QualitySignals:
     # 9. Code delimiter ratio (curly braces, square brackets, 4-space indents)
     import re as _re
 
-    code_delim_chars = (
-        sum(1 for ch in text if ch in "{}[")
-        + len(_re.findall(r"    +", text))  # 4+ space indentation
-    )
+    code_delim_chars = sum(1 for ch in text if ch in "{}[") + len(
+        _re.findall(r"    +", text)
+    )  # 4+ space indentation
     code_delimiter_ratio = code_delim_chars / max(total_chars, 1)
 
     # 10. Issue tags
@@ -517,6 +521,7 @@ def score_and_select_profile(text: str) -> QualityReport:
 @dataclass
 class ColumnRegion:
     """Represents a detected column region on a page."""
+
     x0: float
     x1: float
     column_index: int
@@ -533,6 +538,7 @@ class ColumnRegion:
 @dataclass
 class TableStructure:
     """Structured table data extracted by pdfplumber."""
+
     rows: list[list[str]]  # Each row is a list of cell strings
     bbox: Any  # BBox from layout_parser (will be constructed from pdfplumber)
 
@@ -632,9 +638,7 @@ def _detect_columns(
             ColumnRegion(x0=left_edge, x1=boundary, column_index=len(columns))
         )
         left_edge = boundary
-    columns.append(
-        ColumnRegion(x0=left_edge, x1=page_width, column_index=len(columns))
-    )
+    columns.append(ColumnRegion(x0=left_edge, x1=page_width, column_index=len(columns)))
 
     # Filter out narrow columns (less than min_gap)
     columns = [c for c in columns if c.width >= min_gap]
@@ -749,6 +753,7 @@ def _extract_tables_with_pdfplumber(
     except Exception as e:
         # Log warning but don't fail
         import logging
+
         logging.getLogger("rag.deepdoc.layout_parser").warning(
             "pdfplumber extraction failed on %s page %d: %s", file_path, page_num, e
         )
@@ -768,7 +773,16 @@ def _tables_to_markdown(tables: list[TableStructure]) -> list[str]:
             md_rows.append("| " + " | ".join(row) + " |")
 
         # Check if first row looks like header (all caps or contains common headers)
-        header_keywords = {"NAME", "TITLE", "DATE", "ID", "VALUE", "PRICE", "QTY", "TOTAL"}
+        header_keywords = {
+            "NAME",
+            "TITLE",
+            "DATE",
+            "ID",
+            "VALUE",
+            "PRICE",
+            "QTY",
+            "TOTAL",
+        }
         first_row_text = " ".join(table.rows[0]).upper()
         is_header = any(keyword in first_row_text for keyword in header_keywords)
 
@@ -890,7 +904,9 @@ def _build_heading_hierarchy(blocks: list[Block]) -> list[Block]:
     Modifies blocks in-place by setting block.level and building parent/children links.
     """
     # Extract headings only
-    headings = [b for b in blocks if b.block_type in (BlockType.TITLE, BlockType.HEADING)]
+    headings = [
+        b for b in blocks if b.block_type in (BlockType.TITLE, BlockType.HEADING)
+    ]
 
     if not headings:
         return blocks
@@ -971,6 +987,7 @@ def _sort_reading_order(blocks: list[Block]) -> list[Block]:
     Tertiary: y0 (top to bottom)
     Quaternary: x0 (left to right within same line)
     """
+
     # blocks with column_index=None are treated as single column or full-width
     # Assign them column_index = 0 for sorting
     def sort_key(block: Block):
@@ -1035,14 +1052,18 @@ def parse_pdf_layout(
 
                     for line in lines:
                         for span in line.get("spans", []):
-                            all_spans.append({
-                                "size": span.get("size", 0),
-                                "font": span.get("font", ""),
-                                "flags": span.get("flags", 0),
-                                "color": span.get("color", 0),
-                                "text": span.get("text", ""),
-                            })
-                        line_text = " ".join(span["text"] for span in line.get("spans", []))
+                            all_spans.append(
+                                {
+                                    "size": span.get("size", 0),
+                                    "font": span.get("font", ""),
+                                    "flags": span.get("flags", 0),
+                                    "color": span.get("color", 0),
+                                    "text": span.get("text", ""),
+                                }
+                            )
+                        line_text = " ".join(
+                            span["text"] for span in line.get("spans", [])
+                        )
                         block_text_parts.append(line_text)
 
                     block_text = "\n".join(block_text_parts).strip()
@@ -1066,9 +1087,14 @@ def parse_pdf_layout(
                         children=[],
                         metadata={
                             "fonts": list({s["font"] for s in all_spans}),
-                            "avg_font_size": round(sum(s["size"] for s in all_spans) / len(all_spans), 2)
-                            if all_spans
-                            else 0.0,
+                            "avg_font_size": (
+                                round(
+                                    sum(s["size"] for s in all_spans) / len(all_spans),
+                                    2,
+                                )
+                                if all_spans
+                                else 0.0
+                            ),
                         },
                     )
                     page_layout.blocks.append(block)

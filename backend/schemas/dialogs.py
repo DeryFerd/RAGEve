@@ -1,5 +1,6 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
-from typing import Optional, List, Any, Dict
 
 
 class DialogCreate(BaseModel):
@@ -8,20 +9,24 @@ class DialogCreate(BaseModel):
     description: Optional[str] = Field(default=None)
     language: str = Field(default="English", max_length=32)
     llm_id: str = Field(..., max_length=128)
-    llm_setting: Optional[Dict[str, Any]] = Field(default_factory=lambda: {
-        "temperature": 0.1,
-        "top_p": 0.3,
-        "frequency_penalty": 0.7,
-        "presence_penalty": 0.4,
-        "max_tokens": 512
-    })
+    llm_setting: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {
+            "temperature": 0.1,
+            "top_p": 0.3,
+            "frequency_penalty": 0.7,
+            "presence_penalty": 0.4,
+            "max_tokens": 512,
+        }
+    )
     prompt_type: str = Field(default="simple", max_length=16)
-    prompt_config: Optional[Dict[str, Any]] = Field(default_factory=lambda: {
-        "system": "",
-        "prologue": "Hi! I'm your assistant. What can I do for you?",
-        "parameters": [],
-        "empty_response": "Sorry! No relevant content was found in the knowledge base!"
-    })
+    prompt_config: Optional[Dict[str, Any]] = Field(
+        default_factory=lambda: {
+            "system": "",
+            "prologue": "Hi! I'm your assistant. What can I do for you?",
+            "parameters": [],
+            "empty_response": "Sorry! No relevant content was found in the knowledge base!",
+        }
+    )
     meta_data_filter: Optional[Dict[str, Any]] = Field(default_factory=dict)
     similarity_threshold: float = Field(default=0.2, ge=0.0, le=1.0)
     vector_similarity_weight: float = Field(default=0.3, ge=0.0, le=1.0)

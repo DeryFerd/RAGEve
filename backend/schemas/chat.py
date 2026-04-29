@@ -21,7 +21,9 @@ class ChatRequest(BaseModel):
     score_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
     stream: bool = Field(default=True)
     # Reranker options — both must be set together to activate reranking.
-    use_reranker: bool = Field(default=False, description="Enable cross-encoder reranking")
+    use_reranker: bool = Field(
+        default=False, description="Enable cross-encoder reranking"
+    )
     reranker_model: str | None = Field(
         default=None,
         description="Cross-encoder model ID (e.g. 'BAAI/bge-reranker-base'). "

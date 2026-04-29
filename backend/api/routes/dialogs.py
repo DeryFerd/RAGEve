@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query, Request, status
 from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from backend.api.routes._limiter import limiter
 from backend.schemas.dialogs import (
@@ -8,9 +9,8 @@ from backend.schemas.dialogs import (
     DialogResponse,
     DialogUpdate,
 )
-from backend.services.dialog_store import get_dialog_store
 from backend.services.database import run_db_operation
-
+from backend.services.dialog_store import get_dialog_store
 
 router = APIRouter(prefix="/dialogs", tags=["dialogs"])
 
@@ -79,7 +79,9 @@ async def get_dialog(request: Request, dialog_id: str) -> DialogResponse:
 
 @router.put("/{dialog_id}", response_model=DialogResponse)
 @limiter.limit("60/minute")
-async def update_dialog(request: Request, dialog_id: str, payload: DialogUpdate) -> DialogResponse:
+async def update_dialog(
+    request: Request, dialog_id: str, payload: DialogUpdate
+) -> DialogResponse:
     """Update a dialog."""
     store = get_dialog_store()
     updates = payload.dict(exclude_unset=True)

@@ -36,23 +36,25 @@ if str(_project_root) not in sys.path:
 
 import pandas as pd
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass(slots=True)
 class SquadSample:
     """Single evaluation sample from the squad dataset."""
-    row_idx: int          # original DataFrame index
+
+    row_idx: int  # original DataFrame index
     question: str
-    ground_truth: str     # answers[0]["text"]
-    context: str          # full squad context
+    ground_truth: str  # answers[0]["text"]
+    context: str  # full squad context
 
 
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
+
 
 def load_squad_samples(n: int | None = None) -> list[SquadSample]:
     """
@@ -62,6 +64,7 @@ def load_squad_samples(n: int | None = None) -> list[SquadSample]:
     (duplicated title rows).
     """
     from test.benchmark.evaluation._config import EvalConfig
+
     cfg = EvalConfig()
 
     if not cfg.squad_parquet.exists():
@@ -93,12 +96,14 @@ def load_squad_samples(n: int | None = None) -> list[SquadSample]:
         q = str(row.get("question", "")).strip()
         ctx = str(row.get("context", "")).strip()
         if q and ctx:
-            samples.append(SquadSample(
-                row_idx=int(idx),
-                question=q,
-                ground_truth=gt,
-                context=ctx,
-            ))
+            samples.append(
+                SquadSample(
+                    row_idx=int(idx),
+                    question=q,
+                    ground_truth=gt,
+                    context=ctx,
+                )
+            )
         if n and len(samples) >= n:
             break
 
@@ -109,9 +114,10 @@ def load_squad_samples(n: int | None = None) -> list[SquadSample]:
 # Ground-truth relevance
 # ---------------------------------------------------------------------------
 
+
 def derive_binary_relevance(
     ground_truth: str,
-    chunks: list[Any],          # list of SearchResult objects
+    chunks: list[Any],  # list of SearchResult objects
 ) -> list[int]:
     """
     Return binary relevance labels (0/1) for each retrieved chunk.
@@ -124,7 +130,7 @@ def derive_binary_relevance(
     # Normalise answer to short tokens
     answer_tokens = [
         tok.strip().lower()
-        for tok in re.split(r'\s+', ground_truth)
+        for tok in re.split(r"\s+", ground_truth)
         if len(tok.strip()) >= 3
     ]
     if not answer_tokens:
@@ -136,7 +142,11 @@ def derive_binary_relevance(
 
     labels: list[int] = []
     for chunk in chunks:
-        chunk_text = chunk.chunk_text.lower() if hasattr(chunk, 'chunk_text') else str(chunk).lower()
+        chunk_text = (
+            chunk.chunk_text.lower()
+            if hasattr(chunk, "chunk_text")
+            else str(chunk).lower()
+        )
         # Check: any short token present OR any 3-char substring present
         relevant = any(tok in chunk_text for tok in answer_tokens)
         labels.append(1 if relevant else 0)
@@ -147,6 +157,7 @@ def derive_binary_relevance(
 # ---------------------------------------------------------------------------
 # Build a dict suitable for JSON serialisation
 # ---------------------------------------------------------------------------
+
 
 def sample_to_dict(s: SquadSample) -> dict[str, Any]:
     return {

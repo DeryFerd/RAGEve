@@ -57,24 +57,30 @@ INFO = "\u2192"
 
 # ── Pretty print helpers ──────────────────────────────────────────────────────
 
+
 def section(title: str) -> None:
     bar = "=" * 64
     print(f"\n{bar}\n  {title}\n{bar}")
 
+
 def ok(msg: str) -> None:
     print(f"  {PASS}  {msg}")
+
 
 def fail(msg: str) -> None:
     print(f"  {FAIL}  {msg}")
 
+
 def step(msg: str) -> None:
     print(f"  {INFO} {msg}")
+
 
 def warn(msg: str) -> None:
     print(f"  \u26a0  {msg}")
 
 
 # ── Scenario 0: Prerequisites ────────────────────────────────────────────────
+
 
 async def check_prerequisites() -> bool:
     """Verify all services are reachable before running tests."""
@@ -104,6 +110,7 @@ async def check_prerequisites() -> bool:
 
 # ── Scenario 1: Large-dataset retrieval ──────────────────────────────────────
 
+
 async def scenario_large_dataset() -> bool:
     """
     Ingest 500 rows from squad, verify retrieval returns relevant chunks
@@ -113,8 +120,8 @@ async def scenario_large_dataset() -> bool:
     from rag.chunking.adaptive import adaptive_chunk_text
     from rag.deepdoc.quality_scorer import score_and_select_profile
     from rag.embedding.ollama_embedder import OllamaEmbedder
-    from rag.ingestion.hf_ingestion import _load_hf_dataset, _detect_text_column
-    from rag.storage.qdrant_store import QdrantStore, ChunkRecord
+    from rag.ingestion.hf_ingestion import _detect_text_column, _load_hf_dataset
+    from rag.storage.qdrant_store import ChunkRecord, QdrantStore
 
     qdrant = QdrantStore(url=QDRANT_URL)
     embedder = OllamaEmbedder(base_url=OLLAMA_BASE_URL, model=OLLAMA_EMBED_MODEL)
@@ -145,15 +152,17 @@ async def scenario_large_dataset() -> bool:
         chunks = adaptive_chunk_text(text, profile=report.profile.profile)
         for c_idx, ct in enumerate(chunks):
             all_chunks.append(ct)
-            all_meta.append({
-                "dataset_id": COLLECTION_NAME,
-                "split": "train",
-                "source_row": int(idx),
-                "chunk_index": c_idx,
-                "total_chunks": len(chunks),
-                "quality_score": round(report.quality_score, 4),
-                "profile": report.profile.profile.value,
-            })
+            all_meta.append(
+                {
+                    "dataset_id": COLLECTION_NAME,
+                    "split": "train",
+                    "source_row": int(idx),
+                    "chunk_index": c_idx,
+                    "total_chunks": len(chunks),
+                    "quality_score": round(report.quality_score, 4),
+                    "profile": report.profile.profile.value,
+                }
+            )
     ok(f"Created {len(all_chunks)} chunks from {ROW_LIMIT} rows")
 
     # 3. Embed
@@ -161,7 +170,9 @@ async def scenario_large_dataset() -> bool:
     t0 = time.perf_counter()
     embeddings = await embedder.embed_batch_api(all_chunks, api_batch_size=256)
     elapsed = time.perf_counter() - t0
-    ok(f"Embedded {len(embeddings)} chunks in {elapsed:.1f}s ({len(embeddings)/elapsed:.0f} chunks/s)")
+    ok(
+        f"Embedded {len(embeddings)} chunks in {elapsed:.1f}s ({len(embeddings)/elapsed:.0f} chunks/s)"
+    )
     if embeddings and embeddings[0]:
         ok(f"Embedding dimension: {len(embeddings[0])}")
     else:
@@ -186,7 +197,9 @@ async def scenario_large_dataset() -> bool:
 
     info = qdrant.get_collection_info(COLLECTION_NAME)
     if info and info["points_count"] > 0:
-        ok(f"Collection '{COLLECTION_NAME}': {info['points_count']} points, status={info['status']}")
+        ok(
+            f"Collection '{COLLECTION_NAME}': {info['points_count']} points, status={info['status']}"
+        )
     else:
         fail("Collection has no points after upsert")
         return False
@@ -196,12 +209,16 @@ async def scenario_large_dataset() -> bool:
     all_passed = True
     for query in QUERIES:
         qvec = await embedder.embed_single(query)
-        hits = await qdrant.dense_search(collection_name=COLLECTION_NAME, query_vector=qvec, top_k=4)
+        hits = await qdrant.dense_search(
+            collection_name=COLLECTION_NAME, query_vector=qvec, top_k=4
+        )
 
         if hits:
             top = hits[0]
             ok(f"Query: {query[:60]!r}")
-            ok(f"  Top hit: score={top.score:.4f}, profile={top.metadata.get('profile')}")
+            ok(
+                f"  Top hit: score={top.score:.4f}, profile={top.metadata.get('profile')}"
+            )
             ok(f"  Chunk: {top.chunk_text[:80]!r}...")
             if top.score < 0.3:
                 warn(f"  Score is low ({top.score:.3f}) — query may not match dataset")
@@ -213,6 +230,7 @@ async def scenario_large_dataset() -> bool:
 
 
 # ── Scenario 2: SSE streaming format ─────────────────────────────────────────
+
 
 async def scenario_sse_streaming() -> bool:
     """
@@ -237,7 +255,10 @@ async def scenario_sse_streaming() -> bool:
     async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=120.0) as client:
         r = await client.post(
             f"/chat/{agent_id}/stream",
-            json={"question": "Summarize what you know about universities.", "stream": True},
+            json={
+                "question": "Summarize what you know about universities.",
+                "stream": True,
+            },
             headers={"Content-Type": "application/json"},
         )
 
@@ -276,7 +297,9 @@ async def scenario_sse_streaming() -> bool:
             content = event.get("content", "")
             chunks_received.append(content)
             chunk_repr = repr(content)
-            step(f"  chunk ({len(chunks_received)}): {chunk_repr[:40]}{'...' if len(chunk_repr) > 40 else ''}")
+            step(
+                f"  chunk ({len(chunks_received)}): {chunk_repr[:40]}{'...' if len(chunk_repr) > 40 else ''}"
+            )
 
         elif event.get("event") == "end":
             end_received = True
@@ -328,7 +351,9 @@ async def scenario_sse_streaming() -> bool:
                 fail(f"Source[{i}] missing fields: {missing}")
                 all_passed = False
             else:
-                ok(f"  Source[{i}]: score={src['score']:.4f}, text={src['text'][:50]!r}...")
+                ok(
+                    f"  Source[{i}]: score={src['score']:.4f}, text={src['text'][:50]!r}..."
+                )
     else:
         warn("No sources in 'end' event — may be expected for some queries")
 
@@ -341,6 +366,7 @@ async def scenario_sse_streaming() -> bool:
 
 
 # ── Scenario 3: Zero-results handling ─────────────────────────────────────────
+
 
 async def scenario_zero_results() -> bool:
     """
@@ -357,7 +383,9 @@ async def scenario_zero_results() -> bool:
 
     qdrant = QdrantStore(url=QDRANT_URL)
     if not qdrant.collection_exists(COLLECTION_NAME):
-        warn(f"Collection '{COLLECTION_NAME}' not found — skipping. Run scenario 1 first.")
+        warn(
+            f"Collection '{COLLECTION_NAME}' not found — skipping. Run scenario 1 first."
+        )
         ok("Collection missing — run scenario 1 to create it, then retry scenario 3")
         return True  # Not a failure — test is skipped intentionally
 
@@ -449,8 +477,15 @@ async def scenario_zero_results() -> bool:
 
     # Check LLM response content
     if assembled:
-        no_match_phrases = ["don't have", "not enough", "no information", "cannot answer",
-                           "not found", "no context", "based on the provided"]
+        no_match_phrases = [
+            "don't have",
+            "not enough",
+            "no information",
+            "cannot answer",
+            "not found",
+            "no context",
+            "based on the provided",
+        ]
         if any(p.lower() in assembled.lower() for p in no_match_phrases):
             ok("LLM correctly acknowledges lack of relevant context")
         else:
@@ -461,6 +496,7 @@ async def scenario_zero_results() -> bool:
 
 # ── Scenario 4: Enhanced PDF parsing ───────────────────────────────────────────
 
+
 async def scenario_enhanced_parsing() -> bool:
     """
     Test the enhanced PDF parsing features:
@@ -470,8 +506,8 @@ async def scenario_enhanced_parsing() -> bool:
     """
     section("Scenario 4 — Enhanced PDF parsing")
 
-    from rag.ingestion.pipeline import run_deepdoc_ingestion
     from backend.config import settings
+    from rag.ingestion.pipeline import run_deepdoc_ingestion
 
     # Find a suitable test PDF (use existing uploads)
     test_pdf_candidates = [
@@ -519,7 +555,9 @@ async def scenario_enhanced_parsing() -> bool:
 
         layout_summary = result.get("layout_summary")
         if layout_summary:
-            ok(f"Layout: {layout_summary.get('pages')} pages, {layout_summary.get('total_blocks')} blocks")
+            ok(
+                f"Layout: {layout_summary.get('pages')} pages, {layout_summary.get('total_blocks')} blocks"
+            )
             if "columns_detected" in layout_summary:
                 ok(f"Columns: {layout_summary['columns_detected']}")
 
@@ -543,6 +581,7 @@ async def scenario_enhanced_parsing() -> bool:
     except Exception as e:
         fail(f"Enhanced parsing test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -553,6 +592,7 @@ async def scenario_enhanced_parsing() -> bool:
 
 
 # ── SSE Debugger ─────────────────────────────────────────────────────────────
+
 
 async def sse_debugger() -> None:
     """
@@ -618,6 +658,7 @@ async def sse_debugger() -> None:
 
 # ── Agent setup helper ────────────────────────────────────────────────────────
 
+
 async def _get_or_create_agent() -> str | None:
     """
     Returns the agent_id (UUID) of an agent pointing at COLLECTION_NAME,
@@ -666,6 +707,7 @@ async def setup_agent() -> None:
     section("Setting up test agent")
 
     from rag.storage.qdrant_store import QdrantStore
+
     qdrant = QdrantStore(url=QDRANT_URL)
     if qdrant.collection_exists(COLLECTION_NAME):
         info = qdrant.get_collection_info(COLLECTION_NAME)
@@ -686,14 +728,23 @@ async def setup_agent() -> None:
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="RAG Platform E2E Tests")
-    parser.add_argument("--scenario", type=int, choices=[1, 2, 3, 4],
-                        help="Run a specific scenario only")
-    parser.add_argument("--setup-agent", action="store_true",
-                        help="Create/update the test agent and exit")
-    parser.add_argument("--sse-debug", action="store_true",
-                        help="Interactive SSE debugger")
+    parser.add_argument(
+        "--scenario",
+        type=int,
+        choices=[1, 2, 3, 4],
+        help="Run a specific scenario only",
+    )
+    parser.add_argument(
+        "--setup-agent",
+        action="store_true",
+        help="Create/update the test agent and exit",
+    )
+    parser.add_argument(
+        "--sse-debug", action="store_true", help="Interactive SSE debugger"
+    )
     args = parser.parse_args()
 
     if args.setup_agent:
@@ -705,7 +756,9 @@ async def main() -> None:
         return
 
     if not await check_prerequisites():
-        fail("Prerequisites check failed — ensure Ollama, Qdrant, and FastAPI are running.")
+        fail(
+            "Prerequisites check failed — ensure Ollama, Qdrant, and FastAPI are running."
+        )
         sys.exit(1)
 
     results: dict[int, bool] = {}
@@ -726,6 +779,7 @@ async def main() -> None:
         except Exception as exc:
             fail(f"Scenario {num} crashed: {exc}")
             import traceback
+
             traceback.print_exc()
             results[num] = False
 

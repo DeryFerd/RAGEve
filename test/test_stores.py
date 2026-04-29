@@ -8,8 +8,8 @@ Run: uv run python test/test_stores.py
 
 import asyncio
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 
 # Ensure project root is in path
 _project_root = Path(__file__).resolve().parent.parent
@@ -18,29 +18,51 @@ sys.path.insert(0, str(_project_root))
 import peewee
 from peewee import SqliteDatabase
 
+import backend.models_peewee as mp
 from backend.config import settings
 from backend.models_peewee import (
-    User, Tenant, UserTenant, Knowledgebase, Document, File, File2Document, Task,
-    Dialog, Conversation, LLMFactories, LLM, TenantLLM, Connector, Connector2Kb,
-    SyncLogs, UserCanvas, CanvasTemplate, EvaluationDataset, EvaluationCase,
-    EvaluationRun, EvaluationResult, SystemSettings, APIToken, API4Conversation,
-    MCP, Search, PipelineOperationLog,
+    LLM,
+    MCP,
+    API4Conversation,
+    APIToken,
+    CanvasTemplate,
+    Connector,
+    Connector2Kb,
+    Conversation,
+    Dialog,
+    Document,
+    EvaluationCase,
+    EvaluationDataset,
+    EvaluationResult,
+    EvaluationRun,
+    File,
+    File2Document,
+    Knowledgebase,
+    LLMFactories,
+    PipelineOperationLog,
+    Search,
+    SyncLogs,
+    SystemSettings,
+    Task,
+    Tenant,
+    TenantLLM,
+    User,
+    UserCanvas,
+    UserTenant,
 )
-import backend.models_peewee as mp
 from backend.services.auth import hash_password, verify_password
-from backend.services.database import run_db_operation, _executor
+from backend.services.canvas_store import get_canvas_store
+from backend.services.connector_store import get_connector_store
+from backend.services.conversation_store import get_conversation_store
+from backend.services.database import _executor, run_db_operation
+from backend.services.dialog_store import get_dialog_store
+from backend.services.evaluation_store import get_evaluation_store
+from backend.services.knowledge_base_store import get_knowledge_base_store
+from backend.services.llm_store import get_llm_store
+from backend.services.system_store import get_system_store
 
 # Import all store getters
 from backend.services.tenant_user_store import get_tenant_user_store
-from backend.services.knowledge_base_store import get_knowledge_base_store
-from backend.services.dialog_store import get_dialog_store
-from backend.services.conversation_store import get_conversation_store
-from backend.services.llm_store import get_llm_store
-from backend.services.connector_store import get_connector_store
-from backend.services.canvas_store import get_canvas_store
-from backend.services.evaluation_store import get_evaluation_store
-from backend.services.system_store import get_system_store
-
 
 # Global test database reference
 _test_db: SqliteDatabase = None
@@ -53,11 +75,34 @@ async def setup_test_db():
 
     # List of all models to bind
     models = [
-        User, Tenant, UserTenant, Knowledgebase, Document, File, File2Document, Task,
-        Dialog, Conversation, LLMFactories, LLM, TenantLLM, Connector, Connector2Kb,
-        SyncLogs, UserCanvas, CanvasTemplate, EvaluationDataset, EvaluationCase,
-        EvaluationRun, EvaluationResult, SystemSettings, APIToken, API4Conversation,
-        MCP, Search, PipelineOperationLog,
+        User,
+        Tenant,
+        UserTenant,
+        Knowledgebase,
+        Document,
+        File,
+        File2Document,
+        Task,
+        Dialog,
+        Conversation,
+        LLMFactories,
+        LLM,
+        TenantLLM,
+        Connector,
+        Connector2Kb,
+        SyncLogs,
+        UserCanvas,
+        CanvasTemplate,
+        EvaluationDataset,
+        EvaluationCase,
+        EvaluationRun,
+        EvaluationResult,
+        SystemSettings,
+        APIToken,
+        API4Conversation,
+        MCP,
+        Search,
+        PipelineOperationLog,
     ]
 
     # Bind models to test database
@@ -65,7 +110,9 @@ async def setup_test_db():
         model._meta.database = _test_db
 
     # Create tables
-    await asyncio.get_event_loop().run_in_executor(_executor, lambda: _test_db.create_tables(models, safe=True))
+    await asyncio.get_event_loop().run_in_executor(
+        _executor, lambda: _test_db.create_tables(models, safe=True)
+    )
 
     # Override the global database singleton
     mp._database = _test_db
@@ -98,6 +145,7 @@ async def teardown_test_db():
         _test_db = None
     try:
         import os
+
         if os.path.exists("./test_stores.db"):
             os.remove("./test_stores.db")
     except Exception:
@@ -106,6 +154,7 @@ async def teardown_test_db():
 
 
 # ==================== TenantUserStore Tests ====================
+
 
 async def test_tenant_user_store():
     store = get_tenant_user_store()
@@ -219,6 +268,7 @@ async def test_tenant_user_store():
 
 
 # ==================== KnowledgeBaseStore Tests ====================
+
 
 async def test_knowledge_base_store():
     store = get_knowledge_base_store()
@@ -396,6 +446,7 @@ async def test_knowledge_base_store():
 
 # ==================== DialogStore Tests ====================
 
+
 async def test_dialog_store():
     store = get_dialog_store()
     tenant_user_store = get_tenant_user_store()
@@ -432,7 +483,9 @@ async def test_dialog_store():
     print("✓ DialogStore.get_dialog works")
 
     # Get dialog by name
-    fetched_name = await run_db_operation(store.get_dialog_by_name, tenant.id, "Test Dialog")
+    fetched_name = await run_db_operation(
+        store.get_dialog_by_name, tenant.id, "Test Dialog"
+    )
     assert fetched_name is not None
     assert fetched_name.id == dialog.id
     print("✓ DialogStore.get_dialog_by_name works")
@@ -459,6 +512,7 @@ async def test_dialog_store():
 
 
 # ==================== ConversationStore Tests ====================
+
 
 async def test_conversation_store():
     store = get_conversation_store()
@@ -541,7 +595,9 @@ async def test_conversation_store():
     print("✓ Conversation.get_messages works")
 
     # Get conversation context (max_turns)
-    context = await run_db_operation(store.get_conversation_context, conv.id, max_turns=1)
+    context = await run_db_operation(
+        store.get_conversation_context, conv.id, max_turns=1
+    )
     assert len(context) == 2  # user + assistant
     print("✓ ConversationStore.get_conversation_context works")
 
@@ -569,6 +625,7 @@ async def test_conversation_store():
 
 
 # ==================== LLMStore Tests ====================
+
 
 async def test_llm_store():
     store = get_llm_store()
@@ -668,6 +725,7 @@ async def test_llm_store():
 
 # ==================== ConnectorStore Tests ====================
 
+
 async def test_connector_store():
     store = get_connector_store()
     tenant_user_store = get_tenant_user_store()
@@ -737,7 +795,9 @@ async def test_connector_store():
     print("✓ ConnectorStore.link_connector_to_kb works")
 
     # Get knowledgebases for connector
-    conn_kbs = await run_db_operation(store.get_knowledgebases_for_connector, connector.id)
+    conn_kbs = await run_db_operation(
+        store.get_knowledgebases_for_connector, connector.id
+    )
     assert len(conn_kbs) == 1
     assert conn_kbs[0].id == kb.id
     print("✓ ConnectorStore.get_knowledgebases_for_connector works")
@@ -785,6 +845,7 @@ async def test_connector_store():
 
 
 # ==================== CanvasStore Tests ====================
+
 
 async def test_canvas_store():
     store = get_canvas_store()
@@ -875,6 +936,7 @@ async def test_canvas_store():
 
 
 # ==================== EvaluationStore Tests ====================
+
 
 async def test_evaluation_store():
     store = get_evaluation_store()
@@ -996,6 +1058,7 @@ async def test_evaluation_store():
 
 # ==================== SystemStore Tests ====================
 
+
 async def test_system_store():
     store = get_system_store()
 
@@ -1039,7 +1102,9 @@ async def test_system_store():
     print("✓ SystemStore.verify_api_token works")
 
     # Revoke (delete) API token
-    revoked = await run_db_operation(store.revoke_api_token, "tenant123", "test-token-abc123")
+    revoked = await run_db_operation(
+        store.revoke_api_token, "tenant123", "test-token-abc123"
+    )
     assert revoked is True
     print("✓ SystemStore.revoke_api_token works")
 
@@ -1132,6 +1197,7 @@ async def test_system_store():
 
 # ==================== MCP and Search Direct Model Tests ====================
 
+
 async def test_mcp_and_search_models():
     """Test MCP and Search models directly (no store service yet)."""
     import uuid
@@ -1207,6 +1273,7 @@ async def main():
         print("❌ TEST FAILED")
         print("=" * 60)
         import traceback
+
         traceback.print_exc()
         raise
     finally:

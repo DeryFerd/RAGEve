@@ -96,7 +96,9 @@ def _load_model(model_id: str) -> "CrossEncoder":
         _log.info("Loading cross-encoder model: %s", model_id)
         t0 = _time.monotonic()
         _model_cache[model_id] = CrossEncoder(model_id)
-        _log.info("Cross-encoder model loaded: %s (%.1fs)", model_id, _time.monotonic() - t0)
+        _log.info(
+            "Cross-encoder model loaded: %s (%.1fs)", model_id, _time.monotonic() - t0
+        )
     return _model_cache[model_id]
 
 
@@ -242,7 +244,8 @@ class CrossEncoderReranker:
         _log.debug(
             "CrossEncoderReranker.rerank: scored %d chunks in %.3fs — "
             "top_score=%.4f bottom_score=%.4f",
-            len(chunks), elapsed,
+            len(chunks),
+            elapsed,
             result[0].score if result else 0.0,
             result[-1].score if result else 0.0,
         )

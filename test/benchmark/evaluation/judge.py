@@ -33,16 +33,16 @@ for _ in range(4):
 if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
-from openai import OpenAI, RateLimitError, APITimeoutError
-
 from test.benchmark.evaluation._config import EvalConfig
 
+from openai import APITimeoutError, OpenAI, RateLimitError
 
 # ---------------------------------------------------------------------------
 # OpenAI-compatible client
 # ---------------------------------------------------------------------------
 
 _client: OpenAI | None = None
+
 
 def _get_client() -> OpenAI:
     global _client
@@ -61,13 +61,22 @@ def _get_client() -> OpenAI:
 # Score parsing helpers
 # ---------------------------------------------------------------------------
 
+
 def _parse_score(text: str) -> float | None:
     """Extract a float score ∈ [0, 1] from LLM response text."""
     text = text.strip()
     try:
         obj = json.loads(text)
-        for key in ("score", "rating", "faithfulness", "relevance", "precision",
-                    "result", "value", "groundedness"):
+        for key in (
+            "score",
+            "rating",
+            "faithfulness",
+            "relevance",
+            "precision",
+            "result",
+            "value",
+            "groundedness",
+        ):
             if key in obj:
                 val = obj[key]
                 if isinstance(val, (int, float)):
@@ -81,7 +90,7 @@ def _parse_score(text: str) -> float | None:
     # Look for a decimal number anywhere in the text.
     # Negative lookbehind/lookahead ensure we match a single number token,
     # not a fragment of a larger number or a standalone "1" (ambiguous scale).
-    m = re.search(r'(?<![0-9.])(0?\.[0-9]+)(?![0-9.])', text)
+    m = re.search(r"(?<![0-9.])(0?\.[0-9]+)(?![0-9.])", text)
     if m:
         try:
             return max(0.0, min(1.0, float(m.group(1))))
@@ -89,7 +98,7 @@ def _parse_score(text: str) -> float | None:
             pass
 
     # Normalise integers/floors > 1 as 0-100 scale
-    m = re.search(r'(?<![0-9.])([0-9]+\.[0-9]+)(?![0-9.])', text)
+    m = re.search(r"(?<![0-9.])([0-9]+\.[0-9]+)(?![0-9.])", text)
     if m:
         val = float(m.group(1))
         if val > 1:
@@ -229,7 +238,7 @@ GENERATED ANSWER:
 # ---------------------------------------------------------------------------
 
 MAX_RETRIES = 3
-RETRY_DELAY = [2, 5, 15]   # seconds between retries
+RETRY_DELAY = [2, 5, 15]  # seconds between retries
 
 
 async def _judge(
@@ -275,6 +284,7 @@ async def _judge(
 # ---------------------------------------------------------------------------
 # Per-metric scorers
 # ---------------------------------------------------------------------------
+
 
 def _fmt_contexts(contexts: list[str]) -> str:
     lines = []
@@ -388,6 +398,7 @@ async def score_groundedness(
 # ---------------------------------------------------------------------------
 # Batch runner
 # ---------------------------------------------------------------------------
+
 
 async def compute_llm_judge_metrics(
     questions: list[str],

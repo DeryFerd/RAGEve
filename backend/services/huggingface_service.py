@@ -139,16 +139,18 @@ def _scan_directory_for_datasets(root: Path) -> list[dict]:
         fs_safe_name = entry.name
         decoded_id = fs_safe_name.replace("__", "/")
 
-        detected.append({
-            "local_path": str(entry.relative_to(root)),
-            "dataset_id": decoded_id,
-            "splits": splits,
-            "file_formats": file_formats,
-            "file_count": len(all_files),
-            "total_size_bytes": total_size,
-            "readable_columns": readable_columns,
-            "description": None,
-        })
+        detected.append(
+            {
+                "local_path": str(entry.relative_to(root)),
+                "dataset_id": decoded_id,
+                "splits": splits,
+                "file_formats": file_formats,
+                "file_count": len(all_files),
+                "total_size_bytes": total_size,
+                "readable_columns": readable_columns,
+                "description": None,
+            }
+        )
 
     return detected
 
@@ -171,4 +173,6 @@ def register_dataset(registry_path: Path, dataset_id: str, metadata: dict) -> No
     registry = get_registered_datasets(registry_path)
     registry[dataset_id] = metadata
     registry_path.parent.mkdir(parents=True, exist_ok=True)
-    registry_path.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
+    registry_path.write_text(
+        json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8"
+    )

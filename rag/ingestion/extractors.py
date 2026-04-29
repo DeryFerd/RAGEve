@@ -10,9 +10,9 @@ import pymupdf
 from docx import Document
 from PIL import Image
 
+from backend.config import settings
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
-from backend.config import settings
 
 _log = logging.getLogger(__name__)
 
@@ -41,7 +41,9 @@ class Extractors:
             ocr_text = ocr_pdf(file_path, engine)
             if ocr_text:
                 return ocr_text
-            _log.warning("OCR returned no text for %s; using original extraction", file_path.name)
+            _log.warning(
+                "OCR returned no text for %s; using original extraction", file_path.name
+            )
 
         return text
 

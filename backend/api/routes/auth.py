@@ -6,12 +6,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from pydantic import BaseModel, EmailStr, Field
 
-from backend.models_peewee import User, get_database
+from backend.models_peewee import User
 from backend.services.auth import (
     create_access_token,
     decode_access_token,
@@ -27,6 +26,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 # ==================== Schemas ====================
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -62,6 +62,7 @@ class AuthMeResponse(BaseModel):
 
 
 # ==================== Helper Functions ====================
+
 
 def _user_to_response(user: User) -> AuthMeResponse:
     """Convert a User model to the API response format."""
@@ -110,6 +111,7 @@ async def get_current_user_from_token(
 
 # ==================== Routes ====================
 
+
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(data: RegisterRequest, response: Response) -> dict:
     """
@@ -130,7 +132,9 @@ async def register(data: RegisterRequest, response: Response) -> dict:
             detail="Email already registered",
         )
     if data.username:
-        existing_username = await run_db_operation(user_store.get_user_by_username, data.username)
+        existing_username = await run_db_operation(
+            user_store.get_user_by_username, data.username
+        )
         if existing_username:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -155,7 +159,9 @@ async def register(data: RegisterRequest, response: Response) -> dict:
     _log.info("User registered: %s (%s)", user.id, user.email)
 
     # Create JWT token
-    token = create_access_token(user_id=user.id, username=user.username or "", is_admin=user.is_admin)
+    token = create_access_token(
+        user_id=user.id, username=user.username or "", is_admin=user.is_admin
+    )
 
     # Set HttpOnly cookie
     response.set_cookie(
@@ -207,7 +213,9 @@ async def login(data: LoginRequest, response: Response) -> AuthMeResponse:
     _log.info("User logged in: %s (%s)", user.id, user.email)
 
     # Create JWT token
-    token = create_access_token(user_id=user.id, username=user.username or "", is_admin=user.is_admin)
+    token = create_access_token(
+        user_id=user.id, username=user.username or "", is_admin=user.is_admin
+    )
 
     # Set HttpOnly cookie
     response.set_cookie(

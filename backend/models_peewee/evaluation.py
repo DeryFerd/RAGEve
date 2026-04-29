@@ -14,11 +14,13 @@ import uuid
 from typing import Optional
 
 import peewee
+
 from .base import BaseModel, JSONTextField
 
 
 class EvaluationDataset(BaseModel):
     """Ground truth dataset for RAG evaluation."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     tenant_id = peewee.CharField(max_length=32, null=False, index=True)
     name = peewee.CharField(max_length=255, null=False, index=True)
@@ -54,6 +56,7 @@ class EvaluationDataset(BaseModel):
 
 class EvaluationCase(BaseModel):
     """Individual test case within an evaluation dataset."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     dataset_id = peewee.CharField(max_length=32, null=False, index=True)
     question = peewee.TextField(null=False)
@@ -89,6 +92,7 @@ class EvaluationCase(BaseModel):
 
 class EvaluationRun(BaseModel):
     """Evaluation execution run."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     dataset_id = peewee.CharField(max_length=32, null=False, index=True)
     dialog_id = peewee.CharField(max_length=32, null=False, index=True)
@@ -117,6 +121,7 @@ class EvaluationRun(BaseModel):
         """Create a new evaluation run."""
         if create_time is None:
             import time
+
             create_time = int(time.time())
         return cls.create(
             id=str(uuid.uuid4()).replace("-", "")[:32],
@@ -136,6 +141,7 @@ class EvaluationRun(BaseModel):
         self.metrics_summary = metrics_summary
         if complete_time is None:
             import time
+
             complete_time = int(time.time())
         self.complete_time = complete_time
         self.status = "COMPLETED"
@@ -144,6 +150,7 @@ class EvaluationRun(BaseModel):
 
 class EvaluationResult(BaseModel):
     """Result for a single test case in an evaluation run."""
+
     id = peewee.CharField(max_length=32, primary_key=True)
     run_id = peewee.CharField(max_length=32, null=False, index=True)
     case_id = peewee.CharField(max_length=32, null=False, index=True)
@@ -172,6 +179,7 @@ class EvaluationResult(BaseModel):
         """Create an evaluation result for a test case."""
         if create_time is None:
             import time
+
             create_time = int(time.time())
         return cls.create(
             id=str(uuid.uuid4()).replace("-", "")[:32],

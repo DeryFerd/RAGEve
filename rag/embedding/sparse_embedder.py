@@ -87,6 +87,7 @@ class SparseVector:
 
     This is identical to the format returned by fastembed's SparseEmbedding.
     """
+
     indices: list[int]
     values: list[float]
 
@@ -130,7 +131,10 @@ class SparseEmbedder:
                     "Install it with: uv pip install fastembed"
                 ) from exc
 
-            _log.info("Loading sparse model '%s' (first call — may take ~10-30s)…", self.model_id)
+            _log.info(
+                "Loading sparse model '%s' (first call — may take ~10-30s)…",
+                self.model_id,
+            )
             self._encoder = SparseTextEmbedding(
                 model_name=self.model_id,
                 cache_dir=self.cache_dir,
@@ -186,7 +190,7 @@ class SparseEmbedder:
         return [
             SparseVector(
                 indices=[int(i) for i in r.indices],  # numpy.int → Python int
-                values=[float(v) for v in r.values],   # numpy.float → Python float
+                values=[float(v) for v in r.values],  # numpy.float → Python float
             )  # type: ignore[attr-defined]
             for r in results
         ]

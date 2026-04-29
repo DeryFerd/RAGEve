@@ -6,6 +6,7 @@ Routes:
   GET /download/{dataset_id}/status — get download progress
   POST /download/{dataset_id}/cancel — cancel an in-progress download
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,6 +17,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
+from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
 from backend.config import settings
 from backend.schemas.huggingface import (
@@ -23,7 +25,6 @@ from backend.schemas.huggingface import (
     HuggingFaceDownloadResponse,
     HuggingFaceDownloadStatusResponse,
 )
-from backend.api.routes import hf_status
 
 _log = logging.getLogger("app")
 
@@ -67,7 +68,12 @@ async def _download_hf_dataset_to_server(
     async with lock:
         safe_id = hf_status._normalize_dataset_dirname(dataset_id)
         target_dir = data_root / "hf" / safe_id
-        _log.info("HF download starting: %s → %s (auto_ingest=%s)", dataset_id, target_dir, auto_ingest)
+        _log.info(
+            "HF download starting: %s → %s (auto_ingest=%s)",
+            dataset_id,
+            target_dir,
+            auto_ingest,
+        )
 
         hf_status._set_download_status(
             dataset_id,
@@ -86,12 +92,12 @@ async def _download_hf_dataset_to_server(
 
         try:
             try:
-                from datasets import (
+                from datasets import (  # type: ignore[import-untyped]
                     DatasetDict,
                     get_dataset_config_names,
                     get_dataset_split_names,
                     load_dataset,
-                )  # type: ignore[import-untyped]
+                )
             except Exception as exc:  # noqa: BLE001
                 raise RuntimeError(
                     "The 'datasets' package is required for server-side HF download. "
@@ -112,9 +118,13 @@ async def _download_hf_dataset_to_server(
             try:
                 async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):
                     split_names = (
-                        get_dataset_split_names(dataset_id, config_name=config, use_auth_token=hf_token)
+                        get_dataset_split_names(
+                            dataset_id, config_name=config, use_auth_token=hf_token
+                        )
                         if config
-                        else get_dataset_split_names(dataset_id, use_auth_token=hf_token)
+                        else get_dataset_split_names(
+                            dataset_id, use_auth_token=hf_token
+                        )
                     )
             except asyncio.TimeoutError:
                 raise TimeoutError(
@@ -148,18 +158,24 @@ async def _download_hf_dataset_to_server(
                     if hf_status._is_cancelled(dataset_id):
                         hf_status._cleanup_partial_dataset(dataset_id, data_root)
                         hf_status._set_download_status(
-                            dataset_id, status="cancelled", progress=0,
+                            dataset_id,
+                            status="cancelled",
+                            progress=0,
                             message="Download was cancelled.",
                         )
                         return
 
                     hf_status._set_download_status(
-                        dataset_id, progress=10,
+                        dataset_id,
+                        progress=10,
                         message="Connecting to HuggingFace…",
                     )
                     tracker = hf_status._install_progress_tracker(dataset_id)
 
-                    _load_kwargs: dict[str, Any] = {"cache_dir": str(temp_dir), "use_auth_token": hf_token}
+                    _load_kwargs: dict[str, Any] = {
+                        "cache_dir": str(temp_dir),
+                        "use_auth_token": hf_token,
+                    }
                     if config:
                         _load_kwargs["name"] = config
                     async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):
@@ -172,9 +188,13 @@ async def _download_hf_dataset_to_server(
                     if isinstance(ds_default, DatasetDict):
                         for split_name, split_ds in ds_default.items():
                             if hf_status._is_cancelled(dataset_id):
-                                hf_status._cleanup_partial_dataset(dataset_id, data_root)
+                                hf_status._cleanup_partial_dataset(
+                                    dataset_id, data_root
+                                )
                                 hf_status._set_download_status(
-                                    dataset_id, status="cancelled", progress=0,
+                                    dataset_id,
+                                    status="cancelled",
+                                    progress=0,
                                     message="Download was cancelled.",
                                 )
                                 return
@@ -195,7 +215,9 @@ async def _download_hf_dataset_to_server(
                         if hf_status._is_cancelled(dataset_id):
                             hf_status._cleanup_partial_dataset(dataset_id, data_root)
                             hf_status._set_download_status(
-                                dataset_id, status="cancelled", progress=0,
+                                dataset_id,
+                                status="cancelled",
+                                progress=0,
                                 message="Download was cancelled.",
                             )
                             return
@@ -209,7 +231,11 @@ async def _download_hf_dataset_to_server(
 
                         tracker = hf_status._install_progress_tracker(dataset_id)
 
-                        _split_load_kwargs: dict[str, Any] = {"split": split_name, "cache_dir": str(temp_dir), "use_auth_token": hf_token}
+                        _split_load_kwargs: dict[str, Any] = {
+                            "split": split_name,
+                            "cache_dir": str(temp_dir),
+                            "use_auth_token": hf_token,
+                        }
                         if config:
                             _split_load_kwargs["name"] = config
                         async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):
@@ -238,7 +264,9 @@ async def _download_hf_dataset_to_server(
                         if hf_status._is_cancelled(dataset_id):
                             hf_status._cleanup_partial_dataset(dataset_id, data_root)
                             hf_status._set_download_status(
-                                dataset_id, status="cancelled", progress=0,
+                                dataset_id,
+                                status="cancelled",
+                                progress=0,
                                 message="Download was cancelled.",
                             )
                             return
@@ -250,13 +278,19 @@ async def _download_hf_dataset_to_server(
                     rows_downloaded=rows_total,
                 )
 
-                _log.info("HF download: %s complete — %d rows, %d splits",
-                          dataset_id, rows_total, len(downloaded_splits))
+                _log.info(
+                    "HF download: %s complete — %d rows, %d splits",
+                    dataset_id,
+                    rows_total,
+                    len(downloaded_splits),
+                )
 
                 if hf_status._is_cancelled(dataset_id):
                     hf_status._cleanup_partial_dataset(dataset_id, data_root)
                     hf_status._set_download_status(
-                        dataset_id, status="cancelled", progress=0,
+                        dataset_id,
+                        status="cancelled",
+                        progress=0,
                         message="Download was cancelled.",
                     )
                     return
@@ -264,8 +298,11 @@ async def _download_hf_dataset_to_server(
                 target_dir.parent.mkdir(parents=True, exist_ok=True)
                 if target_dir.exists():
                     import shutil
+
                     shutil.rmtree(target_dir)
-                hf_status._copy_dataset_to_hf_root(temp_dir=temp_dir, target_dir=target_dir)
+                hf_status._copy_dataset_to_hf_root(
+                    temp_dir=temp_dir, target_dir=target_dir
+                )
 
             # ── Post-download: detect columns ─────────────────────────────────
             columns: dict[str, str] = {}
@@ -273,6 +310,7 @@ async def _download_hf_dataset_to_server(
 
             try:
                 import pandas as pd
+
                 pq_files = list(target_dir.rglob("*.parquet"))
                 if pq_files:
                     df = pd.read_parquet(pq_files[0])
@@ -288,9 +326,21 @@ async def _download_hf_dataset_to_server(
                         else:
                             columns[col] = dtype
                     TEXT_CANDIDATES = [
-                        "text", "content", "document", "passage", "context",
-                        "question", "answer", "sentence", "body", "review",
-                        "query", "input", "output", "story", "summary",
+                        "text",
+                        "content",
+                        "document",
+                        "passage",
+                        "context",
+                        "question",
+                        "answer",
+                        "sentence",
+                        "body",
+                        "review",
+                        "query",
+                        "input",
+                        "output",
+                        "story",
+                        "summary",
                     ]
                     for cand in TEXT_CANDIDATES:
                         if cand in col_names:
@@ -316,8 +366,14 @@ async def _download_hf_dataset_to_server(
                 )
 
                 try:
-                    from backend.services.ingestion_factory import get_embedder, get_qdrant_store, get_sparse_embedder
-                    from rag.ingestion.hf_ingestion import ingest_hf_dataset as _run_ingest
+                    from backend.services.ingestion_factory import (
+                        get_embedder,
+                        get_qdrant_store,
+                        get_sparse_embedder,
+                    )
+                    from rag.ingestion.hf_ingestion import (
+                        ingest_hf_dataset as _run_ingest,
+                    )
 
                     qdrant_store = get_qdrant_store()
                     embedder = get_embedder()
@@ -337,7 +393,8 @@ async def _download_hf_dataset_to_server(
                         embedder=embedder,
                         sparse_embedder=sparse_embedder,
                         split=ingest_split,
-                        text_columns=auto_ingest_text_columns or ([text_col] if text_col else None),
+                        text_columns=auto_ingest_text_columns
+                        or ([text_col] if text_col else None),
                         metadata_columns=auto_ingest_meta_columns or None,
                         batch_size=auto_ingest_batch_size or 32,
                         chunk_overlap=auto_ingest_chunk_overlap or 180,
@@ -419,7 +476,10 @@ async def download_hf_dataset(
     """
     dataset_id = payload.dataset_id.strip()
     if not dataset_id or "/" not in dataset_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "dataset_id must be a valid HF dataset (e.g. 'author/name')")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "dataset_id must be a valid HF dataset (e.g. 'author/name')",
+        )
 
     # Prevent duplicate downloads
     existing = hf_status._hf_download_status.get(dataset_id, {}).get("status")
@@ -436,7 +496,9 @@ async def download_hf_dataset(
         progress=0,
         message="Waiting for server…",
         error=None,
-        local_path=str(settings.data_root / "hf" / hf_status._normalize_dataset_dirname(dataset_id)),
+        local_path=str(
+            settings.data_root / "hf" / hf_status._normalize_dataset_dirname(dataset_id)
+        ),
         started_at=hf_status._utc_now_iso(),
         rows_downloaded=0,
         splits_downloaded=[],
@@ -460,7 +522,9 @@ async def download_hf_dataset(
         auto_ingest_chunk_overlap=payload.chunk_overlap,
         auto_ingest_max_tokens=payload.max_tokens_per_chunk,
         auto_ingest_text_columns=payload.text_columns if payload.text_columns else None,
-        auto_ingest_meta_columns=payload.metadata_columns if payload.metadata_columns else None,
+        auto_ingest_meta_columns=(
+            payload.metadata_columns if payload.metadata_columns else None
+        ),
         auto_ingest_split=payload.ingest_split,
     )
 
@@ -471,9 +535,14 @@ async def download_hf_dataset(
     )
 
 
-@router.get("/download/{dataset_id:path}/status", response_model=HuggingFaceDownloadStatusResponse)
+@router.get(
+    "/download/{dataset_id:path}/status",
+    response_model=HuggingFaceDownloadStatusResponse,
+)
 @limiter.limit("120/minute")
-async def get_hf_download_status(request: Request, dataset_id: str) -> HuggingFaceDownloadStatusResponse:
+async def get_hf_download_status(
+    request: Request, dataset_id: str
+) -> HuggingFaceDownloadStatusResponse:
     """Get current in-memory status for a dataset download task."""
     status_obj = hf_status._hf_download_status.get(dataset_id)
     if not status_obj:
@@ -488,18 +557,27 @@ async def get_hf_download_status(request: Request, dataset_id: str) -> HuggingFa
                 message="Downloaded (server restarted after completion)",
                 local_path=str(local_path),
             )
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"No download status found for '{dataset_id}'")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"No download status found for '{dataset_id}'"
+        )
 
     return HuggingFaceDownloadStatusResponse(**status_obj)
 
 
-@router.post("/download/{dataset_id:path}/cancel", response_model=HuggingFaceDownloadResponse)
+@router.post(
+    "/download/{dataset_id:path}/cancel", response_model=HuggingFaceDownloadResponse
+)
 @limiter.limit("60/minute")
-async def cancel_hf_download(request: Request, dataset_id: str) -> HuggingFaceDownloadResponse:
+async def cancel_hf_download(
+    request: Request, dataset_id: str
+) -> HuggingFaceDownloadResponse:
     """Cancel an in-progress or queued dataset download."""
     status_obj = hf_status._hf_download_status.get(dataset_id)
     if status_obj and status_obj.get("status") in ("completed", "failed", "cancelled"):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Cannot cancel — download is already {status_obj.get('status')}")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Cannot cancel — download is already {status_obj.get('status')}",
+        )
 
     hf_status._hf_download_cancel_flags[dataset_id] = True
 
@@ -518,6 +596,7 @@ async def cancel_hf_download(request: Request, dataset_id: str) -> HuggingFaceDo
 
 
 # ── Discover endpoint ─────────────────────────────────────────────────────────
+
 
 @router.get("/discover", response_model=dict)
 async def discover_hf_datasets() -> dict:
@@ -576,8 +655,11 @@ async def discover_hf_datasets() -> dict:
             if f.suffix.lower() == ".parquet":
                 try:
                     import pandas as pd  # noqa: F401
+
                     df = pd.read_parquet(f, engine="pyarrow")
-                    readable_columns = [c for c in df.columns if df[c].dtype.kind in "ifuO"]
+                    readable_columns = [
+                        c for c in df.columns if df[c].dtype.kind in "ifuO"
+                    ]
                     break
                 except Exception:  # noqa: BLE001
                     pass
@@ -591,7 +673,10 @@ async def discover_hf_datasets() -> dict:
                 break
         if not is_ingested:
             for ing in hf_status._hf_ingest_registry.values():
-                if ing.get("status") == "completed" and ing.get("dataset_id") == dataset_id:
+                if (
+                    ing.get("status") == "completed"
+                    and ing.get("dataset_id") == dataset_id
+                ):
                     is_ingested = True
                     break
 

@@ -15,6 +15,7 @@ Exports:
 
 All other HF routes import from here so they share the same in-memory state.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -94,28 +95,31 @@ def _normalize_dataset_dirname(dataset_id: str) -> str:
 
 
 def _set_download_status(dataset_id: str, **updates: Any) -> None:
-    current = _hf_download_status.get(dataset_id, {
-        "dataset_id": dataset_id,
-        "status": "queued",
-        "progress": 0,
-        "message": "Queued",
-        "error": None,
-        "local_path": None,
-        "started_at": _utc_now_iso(),
-        "updated_at": _utc_now_iso(),
-        "rows_downloaded": None,
-        "splits_downloaded": [],
-        "bytes_downloaded": None,
-        "total_bytes": None,
-        "config": None,
-        "auto_ingest": False,
-        "ingest_status": None,
-        "ingest_message": None,
-        "ingest_error": None,
-        "ingested": False,
-        "suggested_text_column": None,
-        "columns": {},
-    })
+    current = _hf_download_status.get(
+        dataset_id,
+        {
+            "dataset_id": dataset_id,
+            "status": "queued",
+            "progress": 0,
+            "message": "Queued",
+            "error": None,
+            "local_path": None,
+            "started_at": _utc_now_iso(),
+            "updated_at": _utc_now_iso(),
+            "rows_downloaded": None,
+            "splits_downloaded": [],
+            "bytes_downloaded": None,
+            "total_bytes": None,
+            "config": None,
+            "auto_ingest": False,
+            "ingest_status": None,
+            "ingest_message": None,
+            "ingest_error": None,
+            "ingested": False,
+            "suggested_text_column": None,
+            "columns": {},
+        },
+    )
     current.update(updates)
     current["updated_at"] = _utc_now_iso()
     _hf_download_status[dataset_id] = current
@@ -195,7 +199,9 @@ class HFProgressTracker:
                 progress=pct,
                 bytes_downloaded=self.bytes_done,
                 total_bytes=self.bytes_total,
-                message=_build_progress_message(self.dataset_id, pct, self.bytes_done, self.bytes_total),
+                message=_build_progress_message(
+                    self.dataset_id, pct, self.bytes_done, self.bytes_total
+                ),
             )
 
     def finalize(self, final_pct: int) -> None:
@@ -242,8 +248,8 @@ def _setup_tqdm_patch() -> None:
         return
 
     try:
-        from tqdm import tqdm as original_tqdm
         from datasets.utils import tqdm as datasets_tqdm_module
+        from tqdm import tqdm as original_tqdm
 
         class _TrackingTqdm(original_tqdm):  # type: ignore[misc]
             def update(self, n: int = 1) -> None:  # type: ignore[override]
@@ -324,4 +330,3 @@ async def _set_hf_ingest_status(ingest_id: str, **kwargs: Any) -> dict[str, Any]
         entry.update(kwargs)
         _persist_hf_ingest_registry()
         return dict(entry)
-

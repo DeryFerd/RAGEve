@@ -7,7 +7,6 @@ from enum import Enum
 
 from rag.deepdoc.analyzer import classify_char
 
-
 # ----------------------------------------------------------------------
 # Chunk profile definitions
 # ----------------------------------------------------------------------
@@ -100,7 +99,9 @@ OCR_NOISE_RE = re.compile(r"[_]{5,}|\.{4,}|[~]{3,}|[\^]{3,}")
 REPEATED_CHAR_RE = re.compile(r"([a-zA-Z0-9])\1{4,}")
 # Matches markdown pipe tables and CSV-like lines with 2+ columns
 TABLE_LINE_RE = re.compile(r"^\s*\|.*\|.*\|")
-CODE_DELIM_RE = re.compile(r"[\{\}\[\]\(\)]|    +|  {2}|^\s{0,4}(if|else|for|while|def|class|import|return)\b")
+CODE_DELIM_RE = re.compile(
+    r"[\{\}\[\]\(\)]|    +|  {2}|^\s{0,4}(if|else|for|while|def|class|import|return)\b"
+)
 HEADER_FOOTER_RE = re.compile(
     r"^(page\s+\d+|chapter\s+\d|section\s+\d|©|\||\*{3,}|confidential|draft)",
     re.IGNORECASE,
@@ -155,7 +156,11 @@ def compute_quality_signals(text: str) -> QualitySignals:
     total_lines = len(lines)
 
     # 1. Alpha ratio (from analyzer)
-    alpha_chars = sum(1 for ch in text if classify_char(ch) != "whitespace" and classify_char(ch) != "other")
+    alpha_chars = sum(
+        1
+        for ch in text
+        if classify_char(ch) != "whitespace" and classify_char(ch) != "other"
+    )
     alpha_ratio = alpha_chars / max(total_chars, 1)
 
     # 2. OCR noise ratio
@@ -189,10 +194,9 @@ def compute_quality_signals(text: str) -> QualitySignals:
     # 9. Code delimiter ratio (curly braces, square brackets, 4-space indents)
     import re as _re
 
-    code_delim_chars = (
-        sum(1 for ch in text if ch in "{}[")
-        + len(_re.findall(r"    +", text))  # 4+ space indentation
-    )
+    code_delim_chars = sum(1 for ch in text if ch in "{}[") + len(
+        _re.findall(r"    +", text)
+    )  # 4+ space indentation
     code_delimiter_ratio = code_delim_chars / max(total_chars, 1)
 
     # 10. Issue tags

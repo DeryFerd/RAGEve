@@ -3,17 +3,17 @@ from __future__ import annotations
 import asyncio
 import json as _json
 import logging
-from typing import Any, AsyncIterator
+from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
 from backend.schemas.chat import ChatRequest, ChatResponse, SourceChunkSchema
 from backend.services.database import run_db_operation
 from backend.services.dialog_store import get_dialog_store
-from backend.services.tenant_user_store import get_tenant_user_store
 from backend.services.ingestion_factory import get_rag_pipeline
+from backend.services.tenant_user_store import get_tenant_user_store
 
 _log = logging.getLogger(__name__)
 
@@ -23,7 +23,6 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("/{dialog_id}", response_model=ChatResponse)
 @limiter.limit("120/minute")
 async def chat(
-    request: Request,
     dialog_id: str,
     payload: ChatRequest,
 ) -> ChatResponse:
@@ -40,11 +39,15 @@ async def chat(
     tenant_store = get_tenant_user_store()
     tenant = await run_db_operation(tenant_store.get_tenant, dialog.tenant_id)
     if not tenant:
-        raise HTTPException(status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found"
+        )
 
     # Determine collection (knowledge base) - use first kb_id
     if not dialog.kb_ids:
-        raise HTTPException(status_code=400, detail="Dialog has no knowledge base assigned")
+        raise HTTPException(
+            status_code=400, detail="Dialog has no knowledge base assigned"
+        )
     collection_name = dialog.kb_ids[0]
 
     # Build system prompt
@@ -53,7 +56,11 @@ async def chat(
         system_prompt = dialog.prompt_config.get("system", "")
 
     # LLM settings
-    temperature = payload.temperature if payload.temperature is not None else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    temperature = (
+        payload.temperature
+        if payload.temperature is not None
+        else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    )
     top_k = payload.top_k if payload.top_k is not None else dialog.top_k
 
     # RAG pipeline
@@ -99,7 +106,6 @@ async def _stream_rag(
     dialog_id: str,
     payload: ChatRequest,
 ) -> AsyncIterator[str]:
-    import asyncio
 
     dialog_store = get_dialog_store()
     dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
@@ -109,15 +115,25 @@ async def _stream_rag(
     tenant_store = get_tenant_user_store()
     tenant = await run_db_operation(tenant_store.get_tenant, dialog.tenant_id)
     if not tenant:
-        raise HTTPException(status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Tenant '{dialog.tenant_id}' not found"
+        )
 
     if not dialog.kb_ids:
-        raise HTTPException(status_code=400, detail="Dialog has no knowledge base assigned")
+        raise HTTPException(
+            status_code=400, detail="Dialog has no knowledge base assigned"
+        )
     collection_name = dialog.kb_ids[0]
 
-    system_prompt = dialog.prompt_config.get("system", "") if dialog.prompt_config else ""
+    system_prompt = (
+        dialog.prompt_config.get("system", "") if dialog.prompt_config else ""
+    )
 
-    temperature = payload.temperature if payload.temperature is not None else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    temperature = (
+        payload.temperature
+        if payload.temperature is not None
+        else (dialog.llm_setting.get("temperature") if dialog.llm_setting else 0.7)
+    )
     top_k = payload.top_k if payload.top_k is not None else dialog.top_k
 
     rag = get_rag_pipeline(
@@ -149,13 +165,25 @@ async def _stream_rag(
                         sources_list = token.get("sources", [])
                         reranker_model = token.get("reranker_model")
                         use_hybrid = token.get("use_hybrid", False)
-                        yield f"data: {_json.dumps({'event': 'end', 'sources': sources_list, 'reranker_model': reranker_model, 'use_hybrid': use_hybrid})}\n\n"
+                        payload = {
+                            "event": "end",
+                            "sources": sources_list,
+                            "reranker_model": reranker_model,
+                            "use_hybrid": use_hybrid,
+                        }
+                        yield f"data: {_json.dumps(payload)}\n\n"
                     continue
 
                 yield f"data: {_json.dumps({'event': 'chunk', 'content': token})}\n\n"
 
             if not done_emitted:
-                yield f"data: {_json.dumps({'event': 'end', 'sources': sources_list, 'reranker_model': reranker_model, 'use_hybrid': use_hybrid})}\n\n"
+                payload = {
+                    "event": "end",
+                    "sources": sources_list,
+                    "reranker_model": reranker_model,
+                    "use_hybrid": use_hybrid,
+                }
+                yield f"data: {_json.dumps(payload)}\n\n"
     except asyncio.TimeoutError:
         _log.warning("Streaming RAG timeout for dialog %s", dialog_id)
         yield f"data: {_json.dumps({'event': 'error', 'error': 'Request timed out after 120 seconds'})}\n\n"
@@ -169,7 +197,6 @@ async def _stream_rag(
 @router.post("/{dialog_id}/stream")
 @limiter.limit("120/minute")
 async def chat_stream(
-    request: Request,
     dialog_id: str,
     payload: ChatRequest,
 ) -> StreamingResponse:

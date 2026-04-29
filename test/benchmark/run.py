@@ -55,11 +55,13 @@ def _ensure_out_dir() -> Path:
 # System info
 # ---------------------------------------------------------------------------
 
+
 def _collect_system_info() -> dict:
     info: dict = {}
 
     # Python / platform
     import platform
+
     info["platform"] = {
         "os": platform.system(),
         "release": platform.release(),
@@ -70,6 +72,7 @@ def _collect_system_info() -> dict:
     # CPU
     try:
         import multiprocessing
+
         info["cpu"] = {"logical_cores": multiprocessing.cpu_count()}
     except Exception:
         pass
@@ -85,6 +88,7 @@ def _collect_system_info() -> dict:
                         break
         elif sys.platform == "darwin":
             import subprocess as _s
+
             r = _s.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True)
             info["memory_gb"] = round(int(r.stdout.strip()) / 1024**3, 1)
     except Exception:
@@ -93,6 +97,7 @@ def _collect_system_info() -> dict:
     # Ollama models available
     try:
         import httpx
+
         with httpx.Client(timeout=5.0) as client:
             r = client.get("http://localhost:11434/api/tags")
             if r.status_code == 200:
@@ -107,6 +112,7 @@ def _collect_system_info() -> dict:
 # ---------------------------------------------------------------------------
 # Result merging helpers
 # ---------------------------------------------------------------------------
+
 
 def _merge(source: dict, target: dict) -> None:
     """Deep-merge source dict into target dict."""
@@ -123,11 +129,23 @@ def _merge(source: dict, target: dict) -> None:
 # ---------------------------------------------------------------------------
 
 BENCHMARK_MODULES = {
-    "embedding":  ("rag.embedding.ollama_embedder", "Ollama embedder throughput & latency"),
-    "chunking":   ("rag.chunking.adaptive",          "Adaptive & high-accuracy chunking throughput"),
-    "retrieval":  ("rag.storage.qdrant_store",       "Qdrant dense search latency & throughput"),
-    "streaming":   ("httpx",                          "End-to-end streaming RAG chat latency"),
-    "evaluation":  ("rag",                             "RAG quality: Precision@K, Recall@K, MRR, NDCG@K, Faithfulness, Answer Relevance, Context Precision, Context Relevance, Groundedness"),
+    "embedding": (
+        "rag.embedding.ollama_embedder",
+        "Ollama embedder throughput & latency",
+    ),
+    "chunking": (
+        "rag.chunking.adaptive",
+        "Adaptive & high-accuracy chunking throughput",
+    ),
+    "retrieval": (
+        "rag.storage.qdrant_store",
+        "Qdrant dense search latency & throughput",
+    ),
+    "streaming": ("httpx", "End-to-end streaming RAG chat latency"),
+    "evaluation": (
+        "rag",
+        "RAG quality: Precision@K, Recall@K, MRR, NDCG@K, Faithfulness, Answer Relevance, Context Precision, Context Relevance, Groundedness",
+    ),
 }
 
 ALL_MODULES = list(BENCHMARK_MODULES)
@@ -142,8 +160,8 @@ def _run_module(module: str, extra_args: list[str] | None = None) -> dict:
 
     Returns the dict from run_all(), or {"error": ...} on failure.
     """
-    import importlib.util
     import asyncio
+    import importlib.util
 
     bench_dir = Path(__file__).parent
     module_file = bench_dir / f"{module}.py"
@@ -183,6 +201,7 @@ def _run_module(module: str, extra_args: list[str] | None = None) -> dict:
             return result_or_coro
 
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             result = pool.submit(_call).result(timeout=600)
         return result
@@ -190,12 +209,14 @@ def _run_module(module: str, extra_args: list[str] | None = None) -> dict:
         return {"error": f"module '{module}' timed out after 600s"}
     except Exception as exc:
         import traceback
+
         return {"error": f"run_all() raised: {exc}\n{traceback.format_exc()[-500]}"}
 
 
 # ---------------------------------------------------------------------------
 # Prerequisite checks
 # ---------------------------------------------------------------------------
+
 
 def _check_prereqs(modules: list[str]) -> tuple[bool, list[str]]:
     """
@@ -220,7 +241,9 @@ def _check_prereqs(modules: list[str]) -> tuple[bool, list[str]]:
             all_ok = False
             return False
 
-    needs_ollama = "embedding" in modules or "retrieval" in modules or "streaming" in modules
+    needs_ollama = (
+        "embedding" in modules or "retrieval" in modules or "streaming" in modules
+    )
     needs_qdrant = "retrieval" in modules
     needs_backend = "streaming" in modules
 
@@ -237,6 +260,7 @@ def _check_prereqs(modules: list[str]) -> tuple[bool, list[str]]:
 # ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
+
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -277,7 +301,7 @@ async def _main() -> dict:
     module_args: dict[str, list[str]] = {}
     if "--" in unknown:
         sep = unknown.index("--")
-        raw_extra = unknown[sep + 1:]
+        raw_extra = unknown[sep + 1 :]
         # Forward everything after `--` to all modules
         module_args = {m: raw_extra for m in args.modules}
 
@@ -305,9 +329,11 @@ async def _main() -> dict:
 
     # System info
     system_info = _collect_system_info()
-    print(f"  System  : {system_info.get('platform', {}).get('os')} / "
-          f"{system_info.get('platform', {}).get('python_version')} / "
-          f"{system_info.get('cpu', {}).get('logical_cores', '?')} cores")
+    print(
+        f"  System  : {system_info.get('platform', {}).get('os')} / "
+        f"{system_info.get('platform', {}).get('python_version')} / "
+        f"{system_info.get('cpu', {}).get('logical_cores', '?')} cores"
+    )
 
     # Run benchmarks
     t0_run = time.perf_counter()
@@ -324,7 +350,9 @@ async def _main() -> dict:
         elapsed = time.perf_counter() - t0
         print(f"  benchmark.{module} done in {elapsed:.1f}s")
 
-        if "error" in result and not any(k in result for k in ("embedding", "chunking", "retrieval", "streaming")):
+        if "error" in result and not any(
+            k in result for k in ("embedding", "chunking", "retrieval", "streaming")
+        ):
             print(f"    ERROR: {result['error'][:200]}")
         run_results[module] = result
 
@@ -371,12 +399,16 @@ def _print_summary(report: dict) -> None:
             print(f"    {key}: {tput} chunks/s")
         lat = emb.get("query_latency", {})
         if lat:
-            print(f"    query latency: p50={lat.get('latency_p50_ms')}ms  "
-                  f"p90={lat.get('latency_p90_ms')}ms  "
-                  f"p99={lat.get('latency_p99_ms')}ms")
+            print(
+                f"    query latency: p50={lat.get('latency_p50_ms')}ms  "
+                f"p90={lat.get('latency_p90_ms')}ms  "
+                f"p99={lat.get('latency_p99_ms')}ms"
+            )
         dim = emb.get("dimension", {})
         if dim:
-            print(f"    dimension     : {dim.get('dimension')}  model={dim.get('embedding_model')}")
+            print(
+                f"    dimension     : {dim.get('dimension')}  model={dim.get('embedding_model')}"
+            )
 
     # Chunking
     chk = results.get("chunking", {})
@@ -384,7 +416,9 @@ def _print_summary(report: dict) -> None:
         print("\n  [chunking]")
         for profile, data in chk["adaptive"].get("profiles", {}).items():
             tput = data.get("throughput_chars_per_sec", "?")
-            print(f"    {profile}: {tput} chars/s  ({data.get('total_chunks', 0)} chunks)")
+            print(
+                f"    {profile}: {tput} chars/s  ({data.get('total_chunks', 0)} chunks)"
+            )
 
     # Retrieval
     ret = results.get("retrieval", {})
@@ -395,9 +429,11 @@ def _print_summary(report: dict) -> None:
         for key, val in ret.items():
             if key.startswith("dense_search_top_"):
                 lat = val
-                print(f"    {key}: p50={lat.get('latency_p50_ms')}ms  "
-                      f"p90={lat.get('latency_p90_ms')}ms  "
-                      f"p99={lat.get('latency_p99_ms')}ms  ({lat.get('n_queries')} queries)")
+                print(
+                    f"    {key}: p50={lat.get('latency_p50_ms')}ms  "
+                    f"p90={lat.get('latency_p90_ms')}ms  "
+                    f"p99={lat.get('latency_p99_ms')}ms  ({lat.get('n_queries')} queries)"
+                )
         tput = ret.get("multi_query_throughput", {})
         if tput:
             print(f"    multi-query throughput: {tput.get('throughput_qps')} qps")
@@ -413,19 +449,25 @@ def _print_summary(report: dict) -> None:
     if lat:
         total_lat = lat.get("total_latency_s", {})
         print("\n  [streaming]")
-        print(f"    queries      : {lat.get('successful', 0)}/{lat.get('total_queries', 0)} successful")
-        print(f"    total latency: p50={total_lat.get('p50')}s  "
-              f"p90={total_lat.get('p90')}s  "
-              f"p99={total_lat.get('p99')}s")
+        print(
+            f"    queries      : {lat.get('successful', 0)}/{lat.get('total_queries', 0)} successful"
+        )
+        print(
+            f"    total latency: p50={total_lat.get('p50')}s  "
+            f"p90={total_lat.get('p90')}s  "
+            f"p99={total_lat.get('p99')}s"
+        )
         ftl = lat.get("first_token_latency_s", {})
         if ftl:
             print(f"    first token  : p50={ftl.get('p50')}s  p90={ftl.get('p90')}s")
         scrud = stm.get("session_crud", {})
         if scrud and "error" not in scrud:
             ms = scrud.get("timings_ms", {})
-            print(f"    session CRUD : create={ms.get('create_session_ms')}ms  "
-                  f"list={ms.get('list_sessions_ms')}ms  "
-                  f"delete={ms.get('delete_session_ms')}ms")
+            print(
+                f"    session CRUD : create={ms.get('create_session_ms')}ms  "
+                f"list={ms.get('list_sessions_ms')}ms  "
+                f"delete={ms.get('delete_session_ms')}ms"
+            )
 
     print(f"\n{'='*60}")
     print()

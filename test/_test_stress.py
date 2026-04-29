@@ -85,7 +85,9 @@ def generate_large_pdf(output_path: Path, target_mb: int = LARGE_PDF_TARGET_MB) 
     while True:
         page_count += 1
         page = doc.new_page(width=595, height=842)
-        page.insert_text((72, 72), f"Stress Test Page {page_count}", fontsize=14, fontname="helv")
+        page.insert_text(
+            (72, 72), f"Stress Test Page {page_count}", fontsize=14, fontname="helv"
+        )
 
         y = 100
         while y < 790:
@@ -103,11 +105,16 @@ def generate_large_pdf(output_path: Path, target_mb: int = LARGE_PDF_TARGET_MB) 
     doc.close()
 
     actual = output_path.stat().st_size
-    print(f"  PDF generated: {output_path.name} — {actual / 1024**2:.2f} MB ({page_count} pages)", flush=True)
+    print(
+        f"  PDF generated: {output_path.name} — {actual / 1024**2:.2f} MB ({page_count} pages)",
+        flush=True,
+    )
     return actual
 
 
-def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_COLS) -> int:
+def generate_messy_csv(
+    output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_COLS
+) -> int:
     print(f"  Generating messy CSV ({rows:,} rows × {cols} cols) …", flush=True)
 
     unicode_samples = [
@@ -124,8 +131,18 @@ def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_
     ]
 
     headers = [
-        "ID", "Name", "Age", "Salary", "Is Active", "Join Date",
-        "Email", "Department", "Notes", "Score", "Code", "Raw Data",
+        "ID",
+        "Name",
+        "Age",
+        "Salary",
+        "Is Active",
+        "Join Date",
+        "Email",
+        "Department",
+        "Notes",
+        "Score",
+        "Code",
+        "Raw Data",
     ][:cols]
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
@@ -145,14 +162,30 @@ def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_
                     if r < 0.03:
                         row.append(random.choice(unicode_samples))
                     else:
-                        nm = "".join(random.choices(string.ascii_letters, k=random.randint(4, 20)))
+                        nm = "".join(
+                            random.choices(
+                                string.ascii_letters, k=random.randint(4, 20)
+                            )
+                        )
                         row.append(f"  {nm}  " if r < 0.1 else nm)
                 elif col_idx == 2:
-                    row.append(random.choice(["N/A", "unknown", "NA"]) if r < 0.15 else random.randint(18, 80))
+                    row.append(
+                        random.choice(["N/A", "unknown", "NA"])
+                        if r < 0.15
+                        else random.randint(18, 80)
+                    )
                 elif col_idx == 3:
-                    row.append(random.choice(["", "TBD", "-"]) if r < 0.1 else f"{random.uniform(20000, 200000):.2f}")
+                    row.append(
+                        random.choice(["", "TBD", "-"])
+                        if r < 0.1
+                        else f"{random.uniform(20000, 200000):.2f}"
+                    )
                 elif col_idx == 4:
-                    row.append(random.choice(["yes", "YES", "true", "1", ""]) if r < 0.05 else random.choice(["true", "false"]))
+                    row.append(
+                        random.choice(["yes", "YES", "true", "1", ""])
+                        if r < 0.05
+                        else random.choice(["true", "false"])
+                    )
                 elif col_idx == 5:
                     row.append(str(base_date + timedelta(days=random.randint(0, 5000))))
                 elif col_idx == 6:
@@ -162,13 +195,38 @@ def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_
                         user = "".join(random.choices(string.ascii_lowercase, k=8))
                         row.append(f"{user}@example.com")
                 elif col_idx == 7:
-                    row.append(random.choice(["Engineering", "Sales", "HR", "Marketing", "", "Operations", "R&D"]))
+                    row.append(
+                        random.choice(
+                            [
+                                "Engineering",
+                                "Sales",
+                                "HR",
+                                "Marketing",
+                                "",
+                                "Operations",
+                                "R&D",
+                            ]
+                        )
+                    )
                 elif col_idx == 8:
-                    row.append(random.choice(unicode_samples) if r < 0.2 else "Note: " + "".join(random.choices(string.ascii_letters, k=30)))
+                    row.append(
+                        random.choice(unicode_samples)
+                        if r < 0.2
+                        else "Note: "
+                        + "".join(random.choices(string.ascii_letters, k=30))
+                    )
                 elif col_idx == 9:
-                    row.append(random.choice(["N/A", "", "err", "99.9*"]) if r < 0.12 else f"{random.uniform(0, 100):.4f}")
+                    row.append(
+                        random.choice(["N/A", "", "err", "99.9*"])
+                        if r < 0.12
+                        else f"{random.uniform(0, 100):.4f}"
+                    )
                 elif col_idx == 10:
-                    row.append("".join(random.choices(string.ascii_uppercase + string.digits, k=8)))
+                    row.append(
+                        "".join(
+                            random.choices(string.ascii_uppercase + string.digits, k=8)
+                        )
+                    )
                 else:
                     row.append(random.choice(unicode_samples))
 
@@ -177,16 +235,23 @@ def generate_messy_csv(output_path: Path, rows: int = CSV_ROWS, cols: int = CSV_
                 print(f"    {i + 1:,} rows written …", flush=True)
 
     actual = output_path.stat().st_size
-    print(f"  CSV generated: {output_path.name} — {actual / 1024**2:.2f} MB", flush=True)
+    print(
+        f"  CSV generated: {output_path.name} — {actual / 1024**2:.2f} MB", flush=True
+    )
     return actual
 
 
 def curl_upload(dataset_id: str, file_path: Path) -> tuple[int, str, str]:
     cmd = [
-        "curl", "-s", "-w", "\n%{http_code}",
-        "-X", "POST",
+        "curl",
+        "-s",
+        "-w",
+        "\n%{http_code}",
+        "-X",
+        "POST",
         f"{BACKEND_URL}/datasets/{dataset_id}/upload",
-        "-F", f"files=@{file_path}",
+        "-F",
+        f"files=@{file_path}",
     ]
     proc = subprocess.run(cmd, capture_output=True, timeout=3600)
     body = proc.stdout.decode("utf-8", errors="replace")
@@ -219,7 +284,12 @@ def _stream_upload(dataset_id: str, file_path: Path):
                         continue
                     yield json.loads(line)
         except httpx.ReadTimeout:
-            yield {"event": "error", "stage": "failed", "message": "Connection refused (Ollama down?)", "progress": 0}
+            yield {
+                "event": "error",
+                "stage": "failed",
+                "message": "Connection refused (Ollama down?)",
+                "progress": 0,
+            }
 
 
 def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTestResult:
@@ -228,7 +298,9 @@ def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTest
     Returns a FileTestResult with per-phase breakdown.
     """
     size_mb = file_path.stat().st_size / 1024**2
-    result = FileTestResult(filename=file_path.name, size_bytes=file_path.stat().st_size)
+    result = FileTestResult(
+        filename=file_path.name, size_bytes=file_path.stat().st_size
+    )
 
     print(f"\n{'='*60}")
     print(f"STREAM TEST: {label} ({size_mb:.2f} MB)")
@@ -240,10 +312,10 @@ def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTest
     embed_events = []
 
     for evt in _stream_upload(dataset_id, file_path):
-        evt_name  = evt.get("event", "?")
-        stage     = evt.get("stage", "")
-        progress  = evt.get("progress", 0)
-        message   = evt.get("message", "")
+        evt_name = evt.get("event", "?")
+        stage = evt.get("stage", "")
+        progress = evt.get("progress", 0)
+        message = evt.get("message", "")
         elapsed_s = time.perf_counter() - t0
 
         if evt_name == "status":
@@ -253,9 +325,11 @@ def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTest
                 last_stage = stage
                 # Print progress bar
                 bar_len = 30
-                filled  = int(bar_len * progress / 100)
+                filled = int(bar_len * progress / 100)
                 bar = "█" * filled + "░" * (bar_len - filled)
-                print(f"  [{elapsed_s:6.1f}s] {bar} {progress:3d}%  {stage:<16s}  {message}")
+                print(
+                    f"  [{elapsed_s:6.1f}s] {bar} {progress:3d}%  {stage:<16s}  {message}"
+                )
 
         elif evt_name == "file_done":
             final_result = evt.get("result", {})
@@ -266,10 +340,16 @@ def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTest
             all_ok = True
             files = evt.get("files", [])
             stage_times["completed"] = time.perf_counter() - t0
-            print(f"\n  ✅ Stream complete — {len(files)} file(s) in {stage_times.get('completed', 0):.1f}s")
+            print(
+                f"\n  ✅ Stream complete — {len(files)} file(s) in {stage_times.get('completed', 0):.1f}s"
+            )
             result.phases.append(
-                PhaseResult(name="full_pipeline_stream", elapsed_s=stage_times.get("completed", 0),
-                            ok=True, detail=f"HTTP 200, {len(files)} files")
+                PhaseResult(
+                    name="full_pipeline_stream",
+                    elapsed_s=stage_times.get("completed", 0),
+                    ok=True,
+                    detail=f"HTTP 200, {len(files)} files",
+                )
             )
 
         elif evt_name == "error":
@@ -279,8 +359,12 @@ def test_upload_stream(label: str, dataset_id: str, file_path: Path) -> FileTest
             print(f"\n  ❌ Error at {progress}%: {error_msg}")
             result.error = error_msg
             result.phases.append(
-                PhaseResult(name="full_pipeline_stream", elapsed_s=stage_times.get("failed", 0),
-                            ok=False, detail=f"error: {error_msg}")
+                PhaseResult(
+                    name="full_pipeline_stream",
+                    elapsed_s=stage_times.get("failed", 0),
+                    ok=False,
+                    detail=f"error: {error_msg}",
+                )
             )
 
     # Summary of stage timings
@@ -303,7 +387,12 @@ def test_upload(label: str, result: FileTestResult, dataset_id: str, file_path: 
     elapsed = time.perf_counter() - t0
 
     result.phases.append(
-        PhaseResult(name="full_pipeline_http", elapsed_s=elapsed, ok=status in (200, 201), detail=f"HTTP {status}")
+        PhaseResult(
+            name="full_pipeline_http",
+            elapsed_s=elapsed,
+            ok=status in (200, 201),
+            detail=f"HTTP {status}",
+        )
     )
 
     if status == 200:
@@ -313,8 +402,12 @@ def test_upload(label: str, result: FileTestResult, dataset_id: str, file_path: 
             print(f"  ✅ HTTP {status}")
             print(f"     chars   : {f.get('chars', '?')}")
             print(f"     chunks  : {f.get('chunks', '?')}")
-            print(f"     profile : {f.get('quality_report', {}).get('selected_profile', '?')}")
-            print(f"     score   : {f.get('quality_report', {}).get('quality_score', '?')}")
+            print(
+                f"     profile : {f.get('quality_report', {}).get('selected_profile', '?')}"
+            )
+            print(
+                f"     score   : {f.get('quality_report', {}).get('quality_score', '?')}"
+            )
             print(f"     elapsed : {elapsed:.1f}s")
         except Exception:
             print(f"  ⚠️ HTTP 200 but unexpected payload: {body[:250]}")
@@ -353,12 +446,17 @@ def test_concurrent_uploads(pdf_path: Path, xlsx_path: Path):
     t2 = threading.Thread(target=worker, args=("xlsx", xlsx_path))
 
     t0 = time.perf_counter()
-    t1.start(); t2.start(); t1.join(); t2.join()
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
     total = time.perf_counter() - t0
 
     print(f"  Total elapsed (both): {total:.1f}s")
     for tag, (status, elapsed, body) in outputs.items():
-        print(f"  {'✅' if status in (200, 201) else '❌'} [{tag}] HTTP {status} in {elapsed:.1f}s")
+        print(
+            f"  {'✅' if status in (200, 201) else '❌'} [{tag}] HTTP {status} in {elapsed:.1f}s"
+        )
 
 
 def print_ui_status_notes():
@@ -395,7 +493,15 @@ def convert_csv_to_xlsx(csv_path: Path, xlsx_path: Path) -> int:
 def backend_reachable() -> bool:
     try:
         r = subprocess.run(
-            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"{BACKEND_URL}/docs"],
+            [
+                "curl",
+                "-s",
+                "-o",
+                "/dev/null",
+                "-w",
+                "%{http_code}",
+                f"{BACKEND_URL}/docs",
+            ],
             capture_output=True,
             timeout=10,
         )
@@ -407,7 +513,9 @@ def backend_reachable() -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Stress-test ingestion upload path")
     parser.add_argument("--dry-run", action="store_true", help="Generate files only")
-    parser.add_argument("--keep-files", action="store_true", help="Keep generated files")
+    parser.add_argument(
+        "--keep-files", action="store_true", help="Keep generated files"
+    )
     parser.add_argument("--test", choices=["pdf", "csv", "all"], default="all")
     parser.add_argument(
         "--stream",

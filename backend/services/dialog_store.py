@@ -64,7 +64,9 @@ class DialogStore:
                 query = query.where(Dialog.status == status)
 
             total = query.count()
-            results = query.order_by(Dialog.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(Dialog.create_time.desc()).limit(limit).offset(offset)
+            )
             return [d.to_dict() for d in results], total
 
     def update_dialog(
@@ -81,6 +83,7 @@ class DialogStore:
                         setattr(dialog, key, value)
                 # Update timestamp
                 from datetime import datetime
+
                 now = datetime.utcnow()
                 dialog.update_date = now
                 dialog.update_time = int(now.timestamp())

@@ -9,14 +9,24 @@ import pymupdf
 from docx import Document
 from PIL import Image
 
+from backend.config import settings
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
-from backend.config import settings
 
 _log = logging.getLogger(__name__)
 
 # Supported file extensions for ingestion
-SUPPORTED_EXTENSIONS = {".pdf", ".doc", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xlsx",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".tiff",
+}
 
 
 class Extractors:
@@ -39,7 +49,9 @@ class Extractors:
             ocr_text = ocr_pdf(file_path, engine)
             if ocr_text:
                 return ocr_text
-            _log.warning("OCR returned no text for %s; using original extraction", file_path.name)
+            _log.warning(
+                "OCR returned no text for %s; using original extraction", file_path.name
+            )
 
         return text
 
@@ -139,7 +151,11 @@ def extract_text(
         # Try enhanced parsing if at least one feature is enabled
         if enable_column_detection or enable_structured_tables:
             try:
-                from rag.deepdoc.layout_parser import parse_pdf_layout, layout_to_readable_text
+                from rag.deepdoc.layout_parser import (
+                    layout_to_readable_text,
+                    parse_pdf_layout,
+                )
+
                 layouts = parse_pdf_layout(
                     file_path,
                     enable_column_detection=enable_column_detection,
@@ -230,10 +246,20 @@ def run_deepdoc_ingestion(
       Dict with ingestion results, chunks, quality report, etc.
     """
     from backend.config import settings
-    from rag.deepdoc.quality_scorer import score_and_select_profile
     from rag.chunking.adaptive import adaptive_chunk_text
+    from rag.deepdoc.quality_scorer import score_and_select_profile
 
-    if file_path.suffix.lower() not in {".pdf", ".doc", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".bmp", ".tiff"}:
+    if file_path.suffix.lower() not in {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xlsx",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tiff",
+    }:
         raise ValueError(f"Unsupported file type: {file_path.suffix}")
 
     t0 = __import__("time").monotonic()
@@ -259,7 +285,11 @@ def run_deepdoc_ingestion(
     if file_path.suffix.lower() == ".pdf":
         if settings.enable_hierarchical_chunking:
             try:
-                from rag.deepdoc.layout_parser import parse_pdf_layout, layout_to_readable_text
+                from rag.deepdoc.layout_parser import (
+                    layout_to_readable_text,
+                    parse_pdf_layout,
+                )
+
                 # We already have raw_text from extract_text; but we need layouts.
                 # Re-run parse_pdf_layout to get layouts (it's fast)
                 layouts = parse_pdf_layout(
@@ -269,8 +299,12 @@ def run_deepdoc_ingestion(
                 )
                 # Sanity check: raw_text should match layout_to_readable_text(layouts)
                 # If not, use layouts to regenerate raw_text
-                generated_text = layout_to_readable_text(layouts, include_hierarchy=True)
-                if abs(len(generated_text) - len(raw_text)) < len(raw_text) * 0.1:  # within 10%
+                generated_text = layout_to_readable_text(
+                    layouts, include_hierarchy=True
+                )
+                if (
+                    abs(len(generated_text) - len(raw_text)) < len(raw_text) * 0.1
+                ):  # within 10%
                     raw_text = generated_text
                 # else keep raw_text from extract_text to avoid discrepancy
             except Exception as e:
@@ -292,7 +326,11 @@ def run_deepdoc_ingestion(
 
     eff_chunk_size = chunk_size if chunk_size is not None else config.chunk_size
     eff_overlap = chunk_overlap if chunk_overlap is not None else config.chunk_overlap
-    eff_tokens = max_tokens_per_chunk if max_tokens_per_chunk is not None else config.max_tokens_per_chunk
+    eff_tokens = (
+        max_tokens_per_chunk
+        if max_tokens_per_chunk is not None
+        else config.max_tokens_per_chunk
+    )
 
     # 4. Adaptive chunking with layouts if hierarchical chunking enabled
     chunks_with_blocks = adaptive_chunk_text(
@@ -301,7 +339,9 @@ def run_deepdoc_ingestion(
         override_size=eff_chunk_size,
         override_overlap=eff_overlap,
         override_tokens=eff_tokens,
-        layouts=layouts if (layouts and settings.enable_hierarchical_chunking) else None,
+        layouts=(
+            layouts if (layouts and settings.enable_hierarchical_chunking) else None
+        ),
     )
     chunks = chunks_with_blocks  # list[tuple[str, list[Block]]]
     chunk_count = len(chunks)
@@ -339,9 +379,13 @@ def run_deepdoc_ingestion(
         column_dist: dict[int, int] = {}
         for page in layouts:
             for block in page.blocks:
-                block_counts[block.block_type.value] = block_counts.get(block.block_type.value, 0) + 1
+                block_counts[block.block_type.value] = (
+                    block_counts.get(block.block_type.value, 0) + 1
+                )
                 if block.column_index is not None:
-                    column_dist[block.column_index] = column_dist.get(block.column_index, 0) + 1
+                    column_dist[block.column_index] = (
+                        column_dist.get(block.column_index, 0) + 1
+                    )
 
         layout_summary = {
             "pages": len(layouts),

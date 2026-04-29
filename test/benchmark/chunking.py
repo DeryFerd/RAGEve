@@ -82,7 +82,7 @@ DOCUMENTS: dict[str, list[str]] = {
 }
 
 PROFILES = list(DOCUMENTS.keys())
-NUM_DOCS_PER_PROFILE = 10   # each profile has 10 docs × ~300 chars ≈ 3 KB total
+NUM_DOCS_PER_PROFILE = 10  # each profile has 10 docs × ~300 chars ≈ 3 KB total
 
 
 def _flatten(docs: list[str]) -> list[str]:
@@ -155,7 +155,9 @@ def bench_high_accuracy_chunking(num_runs: int = 3) -> dict:
         "total_chars": total_chars,
         "total_chunks": len(chunks),
         "avg_elapsed_s": round(avg_elapsed, 4),
-        "throughput_chars_per_sec": round(total_chars / avg_elapsed, 1) if avg_elapsed > 0 else 0,
+        "throughput_chars_per_sec": (
+            round(total_chars / avg_elapsed, 1) if avg_elapsed > 0 else 0
+        ),
         "num_runs": num_runs,
     }
 
@@ -208,5 +210,6 @@ def add_to(run_dict: dict, results: dict) -> None:
 
 if __name__ == "__main__":
     import json
+
     result = run_all()
     print(json.dumps(result, indent=2))

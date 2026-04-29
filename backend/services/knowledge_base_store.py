@@ -10,10 +10,10 @@ import logging
 from typing import Any
 
 from backend.models_peewee import (
-    Knowledgebase,
     Document,
     File,
     File2Document,
+    Knowledgebase,
     Task,
     get_database,
 )
@@ -80,7 +80,11 @@ class KnowledgeBaseStore:
                 query = query.where(Knowledgebase.created_by == created_by)
 
             total = query.count()
-            results = query.order_by(Knowledgebase.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(Knowledgebase.create_time.desc())
+                .limit(limit)
+                .offset(offset)
+            )
             return [kb.to_dict() for kb in results], total
 
     def update_knowledgebase(
@@ -97,6 +101,7 @@ class KnowledgeBaseStore:
                         setattr(kb, key, value)
                 # Update timestamp
                 from datetime import datetime
+
                 now = datetime.utcnow()
                 kb.update_date = now
                 kb.update_time = int(now.timestamp())
@@ -123,13 +128,17 @@ class KnowledgeBaseStore:
                 # Delete tasks for these documents
                 Task.delete().where(Task.doc_id.in_(doc_ids)).execute()
                 # Delete file-document links for these documents
-                File2Document.delete().where(File2Document.doc_id.in_(doc_ids)).execute()
+                File2Document.delete().where(
+                    File2Document.doc_id.in_(doc_ids)
+                ).execute()
                 # Delete documents
                 Document.delete().where(Document.id.in_(doc_ids)).execute()
             # Delete the knowledgebase
             kb.delete_instance()
 
-        _log.info("Deleted knowledgebase %s (including %d documents)", kb_id, len(doc_ids))
+        _log.info(
+            "Deleted knowledgebase %s (including %d documents)", kb_id, len(doc_ids)
+        )
         return True
 
     # ==================== Documents ====================
@@ -182,7 +191,9 @@ class KnowledgeBaseStore:
                 query = query.where(Document.created_by == created_by)
 
             total = query.count()
-            results = query.order_by(Document.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(Document.create_time.desc()).limit(limit).offset(offset)
+            )
             return [doc.to_dict() for doc in results], total
 
     def update_document_progress(
@@ -203,6 +214,7 @@ class KnowledgeBaseStore:
                     doc.doc_metadata = doc_metadata
                 # Update timestamp
                 from datetime import datetime
+
                 now = datetime.utcnow()
                 doc.update_date = now
                 doc.update_time = int(now.timestamp())
@@ -228,6 +240,7 @@ class KnowledgeBaseStore:
                     doc.doc_metadata = doc_metadata
                 # Update timestamp
                 from datetime import datetime
+
                 now = datetime.utcnow()
                 doc.update_date = now
                 doc.update_time = int(now.timestamp())
@@ -305,7 +318,9 @@ class KnowledgeBaseStore:
                 to_page=to_page,
                 priority=priority,
             )
-            _log.info("Created task %s (type: %s) for document %s", task.id, task_type, doc_id)
+            _log.info(
+                "Created task %s (type: %s) for document %s", task.id, task_type, doc_id
+            )
             return task
 
     def get_task(self, task_id: str) -> Task | None:
@@ -354,7 +369,11 @@ class KnowledgeBaseStore:
     def get_document_tasks(self, doc_id: str) -> list[Task]:
         """Get all tasks for a document."""
         with get_database().connection_context():
-            query = Task.select().where(Task.doc_id == doc_id).order_by(Task.create_time.asc())
+            query = (
+                Task.select()
+                .where(Task.doc_id == doc_id)
+                .order_by(Task.create_time.asc())
+            )
             return list(query)
 
 

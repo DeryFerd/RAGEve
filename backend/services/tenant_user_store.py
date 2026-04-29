@@ -66,7 +66,9 @@ class TenantUserStore:
                 query = query.where(Tenant.created_by == created_by)
 
             total = query.count()
-            results = query.order_by(Tenant.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(Tenant.create_time.desc()).limit(limit).offset(offset)
+            )
             return [t.to_dict() for t in results], total
 
     def update_tenant(self, tenant_id: str, **updates: Any) -> Tenant | None:
@@ -176,7 +178,9 @@ class TenantUserStore:
                 query = query.where(User.status == status_val)
 
             total = query.count()
-            results = query.order_by(User.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(User.create_time.desc()).limit(limit).offset(offset)
+            )
             return [u.to_dict() for u in results], total
 
     def list_all_users(self, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -261,13 +265,16 @@ class TenantUserStore:
             # Check if already exists
             try:
                 existing = UserTenant.get(
-                    (UserTenant.user_id == user_id) & (UserTenant.tenant_id == tenant_id)
+                    (UserTenant.user_id == user_id)
+                    & (UserTenant.tenant_id == tenant_id)
                 )
                 # Update role if exists
                 existing.role = role
                 existing.invited_by = invited_by
                 existing.save()
-                _log.info("Updated user %s role in tenant %s to %s", user_id, tenant_id, role)
+                _log.info(
+                    "Updated user %s role in tenant %s to %s", user_id, tenant_id, role
+                )
                 return existing
             except UserTenant.DoesNotExist:
                 ut = UserTenant.add_user_to_tenant(
@@ -276,7 +283,9 @@ class TenantUserStore:
                     invited_by=invited_by,
                     role=role,
                 )
-                _log.info("Added user %s to tenant %s (role: %s)", user_id, tenant_id, role)
+                _log.info(
+                    "Added user %s to tenant %s (role: %s)", user_id, tenant_id, role
+                )
                 return ut
 
     def remove_user_from_tenant(self, user_id: str, tenant_id: str) -> bool:
@@ -284,7 +293,8 @@ class TenantUserStore:
         with get_database().connection_context():
             try:
                 ut = UserTenant.get(
-                    (UserTenant.user_id == user_id) & (UserTenant.tenant_id == tenant_id)
+                    (UserTenant.user_id == user_id)
+                    & (UserTenant.tenant_id == tenant_id)
                 )
                 ut.delete_instance()
                 _log.info("Removed user %s from tenant %s", user_id, tenant_id)
@@ -327,7 +337,8 @@ class TenantUserStore:
         with get_database().connection_context():
             try:
                 ut = UserTenant.get(
-                    (UserTenant.user_id == user_id) & (UserTenant.tenant_id == tenant_id)
+                    (UserTenant.user_id == user_id)
+                    & (UserTenant.tenant_id == tenant_id)
                 )
                 return ut.role
             except UserTenant.DoesNotExist:

@@ -37,7 +37,9 @@ class Settings(BaseSettings):
 
     # Comma-separated list of allowed CORS origins (no spaces around commas).
     # Example: "https://app.example.com,https://staging.example.com"
-    cors_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002"
+    cors_origins: str = (
+        "http://localhost:3000,http://localhost:3001,http://localhost:3002"
+    )
 
     # Number of reverse proxies in front of this app (for X-Forwarded-For).
     # Set to 0 to disable proxy-aware IP detection in the rate limiter.
@@ -93,8 +95,8 @@ class Settings(BaseSettings):
     pdfplumber_join_tolerance: float = 3.0
 
     # Upload limits
-    max_upload_bytes: int = 500 * 1024 * 1024      # 500 MB per file
-    max_dataset_bytes: int = 100 * 1024 ** 3      # 100 GB per dataset
+    max_upload_bytes: int = 500 * 1024 * 1024  # 500 MB per file
+    max_dataset_bytes: int = 100 * 1024**3  # 100 GB per dataset
 
     model_config = SettingsConfigDict(
         env_file=".env",

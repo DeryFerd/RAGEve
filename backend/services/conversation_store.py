@@ -9,9 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-
-from backend.models_peewee.dialog import Conversation
 from backend.models_peewee import get_database
+from backend.models_peewee.dialog import Conversation
 
 
 class ConversationStore:
@@ -62,12 +61,18 @@ class ConversationStore:
 
             total = query.count()
             # Order by creation time descending (most recent first)
-            results = query.order_by(Conversation.create_time.desc()).limit(limit).offset(offset)
+            results = (
+                query.order_by(Conversation.create_time.desc())
+                .limit(limit)
+                .offset(offset)
+            )
 
             convs = [conv.to_dict() for conv in results]
             return convs, total
 
-    def update_conversation(self, conversation_id: str, **updates: Any) -> Conversation | None:
+    def update_conversation(
+        self, conversation_id: str, **updates: Any
+    ) -> Conversation | None:
         """Update conversation fields (name, reference, user_id)."""
         with get_database().connection_context():
             try:

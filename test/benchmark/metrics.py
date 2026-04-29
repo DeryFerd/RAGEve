@@ -14,16 +14,17 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Core result structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class BenchmarkPhase:
     """Single timed phase inside a benchmark scenario."""
-    name: str                          # e.g. "embed_500_chunks"
-    elapsed_s: float                   # wall-clock seconds
+
+    name: str  # e.g. "embed_500_chunks"
+    elapsed_s: float  # wall-clock seconds
     memory_peak_mb: float | None = None  # peak RSS delta, if measured
     ok: bool = True
     detail: str = ""
@@ -32,6 +33,7 @@ class BenchmarkPhase:
 @dataclass
 class BenchmarkScenario:
     """One logical benchmark scenario (e.g. "embed_large_batch")."""
+
     name: str
     description: str
     phases: list[BenchmarkPhase] = field(default_factory=list)
@@ -52,11 +54,12 @@ class BenchmarkRun:
     Top-level container for a single execution of the benchmark suite.
     Written to JSON and also printed to stdout.
     """
-    timestamp: str                     # ISO-8601 UTC
-    duration_s: float                  # total wall-clock time of the run
+
+    timestamp: str  # ISO-8601 UTC
+    duration_s: float  # total wall-clock time of the run
     scenarios: list[BenchmarkScenario] = field(default_factory=list)
     system_info: dict[str, Any] = field(default_factory=dict)
-    totals: dict[str, Any] = field(default_factory=dict)   # aggregate numbers
+    totals: dict[str, Any] = field(default_factory=dict)  # aggregate numbers
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -65,6 +68,7 @@ class BenchmarkRun:
 # ---------------------------------------------------------------------------
 # Memory helpers
 # ---------------------------------------------------------------------------
+
 
 class _MemoryMonitor:
     """Context-manager that snapshots RSS delta between enter/exit."""
@@ -82,7 +86,7 @@ class _MemoryMonitor:
     def __exit__(self, *_: Any):
         if self._started:
             tracemalloc.stop()
-            self.peak_mb = None   # peak only valid within the context; return 0
+            self.peak_mb = None  # peak only valid within the context; return 0
 
 
 def measure_memory(label: str) -> _MemoryMonitor:
@@ -93,6 +97,7 @@ def measure_memory(label: str) -> _MemoryMonitor:
 # ---------------------------------------------------------------------------
 # Timing helpers
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TimerResult:

@@ -16,7 +16,16 @@ import time as _time
 from pathlib import Path
 from typing import Any, List
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import JSONResponse
 
 from backend.api.routes._limiter import limiter
@@ -33,16 +42,20 @@ from backend.schemas.knowledgebases import (
     TaskResponse,
 )
 from backend.services.database import run_db_operation
-from backend.services.knowledge_base_store import get_knowledge_base_store
 from backend.services.ingestion_factory import get_ingestion_service
+from backend.services.knowledge_base_store import get_knowledge_base_store
 from rag.storage.qdrant_store import QdrantStore
 
 router = APIRouter(prefix="/knowledgebases", tags=["knowledgebases"])
 
 
-@router.post("/", response_model=KnowledgebaseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=KnowledgebaseResponse, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("60/minute")
-async def create_knowledgebase(request: Request, payload: KnowledgebaseCreate) -> KnowledgebaseResponse:
+async def create_knowledgebase(
+    request: Request, payload: KnowledgebaseCreate
+) -> KnowledgebaseResponse:
     """Create a new knowledge base."""
     store = get_knowledge_base_store()
     kb = await run_db_operation(
@@ -71,7 +84,9 @@ async def list_knowledgebases(
 ) -> KnowledgebaseListResponse:
     """List knowledge bases, optionally filtered by tenant."""
     store = get_knowledge_base_store()
-    kbs, total = await run_db_operation(store.list_knowledgebases, tenant_id=tenant_id, limit=limit, offset=offset)
+    kbs, total = await run_db_operation(
+        store.list_knowledgebases, tenant_id=tenant_id, limit=limit, offset=offset
+    )
     return KnowledgebaseListResponse(
         knowledgebases=[KnowledgebaseResponse(**kb) for kb in kbs],
         total=total,
@@ -85,20 +100,26 @@ async def get_knowledgebase(request: Request, kb_id: str) -> KnowledgebaseRespon
     store = get_knowledge_base_store()
     kb = await run_db_operation(store.get_knowledgebase, kb_id)
     if not kb:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
     kb_dict = kb.to_dict()
     return KnowledgebaseResponse(**kb_dict)
 
 
 @router.put("/{kb_id}", response_model=KnowledgebaseResponse)
 @limiter.limit("60/minute")
-async def update_knowledgebase(request: Request, kb_id: str, payload: KnowledgebaseUpdate) -> KnowledgebaseResponse:
+async def update_knowledgebase(
+    request: Request, kb_id: str, payload: KnowledgebaseUpdate
+) -> KnowledgebaseResponse:
     """Update a knowledge base."""
     store = get_knowledge_base_store()
     updates = payload.dict(exclude_unset=True)
     kb = await run_db_operation(store.update_knowledgebase, kb_id, **updates)
     if not kb:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
     kb_dict = kb.to_dict()
     return KnowledgebaseResponse(**kb_dict)
 
@@ -118,7 +139,9 @@ async def delete_knowledgebase(request: Request, kb_id: str) -> None:
     # Delete knowledgebase and cascade
     deleted = await run_db_operation(store.delete_knowledgebase, kb_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
 
 
 @router.post("/{kb_id}/upload", response_model=FileUploadResponse)
@@ -141,7 +164,9 @@ async def upload_files(
     store = get_knowledge_base_store()
     kb = await run_db_operation(store.get_knowledgebase, kb_id)
     if not kb:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
 
     # Determine created_by - for now use kb.created_by or a placeholder
     created_by = kb.created_by
@@ -324,7 +349,9 @@ async def list_documents(
 ) -> list[DocumentResponse]:
     """List documents, optionally filtered by knowledge base."""
     store = get_knowledge_base_store()
-    docs, _ = await run_db_operation(store.list_documents, kb_id=kb_id, limit=limit, offset=offset)
+    docs, _ = await run_db_operation(
+        store.list_documents, kb_id=kb_id, limit=limit, offset=offset
+    )
     return [DocumentResponse(**d) for d in docs]
 
 
@@ -349,7 +376,11 @@ async def list_document_tasks(request: Request, doc_id: str) -> list[TaskRespons
     return [TaskResponse(**t.to_dict()) for t in tasks]
 
 
-@router.post("/{kb_id}/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{kb_id}/documents",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 @limiter.limit("60/minute")
 async def create_document_for_kb(
     request: Request,
@@ -361,12 +392,17 @@ async def create_document_for_kb(
     # Validate KB exists
     kb = await run_db_operation(store.get_knowledgebase, kb_id)
     if not kb:
-        raise HTTPException(status_code=404, detail=f"Knowledge base '{kb_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
     name = payload.get("name")
     parser_id = payload.get("parser_id")
     created_by = payload.get("created_by")
     if not all([name, parser_id, created_by]):
-        raise HTTPException(status_code=400, detail="Missing required fields: name, parser_id, created_by")
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required fields: name, parser_id, created_by",
+        )
     doc = await run_db_operation(
         store.create_document,
         kb_id=kb_id,
@@ -455,5 +491,7 @@ async def list_documents_for_kb(
 ) -> list[DocumentResponse]:
     """List documents for a specific knowledge base."""
     store = get_knowledge_base_store()
-    docs, _ = await run_db_operation(store.list_documents, kb_id=kb_id, limit=limit, offset=offset)
+    docs, _ = await run_db_operation(
+        store.list_documents, kb_id=kb_id, limit=limit, offset=offset
+    )
     return [DocumentResponse(**d) for d in docs]

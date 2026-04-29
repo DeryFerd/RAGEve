@@ -6,8 +6,8 @@ from backend.config import settings
 from backend.schemas.ollama import (
     ModelSelectionRequest,
     ModelValidationResponse,
-    OllamaModelListResponse,
     OllamaModelDetails,
+    OllamaModelListResponse,
 )
 
 router = APIRouter(prefix="/ollama", tags=["ollama"])
@@ -58,7 +58,9 @@ async def list_local_models(request: Request) -> OllamaModelListResponse:
 
 @router.post("/validate", response_model=ModelValidationResponse)
 @limiter.limit("60/minute")
-async def validate_model_selection(request: Request, payload: ModelSelectionRequest) -> ModelValidationResponse:
+async def validate_model_selection(
+    request: Request, payload: ModelSelectionRequest
+) -> ModelValidationResponse:
     """
     Validate that selected embedding/chat models already exist locally in Ollama.
     """

@@ -8,6 +8,7 @@ Routes:
 
 Import the sub-modules directly. This file will be removed in a future version.
 """
+
 from backend.api.routes.hf_preview import router as hf_hub_router  # noqa: F401
 
 __all__ = ["hf_hub_router"]

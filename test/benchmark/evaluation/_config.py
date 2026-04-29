@@ -24,7 +24,7 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_V1_URL = f"{OLLAMA_BASE_URL}/v1"
 OLLAMA_EMBED_MODEL = "nomic-embed-text:latest"
 OLLAMA_CHAT_MODEL = "llama3.2:latest"
-OLLAMA_EMBED_DIM = 768          # nomic-embed-text dimension
+OLLAMA_EMBED_DIM = 768  # nomic-embed-text dimension
 
 QDRANT_URL = "http://localhost:6333"
 API_BASE_URL = "http://localhost:8000"
@@ -34,9 +34,9 @@ API_BASE_URL = "http://localhost:8000"
 # ---------------------------------------------------------------------------
 
 SQUAD_PARQUET = _project_root / "data" / "hf" / "squad" / "train" / "data.parquet"
-DEFAULT_DATASET_ID = "squad"    # Qdrant collection name
-DEFAULT_N_SAMPLES = 100          # squad rows to evaluate
-DEFAULT_TOP_K = 5               # retrieval top_k
+DEFAULT_DATASET_ID = "squad"  # Qdrant collection name
+DEFAULT_N_SAMPLES = 100  # squad rows to evaluate
+DEFAULT_TOP_K = 5  # retrieval top_k
 
 # ---------------------------------------------------------------------------
 # Output

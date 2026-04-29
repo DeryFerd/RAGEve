@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections import Counter
 import unicodedata
+from collections import Counter
 
 
 def classify_char(char: str) -> str:
@@ -43,7 +43,20 @@ def analyze_text(text: str) -> dict:
         counter[classify_char(ch)] += 1
 
     total = len(text)
-    alpha_count = sum(counter[k] for k in ["latin_upper", "latin_lower", "alphabetic", "cjk", "hiragana", "katakana", "hangul", "arabic", "cyrillic"])
+    alpha_count = sum(
+        counter[k]
+        for k in [
+            "latin_upper",
+            "latin_lower",
+            "alphabetic",
+            "cjk",
+            "hiragana",
+            "katakana",
+            "hangul",
+            "arabic",
+            "cyrillic",
+        ]
+    )
 
     return {
         "characters": total,

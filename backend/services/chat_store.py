@@ -22,11 +22,23 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 
 from backend.config import settings
-from backend.models import Base, ChatFeedback, ChatMessage, ChatSession, FeedbackRating, MessageRole
+from backend.models import (
+    Base,
+    ChatFeedback,
+    ChatMessage,
+    ChatSession,
+    FeedbackRating,
+    MessageRole,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -177,11 +189,13 @@ class ChatStore:
 
             total = (await db.execute(count_query)).scalars().all()
             result = (
-                await db.execute(query.limit(limit).offset(offset))
-            ).scalars().all()
+                (await db.execute(query.limit(limit).offset(offset))).scalars().all()
+            )
             return list(result), len(total)
 
-    async def update_session_title(self, session_id: str, title: str) -> ChatSession | None:
+    async def update_session_title(
+        self, session_id: str, title: str
+    ) -> ChatSession | None:
         """Update the session title (e.g. after deriving it from the first message)."""
         async with _session_scope() as db:
             result = await db.execute(
@@ -201,6 +215,7 @@ class ChatStore:
             )
             # Use raw UPDATE to avoid loading the full row
             from sqlalchemy import update
+
             await db.execute(
                 update(ChatSession)
                 .where(ChatSession.session_id == session_id)
@@ -251,6 +266,7 @@ class ChatStore:
             db.add(message)
             # Increment session message_count
             from sqlalchemy import update
+
             await db.execute(
                 update(ChatSession)
                 .where(ChatSession.session_id == session_id)
@@ -388,12 +404,9 @@ class ChatStore:
         # If odd number, the last user message is kept as an incomplete turn
         # so the LLM still has context.
         if len(all_messages) > max_turns * 2:
-            all_messages = all_messages[-(max_turns * 2):]
+            all_messages = all_messages[-(max_turns * 2) :]
 
-        return [
-            {"role": m.role.value, "content": m.content}
-            for m in all_messages
-        ]
+        return [{"role": m.role.value, "content": m.content} for m in all_messages]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
