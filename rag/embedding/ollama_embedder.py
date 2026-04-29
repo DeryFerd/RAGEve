@@ -209,7 +209,7 @@ class OllamaEmbedder:
             "model": self.model,
             "prompt": text,
         }
-        url = f"{self.base_url}/api/embeddings"
+        url = f"{self.base_url}/api/embed"
 
         last_error: Exception | None = None
 
@@ -369,7 +369,7 @@ class OllamaEmbedder:
     # Ollama 0.1.23+ supports POST /api/embed with an "input" array:
     #   {"model": "...", "input": ["text1", "text2", ...]}
     # This processes ALL texts in a single GPU kernel launch, which is
-    # 2–5× faster than N sequential /api/embeddings calls for the same N texts.
+    # 2–5× faster than N sequential /api/embed calls for the same N texts.
     #
     # Strategy:
     #   - Divide texts into sub-batches of api_batch_size (default 256).
@@ -415,6 +415,8 @@ class OllamaEmbedder:
             batch_size = len(batch)
 
             last_error: Exception | None = None
+            embeddings: list[list[float]] = []
+            payload: dict[str, Any] = {}
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
                     async with httpx.AsyncClient(

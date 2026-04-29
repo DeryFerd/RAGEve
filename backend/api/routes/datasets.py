@@ -6,7 +6,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, cast
 
 import httpx
 from fastapi import (
@@ -380,9 +380,9 @@ async def _run_background_ingest(
 async def submit_background_ingest(
     request: Request,
     dataset_id: str,
+    background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
-    background_tasks: BackgroundTasks = BackgroundTasks,
 ) -> IngestSubmitResponse:
     """
     Accept file uploads and start a background ingest task.  Returns
@@ -399,7 +399,10 @@ async def submit_background_ingest(
 
     # Validate file extensions up front before spawning the background task.
     for upload in files:
-        ext = Path(upload.filename).suffix.lower()
+        filename = upload.filename
+        if filename is None:
+            raise HTTPException(status_code=400, detail="Uploaded file missing filename")
+        ext = Path(filename).suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
@@ -441,7 +444,7 @@ async def submit_background_ingest(
                 dataset_id=dataset_id, upload=upload, file_bytes=file_bytes
             )
             await _add_dataset_bytes(dataset_id, len(file_bytes))
-            file_paths.append((upload.filename, saved))
+            file_paths.append((cast(str, upload.filename), saved))
         except Exception as exc:
             # Rollback already-saved files.
             for _, p in file_paths:
@@ -493,7 +496,7 @@ async def submit_background_ingest(
 
 @router.get("/ingest/{ingest_id}/status", response_model=IngestStatusResponse)
 @limiter.limit("120/minute")
-async def get_ingest_status(ingest_id: str, request: Request) -> IngestStatusResponse:  # noqa: F841
+async def get_ingest_status(ingest_id: str, _request: Request) -> IngestStatusResponse:
     """
     Poll ingest progress.  Returns current stage, percentage, chunk counters,
     and (when finished) the full per-file results.
@@ -531,7 +534,7 @@ async def get_ingest_status(ingest_id: str, request: Request) -> IngestStatusRes
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_ingest(ingest_id: str, request: Request) -> dict:  # noqa: F841
+async def cancel_ingest(ingest_id: str, _request: Request) -> dict:
     """
     Cancel a running or queued ingest.  Marks the status as cancelled;
     the background task checks this flag on every stage transition and
@@ -580,7 +583,7 @@ async def cancel_ingest(ingest_id: str, request: Request) -> dict:  # noqa: F841
 @router.get("/", response_model=DatasetListResponse)
 @limiter.limit("120/minute")
 async def list_datasets(
-    request: Request,  # noqa: F841
+    _request: Request,  # noqa: F841
     skip: int = Query(0, ge=0, description="Number of collections to skip"),
     limit: int = Query(
         50, ge=1, le=200, description="Maximum number of collections to return"
@@ -694,7 +697,13 @@ async def upload_and_ingest(
     total_incoming = 0
     file_bytes_list: list[bytes] = []
     for upload in files:
-        ext = Path(upload.filename).suffix.lower()
+        filename = upload.filename
+        if filename is None:
+            raise HTTPException(
+                status_code=400,
+                detail="UploadFile.filename is missing",
+            )
+        ext = Path(filename).suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
@@ -760,7 +769,22 @@ async def _stream_upload_and_ingest(
     total_incoming = 0
     file_bytes_list: list[bytes] = []
     for upload in files:
-        ext = Path(upload.filename).suffix.lower()
+        filename = upload.filename
+        if filename is None:
+            yield json.dumps(
+                {
+                    "event": "error",
+                    "stage": "failed",
+                    "message": "Uploaded file missing filename",
+                    "progress": 0,
+                    "dataset_id": dataset_id,
+                    "file": None,
+                    "file_index": 0,
+                    "file_total": len(files),
+                }
+            ) + "\n"
+            return
+        ext = Path(filename).suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             yield json.dumps(
                 {
@@ -769,7 +793,7 @@ async def _stream_upload_and_ingest(
                     "message": f"Unsupported extension '{ext}'. Supported: {sorted(SUPPORTED_EXTENSIONS)}",
                     "progress": 0,
                     "dataset_id": dataset_id,
-                    "file": upload.filename,
+                    "file": filename,
                     "file_index": 0,
                     "file_total": len(files),
                 }
@@ -939,7 +963,7 @@ async def upload_and_ingest_stream(
 @router.post("/{dataset_id}/ingest", response_model=IngestResponse)
 @limiter.limit("60/minute")
 async def ingest_existing_files(
-    request: Request,  # noqa: F841
+    _request: Request,  # noqa: F841
     dataset_id: str,
     req: IngestRequest | None = None,
 ) -> IngestResponse:
@@ -1017,7 +1041,7 @@ async def ingest_existing_files(
 @router.get("/{dataset_id}", response_model=DatasetInfo)
 @limiter.limit("120/minute")
 async def get_dataset_info(
-    request: Request,  # noqa: F841
+    _request: Request,  # noqa: F841
     dataset_id: str,
 ) -> DatasetInfo:
     from backend.services.ingestion_factory import get_qdrant_store
@@ -1042,7 +1066,7 @@ async def get_dataset_info(
 @router.get("/{dataset_id}/download/{filename}")
 @limiter.limit("120/minute")
 async def download_dataset_file(
-    request: Request,  # noqa: F841
+    _request: Request,  # noqa: F841
     dataset_id: str,
     filename: str,
 ) -> FileResponse:
@@ -1071,7 +1095,7 @@ async def download_dataset_file(
 @router.delete("/{dataset_id}", response_model=CollectionDeleteResponse)
 @limiter.limit("60/minute")
 async def delete_dataset(
-    request: Request,  # noqa: F841
+    _request: Request,  # noqa: F841
     dataset_id: str,
 ) -> CollectionDeleteResponse:
     from backend.services.ingestion_factory import get_qdrant_store
