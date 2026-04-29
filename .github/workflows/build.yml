@@ -31,7 +31,7 @@ jobs:
         run: uv pip install -e .
 
       - name: Check imports
-        run: uv run python -c "import main; print('Backend imports OK')"
+        run: uv run python -c "import backend.main; print('Backend imports OK')"
 
   build-frontend:
     name: Build Frontend

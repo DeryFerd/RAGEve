@@ -61,7 +61,7 @@ jobs:
 
       - name: Run ESLint
         working-directory: ./frontend
-        run: npx eslint . --max-warnings=0 || npx eslint .
+        run: npm run lint
 
       - name: Run Prettier (check only)
         working-directory: ./frontend

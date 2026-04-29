@@ -207,7 +207,7 @@ class OllamaEmbedder:
     async def _embed_single_impl(self, text: str) -> list[float]:
         payload: dict[str, Any] = {
             "model": self.model,
-            "prompt": text,
+            "input": text,
         }
         url = f"{self.base_url}/api/embed"
 
@@ -219,11 +219,12 @@ class OllamaEmbedder:
                     response = await client.post(url, json=payload)
                     response.raise_for_status()
                     data: dict[str, Any] = response.json()
-                embedding: list[float] = data.get("embedding", [])
-                if not embedding:
+                embeddings: list[list[float]] = data.get("embeddings", [])
+                if not embeddings:
                     raise ValueError(
                         f"Ollama returned no embedding for model '{self.model}'"
                     )
+                embedding = embeddings[0]
                 if not self.verify_normalization(embedding):
                     self._normalize(embedding)
                 return embedding

@@ -496,7 +496,7 @@ async def submit_background_ingest(
 
 @router.get("/ingest/{ingest_id}/status", response_model=IngestStatusResponse)
 @limiter.limit("120/minute")
-async def get_ingest_status(ingest_id: str, _request: Request) -> IngestStatusResponse:
+async def get_ingest_status(ingest_id: str, request: Request) -> IngestStatusResponse:  # noqa: F841
     """
     Poll ingest progress.  Returns current stage, percentage, chunk counters,
     and (when finished) the full per-file results.
@@ -534,7 +534,7 @@ async def get_ingest_status(ingest_id: str, _request: Request) -> IngestStatusRe
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_ingest(ingest_id: str, _request: Request) -> dict:
+async def cancel_ingest(ingest_id: str, request: Request) -> dict:  # noqa: F841
     """
     Cancel a running or queued ingest.  Marks the status as cancelled;
     the background task checks this flag on every stage transition and
@@ -583,7 +583,7 @@ async def cancel_ingest(ingest_id: str, _request: Request) -> dict:
 @router.get("/", response_model=DatasetListResponse)
 @limiter.limit("120/minute")
 async def list_datasets(
-    _request: Request,  # noqa: F841
+    request: Request,  # noqa: F841
     skip: int = Query(0, ge=0, description="Number of collections to skip"),
     limit: int = Query(
         50, ge=1, le=200, description="Maximum number of collections to return"
@@ -963,7 +963,7 @@ async def upload_and_ingest_stream(
 @router.post("/{dataset_id}/ingest", response_model=IngestResponse)
 @limiter.limit("60/minute")
 async def ingest_existing_files(
-    _request: Request,  # noqa: F841
+    request: Request,  # noqa: F841
     dataset_id: str,
     req: IngestRequest | None = None,
 ) -> IngestResponse:
@@ -1041,7 +1041,7 @@ async def ingest_existing_files(
 @router.get("/{dataset_id}", response_model=DatasetInfo)
 @limiter.limit("120/minute")
 async def get_dataset_info(
-    _request: Request,  # noqa: F841
+    request: Request,  # noqa: F841
     dataset_id: str,
 ) -> DatasetInfo:
     from backend.services.ingestion_factory import get_qdrant_store
@@ -1066,7 +1066,7 @@ async def get_dataset_info(
 @router.get("/{dataset_id}/download/{filename}")
 @limiter.limit("120/minute")
 async def download_dataset_file(
-    _request: Request,  # noqa: F841
+    request: Request,  # noqa: F841
     dataset_id: str,
     filename: str,
 ) -> FileResponse:
@@ -1095,7 +1095,7 @@ async def download_dataset_file(
 @router.delete("/{dataset_id}", response_model=CollectionDeleteResponse)
 @limiter.limit("60/minute")
 async def delete_dataset(
-    _request: Request,  # noqa: F841
+    request: Request,  # noqa: F841
     dataset_id: str,
 ) -> CollectionDeleteResponse:
     from backend.services.ingestion_factory import get_qdrant_store

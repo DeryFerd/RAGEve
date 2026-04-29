@@ -13,18 +13,6 @@ jobs:
       fail-fast: false
 
     services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: 'rootpassword'
-          MYSQL_DATABASE: rag_eve_test
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -prootpassword"
-          --health-interval=15s
-          --health-timeout=30s
-          --health-retries=10
-        ports:
-          - 3306:3306
       qdrant:
         image: qdrant/qdrant:latest
         ports:
@@ -53,15 +41,6 @@ jobs:
 
       - name: Wait for services
         run: |
-          echo "Waiting for MySQL..."
-          for i in {1..60}; do
-            if mysqladmin ping -h localhost -prootpassword --silent; then
-              echo "MySQL is ready"
-              break
-            fi
-            sleep 2
-          done
-
           echo "Waiting for Qdrant..."
           for i in {1..60}; do
             if curl -s -f http://localhost:6333/health > /dev/null; then
@@ -80,17 +59,24 @@ jobs:
             sleep 2
           done
 
-      - name: Initialize database schema
-        env:
-          MYSQL_HOST: localhost
-          MYSQL_PORT: 3306
-          MYSQL_USER: root
-          MYSQL_PASSWORD: 'rootpassword'
-          MYSQL_DBNAME: rag_eve_test
-          OLLAMA_BASE_URL: http://localhost:11434
-          QDRANT_URL: http://localhost:6333
+      - name: Pull Ollama models
         run: |
-          uv run python -c "from backend.models_peewee import init_db; init_db()"
+          echo "Pulling nomic-embed-text:latest..."
+          curl -s -X POST http://localhost:11434/api/pull -d '{"name":"nomic-embed-text:latest"}' > /dev/null
+          echo "Pulling llama3.2:latest..."
+          curl -s -X POST http://localhost:11434/api/pull -d '{"name":"llama3.2:latest"}' > /dev/null
+
+      - name: Wait for Ollama models to load
+        run: |
+          for i in {1..60}; do
+            tags=$(curl -s http://localhost:11434/api/tags)
+            if echo "$tags" | grep -q 'nomic-embed-text' && echo "$tags" | grep -q 'llama3.2'; then
+              echo "Ollama models loaded"
+              break
+            fi
+            echo "Waiting for models... ($i/60)"
+            sleep 5
+          done
 
       - name: Run store unit tests
         env:
