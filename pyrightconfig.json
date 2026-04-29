@@ -1,0 +1,15 @@
+{
+  "venv": ".venv",
+  "venvPath": ".",
+  "extraPaths": ["./"],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/dist",
+    "**/build"
+  ],
+  "reportMissingImports": true,
+  "reportUnusedVariable": true,
+  "pythonVersion": "3.12"
+}
