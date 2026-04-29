@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
 from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
@@ -94,7 +94,6 @@ async def _download_hf_dataset_to_server(
             try:
                 from datasets import (  # type: ignore[import-untyped]
                     DatasetDict,
-                    get_dataset_config_names,
                     get_dataset_split_names,
                     load_dataset,
                 )
@@ -378,8 +377,6 @@ async def _download_hf_dataset_to_server(
                     qdrant_store = get_qdrant_store()
                     embedder = get_embedder()
                     sparse_embedder = get_sparse_embedder()
-
-                    qdrant_safe_id = dataset_id.replace("/", "_")
 
                     hf_status._set_download_status(
                         dataset_id,

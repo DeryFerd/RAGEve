@@ -60,7 +60,7 @@ interface ChatState {
 
 let messageCounter = 0;
 
-function _toItem(m: ChatMessageStored, fallbackId: string): ChatMessageItem {
+function _toItem(m: ChatMessageStored, _fallbackId: string): ChatMessageItem {
   return {
     id: m.message_id,
     role: m.role,

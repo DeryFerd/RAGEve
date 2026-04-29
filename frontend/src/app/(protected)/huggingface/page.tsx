@@ -76,7 +76,7 @@ export default function HuggingFacePage() {
   const [discovering, setDiscovering] = useState(false);
   const [datasets, setDatasets] = useState<DiscoveredDataset[]>([]);
   const [ingestPanels, setIngestPanels] = useState<Record<string, IngestPanelState>>({});
-  const [_activeIngestDatasetId, setActiveIngestDatasetId] = useState<string | null>(null);
+  const [, setActiveIngestDatasetId] = useState<string | null>(null);
 
   // ── Polling helpers ──────────────────────────────────────────────────────
 

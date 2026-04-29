@@ -20,7 +20,7 @@ from __future__ import annotations
 import json as _json
 from typing import Any, AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
@@ -106,7 +106,7 @@ def _message_to_response(message, feedback=None) -> ChatMessageResponse:
     "/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED
 )
 @limiter.limit("60/minute")
-async def create_session(payload: ChatSessionCreate):
+async def create_session(payload: ChatSessionCreate, request: Request):  # noqa: F841
     """
     Create a new conversation session for an agent.
     The agent's configuration is snapshotted at creation time.
@@ -130,6 +130,7 @@ async def create_session(payload: ChatSessionCreate):
 @router.get("/sessions", response_model=ChatSessionListResponse)
 @limiter.limit("120/minute")
 async def list_sessions(
+    request: Request,  # noqa: F841
     agent_id: str | None = Query(default=None),  # noqa: B008
     limit: int = Query(default=20, ge=1, le=100),  # noqa: B008
     offset: int = Query(default=0, ge=0),  # noqa: B008
@@ -149,7 +150,7 @@ async def list_sessions(
 
 @router.get("/sessions/{session_id}", response_model=ChatSessionWithMessages)
 @limiter.limit("120/minute")
-async def get_session_with_messages(session_id: str):
+async def get_session_with_messages(session_id: str, request: Request):  # noqa: F841
     """Get a session and its full message history."""
     store = get_chat_store()
     session = await store.get_session(session_id)
@@ -188,7 +189,7 @@ async def get_session_with_messages(session_id: str):
 
 @router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_session(session_id: str):
+async def delete_session(session_id: str, request: Request):  # noqa: F841
     """Delete a session and all its messages."""
     store = get_chat_store()
     deleted = await store.delete_session(session_id)
@@ -361,6 +362,7 @@ async def _stream_with_history(
 async def chat_stream_with_history(
     session_id: str,
     payload: ChatMessageCreate,
+    request: Request,  # noqa: F841
 ) -> StreamingResponse:
     """
     Streaming RAG chat that is aware of prior conversation turns.
@@ -387,6 +389,7 @@ async def chat_stream_with_history(
 async def chat_non_streaming_with_history(
     session_id: str,
     payload: ChatMessageCreate,
+    request: Request,  # noqa: F841
 ) -> ChatMessageResponse:
     """
     Non-streaming RAG chat that is aware of prior conversation turns.
@@ -481,9 +484,7 @@ async def chat_non_streaming_with_history(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("60/minute")
-async def upsert_feedback(
-    message_id: str, payload: ChatFeedbackUpsert
-):
+async def upsert_feedback(message_id: str, payload: ChatFeedbackUpsert, request: Request):  # noqa: F841
     """
     Submit or update feedback for an assistant message.
     Idempotent — a second POST replaces the previous feedback.

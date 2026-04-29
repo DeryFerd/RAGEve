@@ -5,7 +5,7 @@ import { Sidebar } from "./Sidebar";
 import styles from "./AppShell.module.css";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { sidebarCollapsed } = useAppStore();
+  useAppStore(); // Subscribe to app state for sidebar collapse etc.
 
   return (
     <div className={styles.shell}>

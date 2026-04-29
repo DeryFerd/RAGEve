@@ -142,7 +142,7 @@ export default function DatasetsPage() {
       chunks_total: undefined,
     });
 
-    let cancelled = false;
+    const cancelled = false;
 
     try {
       await uploadFilesStreaming(

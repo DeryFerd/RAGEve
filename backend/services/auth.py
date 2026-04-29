@@ -12,7 +12,6 @@ from email.mime.text import MIMEText
 from typing import Any
 
 from jose import jwt
-from jose.exceptions import ExpiredSignatureError
 from passlib.context import CryptContext
 
 from backend.config import settings

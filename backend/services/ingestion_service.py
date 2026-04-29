@@ -14,7 +14,7 @@ from rag.deepdoc.layout_parser import layout_to_readable_text, parse_pdf_layout
 from rag.deepdoc.quality_scorer import ChunkProfile, score_and_select_profile
 from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.embedding.sparse_embedder import SparseEmbedder
-from rag.ingestion.doc_converter import Extractors
+from rag.ingestion.extractors import Extractors
 from rag.storage.qdrant_store import ChunkRecord, QdrantStore
 from rag.utils.memory import recommend_embed_batch_size
 
@@ -123,8 +123,8 @@ class IngestionService:
             file_size = file_path.stat().st_size
             if file_size > MAX_PDF_SIZE_BYTES:
                 raise ValueError(
-                    f"PDF file is {file_size / (1024*1024):.1f} MB — exceeds the "
-                    f"{MAX_PDF_SIZE_BYTES / (1024*1024):.0f} MB size limit."
+                    f"PDF file is {file_size / (1024 * 1024):.1f} MB — exceeds the "
+                    f"{MAX_PDF_SIZE_BYTES / (1024 * 1024):.0f} MB size limit."
                 )
 
             # Extract raw text, then parse layout — both wrapped in a timeout
@@ -135,8 +135,8 @@ class IngestionService:
                 )
             except asyncio.TimeoutError:
                 raise TimeoutError(
-                    f"PDF extraction timed out after 300s — "
-                    f"the file may be corrupted or extremely large."
+                    "PDF extraction timed out after 300s — "
+                    "the file may be corrupted or extremely large."
                 )
 
             extraction_meta = {"extractor": "pymupdf", "layout_aware": True}

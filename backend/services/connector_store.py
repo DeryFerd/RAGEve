@@ -221,7 +221,7 @@ class ConnectorStore:
             if status:
                 query = query.where(SyncLogs.status == status)
             query = query.order_by(SyncLogs.create_time.desc()).limit(limit)
-            return [l.to_dict() for l in query]
+            return [log.to_dict() for log in query]
 
 
 # Singleton

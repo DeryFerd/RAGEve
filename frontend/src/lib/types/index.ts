@@ -576,8 +576,6 @@ export interface CreateSessionRequest {
   title?: string;
 }
 
-export interface CreateSessionResponse extends ChatSession {}
-
 export interface FeedbackPayload {
   rating: "thumbs_up" | "thumbs_down";
   comment?: string;

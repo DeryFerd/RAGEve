@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useCallback, useState } from "react";
 import { useModelStore } from "@/stores/useModelStore";
 import { useToastStore } from "@/stores/useToastStore";
 import { validateModels } from "@/lib/api/ollama";
@@ -124,7 +123,6 @@ function ModelCard({ model, isEmbeddingDefault, isChatDefault, onSetEmbedding, o
 }
 
 export default function ModelsPage() {
-  const router = useRouter();
   const { addToast } = useToastStore();
   const {
     embeddingModel,
@@ -132,11 +130,9 @@ export default function ModelsPage() {
     modelDetails,
     modelsLoaded,
     setupComplete,
-    ollamaConnected,
     setEmbeddingModel,
     setChatModel,
     refreshOllamaModels,
-    setAvailableModels,
   } = useModelStore();
 
   const [refreshing, setRefreshing] = useState(false);

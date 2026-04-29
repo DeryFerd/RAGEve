@@ -17,7 +17,7 @@ from typing import Optional
 
 import peewee
 
-from .base import BaseModel, JSONTextField, ListField
+from .base import BaseModel, JSONTextField
 
 
 class Knowledgebase(BaseModel):

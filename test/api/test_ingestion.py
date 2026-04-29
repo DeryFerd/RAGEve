@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import os
 import sys
 import time
 from pathlib import Path
@@ -13,12 +14,20 @@ from pathlib import Path
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
+import pytest
 from test.api.base import APITestBase
 
 from backend.services.database import run_db_operation
 from backend.services.knowledge_base_store import get_knowledge_base_store
 
+# Skip integration tests by default; set RUN_INTEGRATION_TESTS=1 to enable
+RUN_INTEGRATION_TESTS = os.getenv("RUN_INTEGRATION_TESTS") == "1"
 
+
+@pytest.mark.skipif(
+    not RUN_INTEGRATION_TESTS,
+    reason="Integration test requires Qdrant and Ollama with models (set RUN_INTEGRATION_TESTS=1 to run)",
+)
 class TestIngestionAPI(APITestBase):
     """Tests for file ingestion pipeline via API."""
 

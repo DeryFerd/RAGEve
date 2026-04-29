@@ -155,14 +155,6 @@ class TenantUserStore:
             except User.DoesNotExist:
                 return None
 
-    def get_user_by_verification_token(self, token: str) -> User | None:
-        """Get a user by verification token."""
-        with get_database().connection_context():
-            try:
-                return User.get(User.verification_token == token)
-            except User.DoesNotExist:
-                return None
-
     def list_users(
         self,
         is_active: bool | None = None,

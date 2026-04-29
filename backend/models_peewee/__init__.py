@@ -22,19 +22,25 @@ from backend.config import settings
 # Set up logger
 _log = logging.getLogger(__name__)
 
-from .base import BaseModel
-from .canvas import CanvasTemplate, UserCanvas
-from .connector import Connector, Connector2Kb, SyncLogs
-from .dialog import Conversation, Dialog
-from .evaluation import (
+from .base import BaseModel  # noqa: E402
+from .canvas import CanvasTemplate, UserCanvas  # noqa: E402
+from .connector import Connector, Connector2Kb, SyncLogs  # noqa: E402
+from .dialog import Conversation, Dialog  # noqa: E402
+from .evaluation import (  # noqa: E402
     EvaluationCase,
     EvaluationDataset,
     EvaluationResult,
     EvaluationRun,
 )
-from .knowledgebase import Document, File, File2Document, Knowledgebase, Task
-from .llm import LLM, LLMFactories, TenantLLM
-from .system import (
+from .knowledgebase import (  # noqa: E402
+    Document,
+    File,
+    File2Document,
+    Knowledgebase,
+    Task,
+)
+from .llm import LLM, LLMFactories, TenantLLM  # noqa: E402
+from .system import (  # noqa: E402
     MCP,
     API4Conversation,
     APIToken,
@@ -42,7 +48,7 @@ from .system import (
     Search,
     SystemSettings,
 )
-from .user import Tenant, User, UserTenant
+from .user import Tenant, User, UserTenant  # noqa: E402
 
 # ==================== Database Configuration ====================
 

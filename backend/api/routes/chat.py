@@ -5,7 +5,7 @@ import json as _json
 import logging
 from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
@@ -25,6 +25,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 async def chat(
     dialog_id: str,
     payload: ChatRequest,
+    request: Request,  # noqa: F841
 ) -> ChatResponse:
     """
     Non-streaming RAG chat endpoint using a dialog (agent).
@@ -199,6 +200,7 @@ async def _stream_rag(
 async def chat_stream(
     dialog_id: str,
     payload: ChatRequest,
+    request: Request,  # noqa: F841
 ) -> StreamingResponse:
     """
     Streaming RAG chat endpoint using SSE.

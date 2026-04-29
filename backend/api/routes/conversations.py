@@ -12,7 +12,7 @@ from __future__ import annotations
 import time as _time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 
 from backend.api.routes._limiter import limiter
@@ -39,7 +39,8 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 )
 @limiter.limit("60/minute")
 async def create_conversation(
-    payload: ConversationCreate
+    payload: ConversationCreate,
+    request: Request,  # noqa: F841
 ) -> ConversationResponse:
     """Create a new conversation for a dialog (agent)."""
     store = get_conversation_store()
@@ -58,6 +59,7 @@ async def create_conversation(
 @router.get("/", response_model=ConversationListResponse)
 @limiter.limit("120/minute")
 async def list_conversations(
+    request: Request,  # noqa: F841
     dialog_id: str | None = Query(default=None),
     user_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
@@ -82,9 +84,7 @@ async def list_conversations(
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 @limiter.limit("120/minute")
-async def get_conversation(
-    conversation_id: str
-) -> ConversationResponse:
+async def get_conversation(conversation_id: str, request: Request) -> ConversationResponse:  # noqa: F841
     """Get a conversation by ID, including its message history."""
     store = get_conversation_store()
     conv = await run_db_operation(store.get_conversation, conversation_id)
@@ -99,7 +99,7 @@ async def get_conversation(
 @router.put("/{conversation_id}", response_model=ConversationResponse)
 @limiter.limit("60/minute")
 async def update_conversation(
-    conversation_id: str, payload: ConversationUpdate
+    conversation_id: str, payload: ConversationUpdate, request: Request  # noqa: F841
 ) -> ConversationResponse:
     """Update conversation metadata (name, reference)."""
     store = get_conversation_store()
@@ -115,7 +115,7 @@ async def update_conversation(
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_conversation(conversation_id: str) -> None:
+async def delete_conversation(conversation_id: str, request: Request) -> None:  # noqa: F841
     """Delete a conversation and all its messages."""
     store = get_conversation_store()
     deleted = await run_db_operation(store.delete_conversation, conversation_id)
@@ -128,7 +128,7 @@ async def delete_conversation(conversation_id: str) -> None:
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
 @limiter.limit("120/minute")
 async def append_message(
-    conversation_id: str, payload: AppendMessageRequest
+    conversation_id: str, payload: AppendMessageRequest, request: Request  # noqa: F841
 ) -> MessageResponse:
     """Append a message to the conversation."""
     store = get_conversation_store()
@@ -150,6 +150,7 @@ async def append_message(
 @router.get("/{conversation_id}/context")
 @limiter.limit("120/minute")
 async def get_conversation_context(
+    request: Request,  # noqa: F841
     conversation_id: str,
     max_turns: int = Query(default=6, ge=1, le=20),
 ) -> ConversationContextResponse:
@@ -167,6 +168,7 @@ async def get_conversation_context(
 @limiter.limit("60/minute")
 async def chat_stream_with_conversation(
     conversation_id: str,
+    request: Request,  # noqa: F841
     question: str = Query(..., description="User's question"),
     top_k: int = Query(default=5, ge=1, le=50),
     temperature: float = Query(default=0.7, ge=0.0, le=2.0),

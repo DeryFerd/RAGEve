@@ -38,7 +38,7 @@ export default function ProfilePage() {
         setUser(data);
         setFullName(data.full_name || "");
         setEmail(data.email);
-      } catch (err) {
+      } catch {
         // Not authenticated, redirect to login
         router.push("/login");
         return;

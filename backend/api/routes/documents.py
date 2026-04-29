@@ -17,14 +17,12 @@ from fastapi import (
     HTTPException,
     Request,
     UploadFile,
-    status,
 )
 
 from backend.api.routes._limiter import limiter
 from backend.config import settings
 from backend.schemas.knowledgebases import DocumentResponse, FileUploadResponse
 from backend.services.database import run_db_operation
-from backend.services.ingestion_factory import get_ingestion_service
 from backend.services.knowledge_base_store import get_knowledge_base_store
 
 router = APIRouter(prefix="/documents", tags=["documents"])

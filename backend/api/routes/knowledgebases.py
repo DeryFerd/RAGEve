@@ -6,15 +6,10 @@ Endpoints for managing knowledgebases, documents, files, and ingestion tasks.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-from typing import Any
-
-_log = logging.getLogger(__name__)
 import time as _time
 from pathlib import Path
-from typing import Any, List
+from typing import List
 
 from fastapi import (
     APIRouter,
@@ -26,14 +21,11 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import JSONResponse
 
 from backend.api.routes._limiter import limiter
 from backend.config import settings
-from backend.models_peewee import get_database
 from backend.schemas.knowledgebases import (
     DocumentResponse,
-    FileResponse,
     FileUploadResponse,
     KnowledgebaseCreate,
     KnowledgebaseListResponse,
@@ -45,6 +37,8 @@ from backend.services.database import run_db_operation
 from backend.services.ingestion_factory import get_ingestion_service
 from backend.services.knowledge_base_store import get_knowledge_base_store
 from rag.storage.qdrant_store import QdrantStore
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledgebases", tags=["knowledgebases"])
 
@@ -175,7 +169,6 @@ async def upload_files(
     upload_root.mkdir(parents=True, exist_ok=True)
 
     results: list[FileUploadResponse] = []
-    ingestion_service = get_ingestion_service()
 
     for upload in files:
         # Read file bytes

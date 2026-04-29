@@ -15,7 +15,7 @@ from typing import Optional
 
 import peewee
 
-from .base import BaseModel, JSONTextField
+from .base import BaseModel
 
 
 class User(BaseModel):

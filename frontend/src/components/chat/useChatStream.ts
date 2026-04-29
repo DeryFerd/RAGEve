@@ -44,7 +44,7 @@ export function useChatStream() {
     useChatStore.getState().appendStreamingText("");
 
     try {
-      const { currentSession, selectedAgentId } = useChatStore.getState();
+      const { currentSession } = useChatStore.getState();
 
       if (!currentSession) {
         // No session yet — can't stream

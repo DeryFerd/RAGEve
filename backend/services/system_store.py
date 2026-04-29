@@ -307,7 +307,7 @@ class SystemStore:
             if kb_id:
                 query = query.where(PipelineOperationLog.kb_id == kb_id)
             query = query.order_by(PipelineOperationLog.create_time.desc()).limit(limit)
-            return [l.to_dict() for l in query]
+            return [log.to_dict() for log in query]
 
 
 # Singleton

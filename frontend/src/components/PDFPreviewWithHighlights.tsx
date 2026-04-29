@@ -58,6 +58,7 @@ export default function PDFPreviewWithHighlights({
   // Load PDF
   useEffect(() => {
     let cancelled = false;
+    let currentDoc: pdfjsLib.PDFDocumentProxy | null = null;
 
     async function loadPdf() {
       setLoading(true);
@@ -78,24 +79,25 @@ export default function PDFPreviewWithHighlights({
           doc.destroy();
           return;
         }
+        currentDoc = doc;
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         setLoading(false);
-      } catch (err: any) {
+      } catch (err) {
         if (!cancelled) {
           console.error("Failed to load PDF:", err);
-          setError(err.message || "Failed to load PDF");
+          setError(err instanceof Error ? err.message : "Failed to load PDF");
           setLoading(false);
         }
       }
-    }
+    };
 
     loadPdf();
 
     return () => {
       cancelled = true;
-      if (pdfDoc) {
-        pdfDoc.destroy();
+      if (currentDoc) {
+        currentDoc.destroy();
       }
     };
   }, [pdfUrl]);

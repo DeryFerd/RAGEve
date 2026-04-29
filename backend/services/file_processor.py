@@ -10,6 +10,8 @@ from rag.ingestion.pipeline import SUPPORTED_EXTENSIONS, run_deepdoc_ingestion
 
 _log = logging.getLogger("backend.services.file_processor")
 
+__all__ = ["FileProcessorService", "SUPPORTED_EXTENSIONS"]
+
 
 class FileProcessorService:
     def __init__(self) -> None:

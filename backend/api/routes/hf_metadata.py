@@ -36,7 +36,7 @@ def _fetch_hf_card_metadata(
         if info.card_data:
             lang = info.card_data.get("language") or info.card_data.get("languages", [])
             if isinstance(lang, list):
-                language = [str(l) for l in lang]
+                language = [str(item) for item in lang]
             elif lang:
                 language = [str(lang)]
             paper_url = (info.card_data.get("paper", {})).get(

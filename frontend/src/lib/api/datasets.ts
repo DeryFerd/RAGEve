@@ -7,7 +7,6 @@ import type {
   IngestResponse,
   ProcessedFileResponse,
   CollectionDeleteResponse,
-  DiscoveredDataset,
   HFIngestSubmitResponse,
   HFIngestStatusResponse,
   HuggingFaceDiscoveryResponse,
