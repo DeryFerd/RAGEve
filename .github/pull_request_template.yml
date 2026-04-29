@@ -1,0 +1,93 @@
+name: Pull Request Template
+description: Template for creating pull requests in RAGEve
+body:
+  - attributes:
+      description: Provide a clear, concise description of the changes.
+    label: Description
+    placeholder: |
+      What does this PR do? Why is it needed?
+      Reference any related issues: Fixes #123, Related to #456
+  - attributes:
+      description: |
+        What specific changes were made? List them clearly.
+        - Feature additions
+        - Bug fixes
+        - Refactoring
+        - Documentation updates
+    label: Changes
+    placeholder: |
+      - Added ...
+      - Fixed ...
+      - Updated ...
+  - attributes:
+      description: |
+        How was this tested? Include:
+        - Unit tests (run `uv run python test/test_stores.py`)
+        - API integration tests (run `uv run python -m pytest test/api/`)
+        - Manual testing steps
+        - Screenshots for UI changes
+    label: Testing
+    placeholder: |
+      Unit tests: X passed / Y failed
+      API tests: Z passed
+      Manual testing: [describe steps]
+      Screenshots: [attach if UI changes]
+  - attributes:
+      description: |
+        Confirm all items below are complete.
+    label: Checklist
+    type: check_list
+    options:
+      - label: I have read the [CONTRIBUTING.md](CONTRIBUTING.md)
+        required: true
+      - label: Store unit tests pass (`uv run python test/test_stores.py`)
+        required: true
+      - label: API integration tests pass (`uv run python -m pytest test/api/`)
+        required: true
+      - label: No console errors in browser dev tools (for frontend changes)
+        required: false
+      - label: My changes generate no new warnings or linter errors
+        required: true
+      - label: I have added tests that prove my fix/feature works (if applicable)
+        required: false
+      - label: New and existing unit tests pass locally with my changes
+        required: true
+      - label: My code follows the code style of this project
+        required: true
+      - label: I have updated the documentation accordingly (if applicable)
+        required: false
+  - attributes:
+      default: |
+        ```bash
+        # Backend tests
+        uv run python test/test_stores.py
+
+        # API tests
+        uv run python -m pytest test/api/
+
+        # Full E2E (requires Qdrant + Ollama running)
+        uv run python -m pytest test/integration/test_rag.py
+        ```
+      description: |
+        Commands to verify this PR locally (copy and run in terminal).
+    label: Verification Commands
+    placeholder: |
+      Add any additional verification steps specific to this PR.
+  - attributes:
+      description: |
+        Breaking changes? Any migration steps needed? Deprecations?
+    label: Breaking Changes & Migration Notes
+    placeholder: |
+      None / Yes - [describe]
+      Migration steps:
+      1. ...
+      2. ...
+  - attributes:
+      description: |
+        Additional context for reviewers. Architecture decisions, trade-offs, etc.
+    label: Additional Notes
+    placeholder: |
+      - Why this approach was chosen
+      - Alternative solutions considered
+      - Related PRs or branches
+      - Deployment considerations
