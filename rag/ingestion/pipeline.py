@@ -10,6 +10,8 @@ from docx import Document
 from PIL import Image
 
 from backend.config import settings
+from rag.chunking.adaptive import ChunkProfile  # for type hint
+from rag.deepdoc.layout_parser import PageLayout  # for type hint
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
 
@@ -57,8 +59,8 @@ class Extractors:
 
     @staticmethod
     def from_docx(file_path: Path) -> str:
-        doc = Document(file_path)
-        paragraphs = [p.text for p in doc.paragraphs if p.text and p.strip()]
+        doc = Document(str(file_path))
+        paragraphs = [p.text for p in doc.paragraphs if p.text and p.text.strip()]
         return "\n".join(paragraphs).strip()
 
     @staticmethod
@@ -348,10 +350,10 @@ def run_deepdoc_ingestion(
     _log.info("Created %d chunks", chunk_count)
 
     # 5. Chunk analysis (optional)
-    chunk_analysis = []
+    chunk_analysis: list[dict] = []
 
     # 6. Document-level analysis (optional)
-    doc_analysis = {}
+    doc_analysis: dict = {}
 
     # 7. Build quality report dict
     quality_dict = {

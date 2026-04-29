@@ -262,12 +262,12 @@ def adaptive_chunk_text(
     if profile == ChunkProfile.CODE_MIXED:
         # Split by code blocks, chunk code parts smaller, text parts normally
         code_parts = _split_by_code_blocks(text)
-        all_chunks: list[tuple[str, list]] = []
+        all_chunks_code: list[tuple[str, list]] = []
         for part in code_parts:
             if CODE_BLOCK_RE.search(part):
                 # This is a code block — treat as one chunk if small enough
                 if len(part) <= chunk_size * 2:
-                    all_chunks.append((part, []))
+                    all_chunks_code.append((part, []))
                 else:
                     sub_chunks = deepdoc_chunk_text(
                         part,
@@ -275,7 +275,7 @@ def adaptive_chunk_text(
                         chunk_overlap=chunk_overlap,
                         max_tokens_per_chunk=max(max_tokens // 2, 150),
                     )
-                    all_chunks.extend((sc, []) for sc in sub_chunks)
+                    all_chunks_code.extend((sc, []) for sc in sub_chunks)
             else:
                 chunks = deepdoc_chunk_text(
                     part,
@@ -283,8 +283,8 @@ def adaptive_chunk_text(
                     chunk_overlap=chunk_overlap,
                     max_tokens_per_chunk=max_tokens,
                 )
-                all_chunks.extend((c, []) for c in chunks)
-        return _dedupe_chunks_with_blocks(all_chunks)
+                all_chunks_code.extend((c, []) for c in chunks)
+        return _dedupe_chunks_with_blocks(all_chunks_code)
 
     # Standard profiles (CLEAN_TEXT, OCR_NOISY, GENERAL)
     chunks = deepdoc_chunk_text(

@@ -84,7 +84,9 @@ async def list_conversations(
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 @limiter.limit("120/minute")
-async def get_conversation(conversation_id: str, request: Request) -> ConversationResponse:  # noqa: F841
+async def get_conversation(
+    conversation_id: str, request: Request
+) -> ConversationResponse:  # noqa: F841
     """Get a conversation by ID, including its message history."""
     store = get_conversation_store()
     conv = await run_db_operation(store.get_conversation, conversation_id)
@@ -115,7 +117,9 @@ async def update_conversation(
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_conversation(conversation_id: str, request: Request) -> None:  # noqa: F841
+async def delete_conversation(
+    conversation_id: str, request: Request
+) -> None:  # noqa: F841
     """Delete a conversation and all its messages."""
     store = get_conversation_store()
     deleted = await run_db_operation(store.delete_conversation, conversation_id)

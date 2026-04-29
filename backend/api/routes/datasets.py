@@ -401,7 +401,9 @@ async def submit_background_ingest(
     for upload in files:
         filename = upload.filename
         if filename is None:
-            raise HTTPException(status_code=400, detail="Uploaded file missing filename")
+            raise HTTPException(
+                status_code=400, detail="Uploaded file missing filename"
+            )
         ext = Path(filename).suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(
@@ -496,7 +498,9 @@ async def submit_background_ingest(
 
 @router.get("/ingest/{ingest_id}/status", response_model=IngestStatusResponse)
 @limiter.limit("120/minute")
-async def get_ingest_status(ingest_id: str, request: Request) -> IngestStatusResponse:  # noqa: F841
+async def get_ingest_status(
+    ingest_id: str, request: Request
+) -> IngestStatusResponse:  # noqa: F841
     """
     Poll ingest progress.  Returns current stage, percentage, chunk counters,
     and (when finished) the full per-file results.

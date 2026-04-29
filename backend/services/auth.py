@@ -111,6 +111,10 @@ async def send_verification_email(to_email: str, token: str) -> None:
             "SMTP configuration incomplete: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD"
         )
 
+    # Assert non-None for mypy
+    assert settings.smtp_user is not None
+    assert settings.smtp_password is not None
+
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = settings.smtp_from

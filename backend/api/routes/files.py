@@ -24,6 +24,11 @@ async def upload_files_only(
     results: list[ProcessedFileResponse] = []
 
     for upload in files:
+        if upload.filename is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file missing filename",
+            )
         ext = Path(upload.filename).suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             raise HTTPException(

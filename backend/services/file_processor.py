@@ -34,6 +34,8 @@ class FileProcessorService:
         dataset_dir = settings.upload_root / dataset_id
         dataset_dir.mkdir(parents=True, exist_ok=True)
 
+        if upload.filename is None:
+            raise ValueError("Uploaded file missing filename")
         target = dataset_dir / upload.filename
         content = file_bytes if file_bytes is not None else await upload.read()
         # Validate file size against configured limit

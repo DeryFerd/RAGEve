@@ -484,7 +484,9 @@ async def chat_non_streaming_with_history(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("60/minute")
-async def upsert_feedback(message_id: str, payload: ChatFeedbackUpsert, request: Request):  # noqa: F841
+async def upsert_feedback(
+    message_id: str, payload: ChatFeedbackUpsert, request: Request
+):  # noqa: F841
     """
     Submit or update feedback for an assistant message.
     Idempotent — a second POST replaces the previous feedback.

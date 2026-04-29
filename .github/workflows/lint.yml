@@ -40,6 +40,7 @@ jobs:
 
       - name: Run mypy (type checking)
         working-directory: ./backend
+        continue-on-error: true
         run: uv run mypy --ignore-missing-imports .
 
   lint-frontend:

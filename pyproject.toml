@@ -57,6 +57,7 @@ dev = [
     "flake8-bugbear>=24.9.1",
     "mypy>=1.0.0",
     "types-requests>=2.0.0",
+    "types-PyMySQL",
 ]
 
 [tool.setuptools]
@@ -72,3 +73,7 @@ extend-ignore = ["E203", "W503"]
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]

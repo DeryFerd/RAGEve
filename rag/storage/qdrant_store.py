@@ -97,7 +97,7 @@ class QdrantStore:
         headers = {"api-key": api_key} if api_key else {}
         self._http = httpx.AsyncClient(base_url=url, timeout=timeout, headers=headers)
         # Sync Qdrant SDK client (used for upsert/collection management).
-        self.client = QdrantClient(url=url, timeout=timeout, api_key=api_key)
+        self.client = QdrantClient(url=url, timeout=int(timeout), api_key=api_key)
 
     async def close(self) -> None:
         """Close the async HTTP client. Call this on application shutdown."""
