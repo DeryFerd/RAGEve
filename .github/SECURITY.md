@@ -19,10 +19,9 @@ We take the security of RAGEve seriously. If you believe you have found a securi
 Instead, please report vulnerabilities via email:
 
 ```
-security@bazzi24.github.io
+dinhkhoa.bazzi24@gmail.com
 ```
 
-(Replace with your actual email or create a security@yourdomain.com alias)
 
 ### What to Include
 
