@@ -10,7 +10,7 @@ import pymupdf
 from docx import Document
 from PIL import Image
 
-from backend.config import settings
+from backend.config_loader import settings
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
 

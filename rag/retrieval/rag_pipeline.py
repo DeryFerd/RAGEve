@@ -27,6 +27,7 @@ Why hybrid matters:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
 from dataclasses import dataclass
@@ -38,12 +39,28 @@ from rag.generation.ollama_chat import ChatMessage, OllamaChat
 from rag.llm.context_builder import build_context
 from rag.retrieval.cross_encoder_reranker import CrossEncoderReranker
 from rag.storage.qdrant_store import QdrantStore, SearchResult
+from backend.services.cache_service import get_cache_service
+
+try:
+    from backend.config_loader import get_settings
+    HAS_CONFIG_LOADER = True
+except ImportError:
+    HAS_CONFIG_LOADER = False
 
 _log = logging.getLogger(__name__)
 
-# How many extra chunks to retrieve before reranking.
-# top_k=5 with OVERFETCH_MULTIPLIER=3 → retrieve 15, rerank down to 5.
-OVERFETCH_MULTIPLIER = 3
+# Get configurable settings
+if HAS_CONFIG_LOADER:
+    try:
+        _settings = get_settings()
+        OVERFETCH_MULTIPLIER = getattr(_settings, "overfetch_multiplier", 3)
+        RERANKER_CACHE_SIZE = getattr(_settings, "reranker_cache_size", 10)
+    except Exception:
+        OVERFETCH_MULTIPLIER = 3
+        RERANKER_CACHE_SIZE = 10
+else:
+    OVERFETCH_MULTIPLIER = 3
+    RERANKER_CACHE_SIZE = 10
 
 # RRF k constant — passed to Qdrant's native RRF prefetch.
 # Standard values: 60 (Qdrant default). Range [1, 1000].
@@ -190,6 +207,18 @@ class RAGPipeline:
         )
     """
 
+    # Class-level reranker cache with LRU eviction
+    _reranker_cache: dict[str, CrossEncoderReranker] = {}
+    _reranker_cache_order: list[str] = []
+
+    # Performance metrics
+    _metrics = {
+        "reranker_cache_hits": 0,
+        "reranker_cache_misses": 0,
+        "reranker_load_times": [],  # in seconds
+        "reranker_reuse_times": [],  # cache hit retrieval time
+    }
+
     def __init__(
         self,
         qdrant_store: QdrantStore,
@@ -201,6 +230,103 @@ class RAGPipeline:
         self.embedder = embedder
         self.sparse_embedder = sparse_embedder
         self.chat = chat_model
+        self.cache = get_cache_service()
+        self._overfetch_multiplier = OVERFETCH_MULTIPLIER
+        self._reranker_cache_size = RERANKER_CACHE_SIZE
+
+    # ------------------------------------------------------------------
+    # Reranker caching with LRU eviction
+    # ------------------------------------------------------------------
+
+    def _get_reranker(self, model_id: str) -> CrossEncoderReranker:
+        """
+        Get a reranker instance from cache or create a new one.
+
+        Implements LRU eviction when cache exceeds configured size.
+        """
+        t0 = time.monotonic()
+
+        # Check cache first
+        if model_id in self._reranker_cache:
+            self._metrics["reranker_cache_hits"] += 1
+            self._metrics["reranker_reuse_times"].append(time.monotonic() - t0)
+            # Move to end of order list (most recently used)
+            if model_id in self._reranker_cache_order:
+                self._reranker_cache_order.remove(model_id)
+            self._reranker_cache_order.append(model_id)
+            _log.debug(
+                "[reranker] Cache HIT for model '%s' (load time: %.3fs from cache)",
+                model_id,
+                time.monotonic() - t0,
+            )
+            return self._reranker_cache[model_id]
+
+        # Cache miss - create new reranker
+        self._metrics["reranker_cache_misses"] += 1
+        reranker = CrossEncoderReranker(model_id=model_id)
+
+        # Add to cache with LRU eviction
+        cache = self._reranker_cache
+        order = self._reranker_cache_order
+        cache_size = self._reranker_cache_size
+
+        if len(cache) >= cache_size:
+            # Evict least recently used (first in order list)
+            lru_model = order.pop(0)
+            del cache[lru_model]
+            _log.debug("[reranker] Evicted LRU model: %s", lru_model)
+
+        cache[model_id] = reranker
+        order.append(model_id)
+
+        load_time = time.monotonic() - t0
+        self._metrics["reranker_load_times"].append(load_time)
+        _log.info(
+            "[reranker] Cache MISS - created and cached reranker '%s' (%.3fs)",
+            model_id,
+            load_time,
+        )
+        return reranker
+
+    def get_reranker_metrics(self) -> dict[str, Any]:
+        """Return current reranker cache metrics."""
+        total_requests = (
+            self._metrics["reranker_cache_hits"] + self._metrics["reranker_cache_misses"]
+        )
+        hit_rate = (
+            self._metrics["reranker_cache_hits"] / total_requests
+            if total_requests > 0
+            else 0.0
+        )
+        avg_load_time = (
+            sum(self._metrics["reranker_load_times"])
+            / len(self._metrics["reranker_load_times"])
+            if self._metrics["reranker_load_times"]
+            else 0.0
+        )
+        avg_reuse_time = (
+            sum(self._metrics["reranker_reuse_times"])
+            / len(self._metrics["reranker_reuse_times"])
+            if self._metrics["reranker_reuse_times"]
+            else 0.0
+        )
+        return {
+            "cache_size": len(self._reranker_cache),
+            "cache_capacity": self._reranker_cache_size,
+            "cached_models": list(self._reranker_cache.keys()),
+            "hit_count": self._metrics["reranker_cache_hits"],
+            "miss_count": self._metrics["reranker_cache_misses"],
+            "hit_rate": round(hit_rate, 4),
+            "avg_load_time_ms": round(avg_load_time * 1000, 2),
+            "avg_reuse_time_ms": round(avg_reuse_time * 1000, 2),
+            "total_requests": total_requests,
+        }
+
+    def clear_reranker_cache(self) -> None:
+        """Clear the reranker cache (useful for testing or memory pressure)."""
+        self._reranker_cache.clear()
+        self._reranker_cache_order.clear()
+        _log.info("[reranker] Cache cleared")
 
     # ------------------------------------------------------------------
     # Model mismatch detection
@@ -237,6 +363,39 @@ class RAGPipeline:
         use_reranker: bool = False,
         reranker_model: str | None = None,
     ) -> RAGAnswer:
+        # Check cache first for complete answer
+        cached_answer = await self.cache.get_answer(
+            collection=collection_name,
+            chat_model=self.chat.model,
+            system_prompt=system_prompt or "",
+            question=question,
+            temperature=temperature,
+            top_k=top_k,
+            use_reranker=use_reranker,
+            use_hybrid=use_hybrid,
+        )
+        if cached_answer:
+            _log.info(
+                "[%s] Answer cache HIT for question (hybrid=%s)",
+                collection_name,
+                use_hybrid,
+            )
+            # Reconstruct RAGAnswer from cached dict
+            sources = [
+                SourceChunk(**s) for s in cached_answer.get("sources", [])
+            ]
+            return RAGAnswer(
+                answer=cached_answer["answer"],
+                sources=sources,
+                metadata=cached_answer["metadata"],
+            )
+
+        _log.info(
+            "[%s] Answer cache MISS for question (hybrid=%s)",
+            collection_name,
+            use_hybrid,
+        )
+
         chunks = await self._retrieve(
             collection_name=collection_name,
             question=question,
@@ -250,7 +409,7 @@ class RAGPipeline:
 
         # ── Optional reranking ─────────────────────────────────────────
         if use_reranker and reranker_model:
-            reranker = CrossEncoderReranker(model_id=reranker_model)
+            reranker = self._get_reranker(reranker_model)
             reranked = reranker.rerank(query=question, chunks=chunks, top_k=top_k)
             _log.info(
                 "[%s] Reranking: %d → %d chunks using %s",
@@ -259,8 +418,6 @@ class RAGPipeline:
                 top_k,
                 reranker_model,
             )
-            # Convert ScoredChunk (from reranker) back to SearchResult for downstream processing.
-            # This preserves dense_score (bi-encoder cosine) and sparse_score for UI display.
             context_chunks = [
                 SearchResult(
                     chunk_id=rc.chunk_id,
@@ -285,7 +442,7 @@ class RAGPipeline:
                 context=context, question=question
             )
 
-        # Append mandatory formatting rules to ensure clean Markdown in UI
+        # Append mandatory formatting rules
         augmented_system = f"{augmented_system}{MARKDOWN_FORMATTING_RULES}"
 
         # ── Generate ─────────────────────────────────────────────────────
@@ -302,7 +459,7 @@ class RAGPipeline:
             search_type="hybrid" if use_hybrid else "dense",
         )
 
-        return RAGAnswer(
+        answer = RAGAnswer(
             answer=response.message.content,
             sources=sources,
             metadata={
@@ -315,6 +472,45 @@ class RAGPipeline:
                 "collection": collection_name,
             },
         )
+
+        # Cache the answer
+        try:
+            await self.cache.set_answer(
+                collection=collection_name,
+                chat_model=self.chat.model,
+                system_prompt=system_prompt or "",
+                question=question,
+                temperature=temperature,
+                top_k=top_k,
+                use_reranker=use_reranker,
+                use_hybrid=use_hybrid,
+                answer={
+                    "answer": answer.answer,
+                    "sources": [s.__dict__ for s in answer.sources],
+                    "metadata": answer.metadata,
+                },
+            )
+            _log.debug(
+                "[%s] Cached answer for question (hybrid=%s)",
+                collection_name,
+                use_hybrid,
+            )
+        except Exception as e:
+            _log.warning("Failed to cache answer: %s", e)
+
+        # Log reranker cache metrics periodically
+        if use_reranker and (self._metrics["reranker_cache_hits"] + self._metrics["reranker_cache_misses"]) % 10 == 0:
+            metrics = self.get_reranker_metrics()
+            _log.info(
+                "[reranker] Cache metrics: hits=%d, misses=%d, hit_rate=%.2f%%, size=%d/%d",
+                metrics["hit_count"],
+                metrics["miss_count"],
+                metrics["hit_rate"] * 100,
+                metrics["cache_size"],
+                metrics["cache_capacity"],
+            )
+
+        return answer
 
     # ------------------------------------------------------------------
     # Query (streaming)
@@ -346,7 +542,7 @@ class RAGPipeline:
 
         # ── Optional reranking ─────────────────────────────────────────
         if use_reranker and reranker_model:
-            reranker = CrossEncoderReranker(model_id=reranker_model)
+            reranker = self._get_reranker(reranker_model)
             reranked = reranker.rerank(query=question, chunks=chunks, top_k=top_k)
             _log.info(
                 "[%s] Reranking: %d → %d chunks using %s",
@@ -417,6 +613,18 @@ class RAGPipeline:
             search_type="hybrid" if use_hybrid else "dense",
         )
 
+        # Log reranker cache metrics periodically
+        if use_reranker and (self._metrics["reranker_cache_hits"] + self._metrics["reranker_cache_misses"]) % 10 == 0:
+            metrics = self.get_reranker_metrics()
+            _log.info(
+                "[reranker] Cache metrics: hits=%d, misses=%d, hit_rate=%.2f%%, size=%d/%d",
+                metrics["hit_count"],
+                metrics["miss_count"],
+                metrics["hit_rate"] * 100,
+                metrics["cache_size"],
+                metrics["cache_capacity"],
+            )
+
         yield {
             "sources": [s.__dict__ for s in sources],
             "done": True,
@@ -428,6 +636,26 @@ class RAGPipeline:
     # Core retrieval — private
     # ------------------------------------------------------------------
 
+
+    async def _embed_single_cached(self, text: str) -> list[float]:
+        """Get embedding from cache or compute and cache it."""
+        cached = await self.cache.get_embedding(self.embedder.model, text)
+        if cached is not None:
+            _log.debug(
+                "[%s] Embedding cache HIT",
+                self.embedder.model,
+            )
+            return cached
+
+        embedding = await self.embedder.embed_single(text)
+        await self.cache.set_embedding(self.embedder.model, text, embedding)
+        _log.debug(
+            "[%s] Embedding cached (len=%d)",
+            self.embedder.model,
+            len(embedding),
+        )
+        return embedding
+
     async def _retrieve(
         self,
         collection_name: str,
@@ -438,30 +666,48 @@ class RAGPipeline:
     ) -> list[SearchResult]:
         """
         Retrieve chunks using either hybrid or dense-only search.
-
-        Hybrid path:
-          1. Dense embed (Ollama)
-          2. Sparse embed (fastembed)
-          3. Qdrant hybrid_search() → RRF fusion internally
-          4. Return top_k × OVERFETCH_MULTIPLIER for reranking
-
-        Dense-only path:
-          1. Dense embed (Ollama)
-          2. Qdrant dense_search()
-          3. Return top_k × OVERFETCH_MULTIPLIER for reranking
         """
-        overfetch_k = top_k * OVERFETCH_MULTIPLIER
+        overfetch_k = top_k * self._overfetch_multiplier
+        query_hash = hashlib.sha256(question.strip().lower().encode()).hexdigest()[:16]
 
-        if use_hybrid and self.sparse_embedder is not None:
-            # ── Hybrid retrieval ────────────────────────────────────────
+        # Check cache first (before computing embeddings)
+        cached_chunks = await self.cache.get_search_results(
+            collection=collection_name,
+            embedding_model=self.embedder.model,
+            top_k=overfetch_k,
+            score_threshold=score_threshold,
+            use_hybrid=use_hybrid,
+            query_hash=query_hash,
+        )
+        if cached_chunks:
             _log.info(
-                "[%s] Retrieval: hybrid (dense+sparse) top_k=%d → %d chunks",
+                "[%s] Cache HIT for search results (hybrid=%s)",
+                collection_name,
+                use_hybrid,
+            )
+            return [
+                SearchResult(
+                    chunk_id=c["chunk_id"],
+                    chunk_text=c["chunk_text"],
+                    score=c["score"],
+                    metadata=c["metadata"],
+                    dense_score=c.get("dense_score", 0.0),
+                    sparse_score=c.get("sparse_score", 0.0),
+                )
+                for c in cached_chunks
+            ]
+
+        # Cache miss - compute embeddings and search
+        if use_hybrid and self.sparse_embedder is not None:
+            _log.info(
+                "[%s] Retrieval: hybrid (dense+sparse) top_k=%d → %d chunks [CACHE MISS]",
                 collection_name,
                 top_k,
                 overfetch_k,
             )
-
-            dense_vec, sparse_vec = await self._embed_both(question)
+            dense_vec = await self._embed_single_cached(question)
+            import asyncio
+            sparse_vec = await asyncio.to_thread(self.sparse_embedder.embed, question)
 
             chunks = await self.qdrant.hybrid_search(
                 collection_name=collection_name,
@@ -481,14 +727,13 @@ class RAGPipeline:
             )
 
         else:
-            # ── Dense-only retrieval (backward-compatible) ───────────────
             _log.info(
-                "[%s] Retrieval: dense-only top_k=%d → %d chunks",
+                "[%s] Retrieval: dense-only top_k=%d → %d chunks [CACHE MISS]",
                 collection_name,
                 top_k,
                 overfetch_k,
             )
-            dense_vec = await self.embedder.embed_single(question)
+            dense_vec = await self._embed_single_cached(question)
 
             chunks = await self.qdrant.dense_search(
                 collection_name=collection_name,
@@ -502,6 +747,38 @@ class RAGPipeline:
                 len(chunks),
                 chunks[0].score if chunks else 0.0,
             )
+
+        # Cache the search results
+        if chunks:
+            try:
+                cacheable = [
+                    {
+                        "chunk_id": c.chunk_id,
+                        "chunk_text": c.chunk_text,
+                        "score": c.score,
+                        "metadata": c.metadata,
+                        "dense_score": getattr(c, "dense_score", 0.0),
+                        "sparse_score": getattr(c, "sparse_score", 0.0),
+                    }
+                    for c in chunks
+                ]
+                await self.cache.set_search_results(
+                    collection=collection_name,
+                    embedding_model=self.embedder.model,
+                    top_k=overfetch_k,
+                    score_threshold=score_threshold,
+                    use_hybrid=use_hybrid,
+                    query_hash=query_hash,
+                    results=cacheable,
+                )
+                _log.debug(
+                    "[%s] Cached %d search results (hybrid=%s)",
+                    collection_name,
+                    len(chunks),
+                    use_hybrid,
+                )
+            except Exception as e:
+                _log.warning("Failed to cache search results: %s", e)
 
         return chunks
 

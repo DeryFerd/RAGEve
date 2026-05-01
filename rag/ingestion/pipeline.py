@@ -9,7 +9,7 @@ import pymupdf
 from docx import Document
 from PIL import Image
 
-from backend.config import settings
+from backend.config_loader import settings
 from rag.chunking.adaptive import ChunkProfile  # for type hint
 from rag.deepdoc.layout_parser import PageLayout  # for type hint
 from rag.ingestion.doc_converter import ConversionResult, convert_doc_to_docx
@@ -247,7 +247,7 @@ def run_deepdoc_ingestion(
     Returns:
       Dict with ingestion results, chunks, quality report, etc.
     """
-    from backend.config import settings
+    from backend.config_loader import settings
     from rag.chunking.adaptive import adaptive_chunk_text
     from rag.deepdoc.quality_scorer import score_and_select_profile
 
