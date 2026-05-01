@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
+from backend.config_loader import settings
 from backend.models_peewee import User
 from backend.services.auth import (
     create_access_token,
@@ -31,6 +32,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # Account lockout settings
 LOGIN_ATTEMPTS_THRESHOLD = 5
 LOGIN_LOCK_DURATION_SECONDS = 15 * 60  # 15 minutes
+
+
+def _cookie_secure_enabled() -> bool:
+    """Enable secure cookies by default outside local/test environments."""
+    env = str(getattr(settings, "app_env", "development")).strip().lower()
+    return env not in {"dev", "development", "local", "test"}
 
 
 # ==================== Schemas ====================
@@ -177,7 +184,7 @@ async def register(request: Request, data: RegisterRequest, response: Response) 
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=_cookie_secure_enabled(),
         samesite="lax",
         max_age=60 * 60 * 24 * 7,  # 7 days (or use JWT exp)
     )
@@ -253,7 +260,7 @@ async def login(request: Request, data: LoginRequest, response: Response) -> Aut
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=_cookie_secure_enabled(),
         samesite="lax",
         max_age=60 * 60 * 24 * 7,
     )
