@@ -135,9 +135,14 @@ export async function conversationChatStream(
   if (params.score_threshold != null)
     qs.set("score_threshold", String(params.score_threshold));
 
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY || "";
   const res = await fetch(
     `${BASE}/conversations/${conversationId}/chat/stream?${qs}`,
-    { method: "POST", signal }
+    {
+      method: "POST",
+      signal,
+      headers: apiKey ? { "X-API-Key": apiKey } : undefined,
+    }
   );
 
   if (!res.ok) {

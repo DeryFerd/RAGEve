@@ -642,7 +642,7 @@ export interface DocumentResponse {
   created_by: string;
   progress: number;
   progress_msg: string;
-  process_duation: number;
+  process_duration: number;
   doc_type?: string | null;
   doc_metadata: Record<string, unknown>;
   meta_fields: Record<string, unknown>;
@@ -678,7 +678,7 @@ export interface TaskResponse {
   to_page: number;
   priority: number;
   begin_at?: string | null;
-  process_duation: number;
+  process_duration: number;
   progress: number;
   progress_msg: string;
   retry_count: number;
@@ -802,6 +802,7 @@ export interface AppendMessageRequest {
 }
 
 export interface AppendMessageResponse {
+  message_id: string;
   role: string;
   content: string;
   token_count?: number | null;

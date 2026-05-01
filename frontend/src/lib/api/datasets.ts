@@ -20,143 +20,166 @@ import type {
   HuggingFaceStatusTextsResponse,
   UploadProgressEvent,
   UploadProgressHandlers,
+  KbTaskResponse,
 } from "@/lib/types";
 
-// ── Core dataset operations ────────────────────────────────────────────────────────
+// Import knowledgebases API functions
+import {
+  listKnowledgebases,
+  uploadFilesToKnowledgebase,
+  deleteKnowledgebase,
+} from "./knowledgebases";
 
+// ── Core knowledge base operations (adapted to legacy Dataset* types) ─────────────
+
+/**
+ * List all knowledge bases. Returns DatasetListResponse for compatibility.
+ * Note: chunks_count and vector_size are not available from the new API and are set to 0.
+ */
 export async function listDatasets(): Promise<DatasetListResponse> {
-  return apiFetch<DatasetListResponse>("/datasets/");
+  const res = await listKnowledgebases();
+  const datasets: DatasetInfo[] = res.knowledgebases.map((kb): DatasetInfo => ({
+    dataset_id: kb.id,
+    collection: kb.id,
+    chunks_count: 0,
+    vector_size: 0,
+    status: "unknown",
+  }));
+  return { datasets, total: res.total };
 }
 
+/**
+ * Upload files to a knowledge base (non-streaming).
+ */
 export async function uploadFiles(
-  datasetId: string,
+  kbId: string,
   files: File[],
   ingestOptions?: IngestRequest
 ): Promise<{ dataset_id: string; files: ProcessedFileResponse[] }> {
-  const form = new FormData();
-  for (const file of files) {
-    form.append("files", file);
-  }
-  if (ingestOptions) {
-    form.append(
-      "ingest_request",
-      new Blob([JSON.stringify(ingestOptions)], { type: "application/json" })
-    );
-  }
-
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const response = await fetch(`${base}/datasets/${datasetId}/upload`, {
-    method: "POST",
-    body: form,
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(err.detail || `Upload failed: ${response.status}`);
-  }
-
-  return response.json();
+  const options = {
+    parser_id: ingestOptions?.force_profile || undefined,
+    chunk_size: ingestOptions?.chunk_size,
+    chunk_overlap: ingestOptions?.chunk_overlap,
+  };
+  await uploadFilesToKnowledgebase(kbId, files, options);
+  // Ingestion happens in background; detailed results not immediately available.
+  return { dataset_id: kbId, files: [] };
 }
 
+/**
+ * Upload files with streaming progress via task polling.
+ */
 export async function uploadFilesStreaming(
-  datasetId: string,
+  kbId: string,
   files: File[],
   handlers: UploadProgressHandlers,
   ingestOptions?: IngestRequest,
   signal?: AbortSignal
 ): Promise<void> {
-  const form = new FormData();
-  for (const file of files) {
-    form.append("files", file);
-  }
-  if (ingestOptions) {
-    form.append(
-      "ingest_request",
-      new Blob([JSON.stringify(ingestOptions)], { type: "application/json" })
-    );
-  }
+  const options = {
+    parser_id: ingestOptions?.force_profile || undefined,
+    chunk_size: ingestOptions?.chunk_size,
+    chunk_overlap: ingestOptions?.chunk_overlap,
+  };
+  const uploadResults = await uploadFilesToKnowledgebase(kbId, files, options);
+  const taskIds = uploadResults.map((r) => r.task_id);
+  const totalFiles = files.length;
+  const fileMap = new Map<string, { filename: string; index: number }>();
+  uploadResults.forEach((r, idx) => fileMap.set(r.task_id, { filename: r.filename, index: idx }));
 
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const response = await fetch(`${base}/datasets/${datasetId}/upload/stream`, {
-    method: "POST",
-    body: form,
-    signal,
-  });
+  let completedCount = 0;
+  const completedTasks = new Set<string>();
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(err.detail || `Upload failed: ${response.status}`);
-  }
+  while (completedCount < taskIds.length) {
+    if (signal?.aborted) {
+      throw new DOMException("Upload aborted", "AbortError");
+    }
 
-  if (!response.body) {
-    throw new Error("Upload stream body is null");
-  }
+    for (const taskId of taskIds) {
+      if (completedTasks.has(taskId)) continue;
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-      let event: UploadProgressEvent;
       try {
-        event = JSON.parse(line) as UploadProgressEvent;
-      } catch {
-        continue;
-      }
+        const task = await apiFetch<KbTaskResponse>(`/knowledgebases/tasks/${taskId}`);
+        const fileInfo = fileMap.get(taskId)!;
+        handlers.onStatus({
+          event: "status",
+          stage: task.progress >= 100 ? "completed" : "processing",
+          message: task.progress_msg,
+          progress: task.progress,
+          dataset_id: kbId,
+          file: fileInfo.filename,
+          file_index: fileInfo.index + 1,
+          file_total: totalFiles,
+          chunks_done: task.progress,
+          chunks_total: 100,
+        });
 
-      if (event.event === "status") {
-        handlers.onStatus(event);
-      } else if (event.event === "file_done") {
-        handlers.onFileDone?.(event);
-      } else if (event.event === "done") {
-        handlers.onDone(event);
-      } else if (event.event === "error") {
-        handlers.onError(event);
+        if (task.progress >= 100) {
+          completedCount++;
+          completedTasks.add(taskId);
+          handlers.onFileDone?.({
+            event: "file_done",
+            stage: "completed",
+            message: task.progress_msg,
+            progress: 100,
+            dataset_id: kbId,
+            file: fileInfo.filename,
+            file_index: fileInfo.index + 1,
+            file_total: totalFiles,
+            result: {} as any,
+          });
+        }
+      } catch (err) {
+        handlers.onError?.({
+          event: "error",
+          stage: "failed",
+          message: err instanceof Error ? err.message : String(err),
+          progress: 0,
+          dataset_id: kbId,
+        });
+        return;
       }
     }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  if (buffer.trim()) {
-    try {
-      const event = JSON.parse(buffer) as UploadProgressEvent;
-      if (event.event === "status") handlers.onStatus(event);
-      else if (event.event === "file_done") handlers.onFileDone?.(event);
-      else if (event.event === "done") handlers.onDone(event);
-      else if (event.event === "error") handlers.onError(event);
-    } catch {
-      // ignore trailing malformed JSON
-    }
-  }
-}
-
-export async function ingestDataset(
-  datasetId: string,
-  options?: IngestRequest
-): Promise<IngestResponse> {
-  return apiFetch<IngestResponse>(`/datasets/${datasetId}/ingest`, {
-    method: "POST",
-    body: JSON.stringify(options || {}),
+  handlers.onDone({
+    event: "done",
+    stage: "completed",
+    message: `Uploaded ${totalFiles} file(s)`,
+    progress: 100,
+    dataset_id: kbId,
+    files: [],
   });
 }
 
-export async function getDatasetInfo(datasetId: string): Promise<DatasetInfo> {
-  return apiFetch<DatasetInfo>(`/datasets/${datasetId}`);
+/**
+ * Get dataset info (adapted).
+ */
+export async function getDatasetInfo(kbId: string): Promise<DatasetInfo> {
+  return {
+    dataset_id: kbId,
+    collection: kbId,
+    chunks_count: 0,
+    vector_size: 0,
+    status: "unknown",
+  };
 }
 
-export async function deleteDataset(datasetId: string): Promise<CollectionDeleteResponse> {
-  return apiFetch<CollectionDeleteResponse>(`/datasets/${datasetId}`, {
-    method: "DELETE",
-  });
+/**
+ * Delete a knowledge base.
+ */
+export async function deleteDataset(kbId: string): Promise<CollectionDeleteResponse> {
+  await deleteKnowledgebase(kbId);
+  return {
+    dataset_id: kbId,
+    deleted: true,
+    message: `Dataset '${kbId}' deleted.`,
+  };
 }
+
+// ── HuggingFace operations (unchanged) ───────────────────────────────────────────
 
 export async function getHFInstructions(
   datasetId: string
@@ -310,4 +333,3 @@ export interface HFIngestResponse {
   text_columns_used: string[];
   message: string;
 }
-

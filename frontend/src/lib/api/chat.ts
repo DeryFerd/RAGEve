@@ -1,3 +1,4 @@
+import { apiFetch } from "./client";
 import type {
   ChatRequest,
   ChatResponse,
@@ -12,51 +13,122 @@ import type {
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Sessions
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Conversation CRUD (adapted to legacy session types) ───────────────────────────
 
+/**
+ * Create a new conversation for a dialog.
+ */
 export async function createSession(payload: CreateSessionRequest): Promise<ChatSession> {
-  const res = await fetch(`${BASE}/chat/sessions`, {
+  const convPayload = {
+    dialog_id: payload.agent_id,
+    name: payload.title,
+  } as const;
+  const conv = await apiFetch<ConversationResponse>("/conversations/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(convPayload),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Create session failed: ${res.status}`);
-  }
-  return res.json();
+  return {
+    session_id: conv.id,
+    agent_id: conv.dialog_id,
+    title: conv.name || "",
+    message_count: conv.message.length,
+    agent_config_snapshot: {
+      system_prompt: "",
+      dataset_id: "",
+      embedding_model: "",
+      chat_model: "",
+      temperature: 0.7,
+      top_k: 5,
+    },
+    created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
+    updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+  };
 }
 
+/**
+ * List sessions (conversations), optionally filtered by agent_id.
+ */
 export async function listSessions(params?: {
   agent_id?: string;
   limit?: number;
   offset?: number;
 }): Promise<ChatSessionListResponse> {
   const qs = new URLSearchParams();
-  if (params?.agent_id) qs.set("agent_id", params.agent_id);
+  if (params?.agent_id) qs.set("dialog_id", params.agent_id);
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
-  const res = await fetch(`${BASE}/chat/sessions?${qs}`);
-  if (!res.ok) throw new Error(`List sessions failed: ${res.status}`);
-  return res.json();
+  const query = qs.toString();
+  const res = await apiFetch<ConversationListResponse>(`/conversations/${query ? `?${query}` : ""}`);
+  const sessions: ChatSession[] = res.conversations.map((conv) => ({
+    session_id: conv.id,
+    agent_id: conv.dialog_id,
+    title: conv.name || "",
+    message_count: conv.message.length,
+    agent_config_snapshot: {
+      system_prompt: "",
+      dataset_id: "",
+      embedding_model: "",
+      chat_model: "",
+      temperature: 0.7,
+      top_k: 5,
+    },
+    created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
+    updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+  }));
+  return {
+    sessions,
+    total: res.total,
+    limit: res.limit,
+    offset: res.offset,
+  };
 }
 
-export async function getSessionWithMessages(sessionId: string): Promise<ChatSessionWithMessages> {
-  const res = await fetch(`${BASE}/chat/sessions/${sessionId}`);
-  if (!res.ok) throw new Error(`Get session failed: ${res.status}`);
-  return res.json();
+/**
+ * Get a session with its messages.
+ */
+export async function getSessionWithMessages(
+  sessionId: string
+): Promise<ChatSessionWithMessages> {
+  const conv = await apiFetch<ConversationResponse>(`/conversations/${sessionId}`);
+  const messages = conv.message.map((msg) => ({
+    message_id: (msg as any).message_id || `msg-${Math.random().toString(36).substr(2, 9)}`,
+    session_id: conv.id,
+    role: msg.role as "user" | "assistant",
+    content: msg.content,
+    token_count: (msg as any).token_count || null,
+    sources: (msg as any).sources || null,
+    feedback: null,
+    created_at: new Date().toISOString(),
+  }));
+  return {
+    session: {
+      session_id: conv.id,
+      agent_id: conv.dialog_id,
+      title: conv.name || "",
+      message_count: messages.length,
+      agent_config_snapshot: {
+        system_prompt: "",
+        dataset_id: "",
+        embedding_model: "",
+        chat_model: "",
+        temperature: 0.7,
+        top_k: 5,
+      },
+      created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
+      updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+    },
+    messages,
+  };
 }
 
+/**
+ * Delete a session.
+ */
 export async function deleteSession(sessionId: string): Promise<void> {
-  const res = await fetch(`${BASE}/chat/sessions/${sessionId}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`Delete session failed: ${res.status}`);
+  await apiFetch<void>(`/conversations/${sessionId}`, { method: "DELETE" });
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Streaming with session history
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Streaming with session history ─────────────────────────────────────────────
 
 export type SessionStreamHandler = {
   onChunk: (content: string) => void;
@@ -64,22 +136,42 @@ export type SessionStreamHandler = {
   onError: (error: string) => void;
 };
 
+/**
+ * Stream a RAG chat turn for a conversation.
+ * Uses POST /conversations/{id}/chat/stream with query parameters.
+ * Backend returns NDJSON events.
+ */
 export async function chatSessionStreaming(
-  sessionId: string,
+  conversationId: string,
   payload: ChatRequest,
   handlers: SessionStreamHandler,
   signal: AbortSignal
 ): Promise<void> {
-  const res = await fetch(`${BASE}/chat/sessions/${sessionId}/messages/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal,
-  });
+  const qs = new URLSearchParams();
+  qs.set("question", payload.question);
+  if (payload.top_k != null) qs.set("top_k", String(payload.top_k));
+  if (payload.temperature != null) qs.set("temperature", String(payload.temperature));
+  if (payload.use_hybrid != null) qs.set("use_hybrid", String(payload.use_hybrid));
+  if (payload.use_reranker != null) qs.set("use_reranker", String(payload.use_reranker));
+  if (payload.reranker_model) qs.set("reranker_model", payload.reranker_model);
+  if (payload.score_threshold != null) qs.set("score_threshold", String(payload.score_threshold));
+
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY || "";
+  const headers: HeadersInit = {
+    ...(apiKey ? { "X-API-Key": apiKey } : {}),
+  };
+
+  const res = await fetch(
+    `${BASE}/conversations/${conversationId}/chat/stream?${qs}`,
+    { method: "POST", signal, headers }
+  );
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Chat stream failed: ${res.status}`);
+    throw new Error(
+      (err as { detail?: string }).detail ||
+        `Conversation chat stream failed: ${res.status}`
+    );
   }
 
   if (!res.body) throw new Error("Response body is null");
@@ -97,13 +189,24 @@ export async function chatSessionStreaming(
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
-        const event: SSEEvent & { message_id?: string } = JSON.parse(line);
+        const event = JSON.parse(line) as {
+          event: string;
+          content?: string;
+          sources?: SourceChunk[];
+          reranker_model?: string | null;
+          message_id?: string;
+          error?: string;
+        };
         if (event.event === "chunk") {
-          handlers.onChunk(event.content);
+          handlers.onChunk(event.content ?? "");
         } else if (event.event === "end") {
-          handlers.onSources(event.sources || [], event.reranker_model ?? null, event.message_id);
+          handlers.onSources(
+            event.sources ?? [],
+            event.reranker_model ?? null,
+            event.message_id
+          );
         } else if (event.event === "error") {
-          handlers.onError(event.error);
+          handlers.onError(event.error ?? "Unknown error");
         }
       } catch {
         // Skip malformed lines
@@ -112,27 +215,30 @@ export async function chatSessionStreaming(
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Feedback
-// ──────────────────────────────────────────────────────────────────────────────
+// ── Feedback ────────────────────────────────────────────────────────────────────
 
 export async function submitFeedback(
   messageId: string,
   payload: FeedbackPayload
 ): Promise<void> {
-  const res = await fetch(`${BASE}/chat/messages/${messageId}/feedback`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`Submit feedback failed: ${res.status}`);
+  try {
+    await fetch(`${BASE}/chat/messages/${messageId}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn("Feedback not supported:", err);
+  }
 }
 
+// ── Non-streaming chat (stateless) ─────────────────────────────────────────────
+
 export async function chatNonStreaming(
-  agentId: string,
+  dialogId: string,
   payload: ChatRequest
 ): Promise<ChatResponse> {
-  const response = await fetch(`${BASE}/chat/${agentId}`, {
+  const response = await fetch(`${BASE}/chat/${dialogId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, stream: false }),
@@ -152,15 +258,23 @@ export type StreamHandler = {
   onError: (error: string) => void;
 };
 
+/**
+ * Streaming chat (stateless) using /chat/{dialog_id}/stream.
+ * Backend returns Server-Sent Events (SSE) format.
+ */
 export async function chatStreaming(
-  agentId: string,
+  dialogId: string,
   payload: ChatRequest,
   handlers: StreamHandler,
   signal: AbortSignal
 ): Promise<void> {
-  const response = await fetch(`${BASE}/chat/${agentId}/stream`, {
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY || "";
+  const response = await fetch(`${BASE}/chat/${dialogId}/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(apiKey ? { "X-API-Key": apiKey } : {}),
+    },
     body: JSON.stringify({ ...payload, stream: true }),
     signal,
   });
@@ -185,7 +299,10 @@ export async function chatStreaming(
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
-        const event: SSEEvent = JSON.parse(line);
+        const lineStr = line.trim();
+        if (!lineStr.startsWith("data:")) continue;
+        const jsonStr = lineStr.slice(5).trim();
+        const event = JSON.parse(jsonStr) as SSEEvent;
         if (event.event === "chunk") {
           handlers.onChunk(event.content);
         } else if (event.event === "end") {
@@ -199,3 +316,11 @@ export async function chatStreaming(
     }
   }
 }
+
+// ── Types for new API responses (imported for internal use) ─────────────────────
+
+import type {
+  ConversationResponse,
+  ConversationListResponse,
+  ConversationCreate,
+} from "@/lib/types";
