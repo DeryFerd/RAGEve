@@ -167,17 +167,15 @@ async def lifespan(app: FastAPI):
     _log.info("Qdrant      : %s", settings.qdrant_url)
     _log.info("CORS origins: %s", _allowed_origins)
     _log.info("Trusted proxies (XFF): %s", settings.trusted_proxy_count)
+    try:
+        rate_limit = int(settings.rate_limit_per_minute)
+    except (ValueError, TypeError):
+        rate_limit = 120
     if settings.api_key:
-        try:
-            rate_limit = int(settings.rate_limit_per_minute)
-        except (ValueError, TypeError):
-            rate_limit = 120
-        _log.info(
-            "API Auth    : enabled (%d req/min limit per IP)",
-            rate_limit,
-        )
+        _log.info("API Auth    : enabled")
     else:
         _log.info("API Auth    : disabled (set API_KEY in .env to enable)")
+    _log.info("Rate Limit  : enabled (%d req/min per IP baseline)", rate_limit)
     if settings.hf_token:
         _log.info("HF Token    : configured (private datasets enabled)")
     else:
