@@ -272,7 +272,7 @@ class PipelineOperationLog(BaseModel):
     progress = peewee.FloatField(null=False, default=0, index=True)
     progress_msg = peewee.TextField(null=True, default="")
     process_begin_at = peewee.DateTimeField(null=True, index=True)
-    process_duation = peewee.FloatField(null=False, default=0)
+    process_duration = peewee.FloatField(null=False, default=0)
     dsl = JSONTextField(null=True, default={})
     task_type = peewee.CharField(max_length=32, null=False, default="")
     operation_status = peewee.CharField(max_length=32, null=False)

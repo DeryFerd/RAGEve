@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
-from backend.config import settings
+from backend.config_loader import settings
 
 _log = logging.getLogger("app")
 

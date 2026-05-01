@@ -302,8 +302,8 @@ async def chat_stream_with_conversation(
                             "reranker_model": reranker_model,
                             "use_hybrid": use_hybrid,
                             "message_id": user_msg.get(
-                                "role"
-                            ),  # TODO: proper message ID
+                                "message_id"
+                            ),  # Use actual message ID
                             "elapsed_s": round(elapsed, 2),
                         }
                     ) + "\n"
@@ -318,7 +318,7 @@ async def chat_stream_with_conversation(
                         "sources": retrieved_sources,
                         "reranker_model": reranker_model,
                         "use_hybrid": use_hybrid,
-                        "message_id": user_msg.get("role"),  # TODO: proper message ID
+                        "message_id": user_msg.get("message_id"),  # Use actual message ID
                     }
                 ) + "\n"
 
@@ -331,7 +331,7 @@ async def chat_stream_with_conversation(
             {
                 "event": "error",
                 "error": str(exc),
-                "message_id": user_msg.get("role"),  # TODO: proper message ID
+                "message_id": user_msg.get("message_id") if user_msg else None,
             }
         ) + "\n"
         return

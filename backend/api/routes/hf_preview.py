@@ -18,7 +18,7 @@ from backend.api.routes.hf_metadata import (
     _fetch_hf_card_metadata,
     _fetch_hf_readme_html,
 )
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.huggingface import (
     HuggingFaceInstructionsResponse,
     HuggingFacePreviewResponse,
@@ -108,6 +108,11 @@ async def preview_hf_dataset(
     detected_configs: list[str] = []
     default_config: str | None = None
 
+    # Prepare token kwargs only if token is set (avoid "Bearer " empty header error)
+    hf_kwargs: dict[str, Any] = {}
+    if settings.hf_token:
+        hf_kwargs["token"] = settings.hf_token
+
     try:
         from datasets import get_dataset_config_names  # type: ignore[import-untyped]
     except ImportError:
@@ -118,7 +123,7 @@ async def preview_hf_dataset(
 
     try:
         detected_configs = list(
-            get_dataset_config_names(dataset_id, use_auth_token=settings.hf_token)
+            get_dataset_config_names(dataset_id, **hf_kwargs)
         )
     except Exception as exc:  # noqa: BLE001
         _log.warning("get_dataset_config_names failed for '%s': %s", dataset_id, exc)
@@ -136,7 +141,7 @@ async def preview_hf_dataset(
 
                 detected_splits = list(
                     get_dataset_split_names(
-                        dataset_id, config_name=cfg, use_auth_token=settings.hf_token
+                        dataset_id, config_name=cfg, **hf_kwargs
                     )
                 )
                 if detected_splits:
@@ -145,7 +150,7 @@ async def preview_hf_dataset(
                         name=cfg,
                         split=detected_splits[0],
                         streaming=True,
-                        use_auth_token=settings.hf_token,
+                        **hf_kwargs,
                     )
                     for idx, row in enumerate(sample_ds):
                         if idx >= 5:
@@ -173,7 +178,7 @@ async def preview_hf_dataset(
             from datasets import get_dataset_split_names  # type: ignore[import-untyped]
 
             detected_splits = list(
-                get_dataset_split_names(dataset_id, use_auth_token=settings.hf_token)
+                get_dataset_split_names(dataset_id, **hf_kwargs)
             )
         except Exception as exc:  # noqa: BLE001
             _log.warning("get_dataset_split_names failed for '%s': %s", dataset_id, exc)

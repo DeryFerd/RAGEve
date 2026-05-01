@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from backend.config import settings
+from backend.config_loader import settings
 
 _log = logging.getLogger(__name__)
 

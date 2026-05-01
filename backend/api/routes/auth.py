@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
 from backend.models_peewee import User
@@ -18,11 +18,19 @@ from backend.services.auth import (
     verify_password,
 )
 from backend.services.database import run_db_operation
+from backend.services.redis_client import get_redis_client
 from backend.services.tenant_user_store import get_tenant_user_store
+
+# Import shared rate limiter
+from backend.api.routes._limiter import limiter
 
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# Account lockout settings
+LOGIN_ATTEMPTS_THRESHOLD = 5
+LOGIN_LOCK_DURATION_SECONDS = 15 * 60  # 15 minutes
 
 
 # ==================== Schemas ====================
@@ -113,7 +121,8 @@ async def get_current_user_from_token(
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register(data: RegisterRequest, response: Response) -> dict:
+@limiter.limit("10/hour")
+async def register(request: Request, data: RegisterRequest, response: Response) -> dict:
     """
     Register a new user account.
 
@@ -182,28 +191,50 @@ async def register(data: RegisterRequest, response: Response) -> dict:
 
 
 @router.post("/login", response_model=AuthMeResponse)
-async def login(data: LoginRequest, response: Response) -> AuthMeResponse:
+@limiter.limit("20/minute")
+async def login(request: Request, data: LoginRequest, response: Response) -> AuthMeResponse:
     """
     Authenticate user with email and password.
 
     - Validates credentials
     - Creates JWT token and sets it as an HttpOnly cookie
     - Returns user profile data
+    - Includes account lockout after 5 failed attempts (15 min lock)
     """
     user_store = get_tenant_user_store()
     user = await run_db_operation(user_store.get_user_by_email, data.email)
     if not user:
+        # Still record attempt to prevent user enumeration
+        await _record_failed_login(request, data.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
 
+    # Check if account is locked
+    lock_key = f"login_lock:{user.email}"
+    redis_client = get_redis_client()
+    try:
+        is_locked = await redis_client.exists(lock_key)
+        if is_locked:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account temporarily locked due to too many failed attempts. Please try again later.",
+            )
+    except Exception:
+        # Redis unavailable - continue without lockout
+        pass
+
     # Verify password
     if not verify_password(data.password, user.password):
+        await _record_failed_login(request, user.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
+
+    # On successful login, clear failed attempts
+    await _clear_failed_logins(request, user.email)
 
     # Update last login
     now = datetime.utcnow()
@@ -303,3 +334,63 @@ async def change_password(
     _log.info("Password changed for user: %s", user.id)
 
     return None
+
+
+# ==================== Account Lockout Helpers ====================
+
+
+async def _record_failed_login(request: Request, email: str) -> None:
+    """Record a failed login attempt and potentially lock the account."""
+    redis_client = get_redis_client()
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Increment attempt counter for this email
+    attempts_key = f"login_attempts:{email}"
+    lock_key = f"login_lock:{email}"
+
+    try:
+        client = await redis_client.get_client()
+
+        # Increment and get current count
+        count = await client.incr(attempts_key)
+        # Set expiry on first attempt (24 hours)
+        if count == 1:
+            await client.expire(attempts_key, 24 * 60 * 60)
+
+        # Also track by IP for brute force from same IP targeting different accounts
+        ip_attempts_key = f"login_attempts_ip:{client_ip}"
+        ip_count = await client.incr(ip_attempts_key)
+        if ip_count == 1:
+            await client.expire(ip_attempts_key, 24 * 60 * 60)
+
+        _log.warning(
+            "Failed login attempt #%d for email=%s from IP=%s",
+            count, email, client_ip
+        )
+
+        # If threshold reached, lock the account
+        if count >= LOGIN_ATTEMPTS_THRESHOLD:
+            await client.set(lock_key, "1", ex=LOGIN_LOCK_DURATION_SECONDS)
+            _log.warning(
+                "Account locked for email=%s due to %d failed attempts (IP=%s)",
+                email, count, client_ip
+            )
+    except Exception as e:
+        _log.warning("Failed to record login attempt: %s", e)
+        # Silently continue - Redis failures shouldn't block login
+
+
+async def _clear_failed_logins(request: Request, email: str) -> None:
+    """Clear failed login counters after successful authentication."""
+    redis_client = get_redis_client()
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        client = await redis_client.get_client()
+        # Clear email-based counter
+        await client.delete(f"login_attempts:{email}")
+        await client.delete(f"login_lock:{email}")
+        # Also clear IP-based counter
+        await client.delete(f"login_attempts_ip:{client_ip}")
+    except Exception as e:
+        _log.warning("Failed to clear login attempts: %s", e)

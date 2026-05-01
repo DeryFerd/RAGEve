@@ -31,7 +31,7 @@ class Dialog(BaseModel):
     llm_id = peewee.CharField(max_length=128, null=False, help_text="Default LLM ID")
     llm_setting = JSONTextField(
         null=False,
-        default={
+        default=lambda: {
             "temperature": 0.1,
             "top_p": 0.3,
             "frequency_penalty": 0.7,
@@ -44,14 +44,14 @@ class Dialog(BaseModel):
     )
     prompt_config = JSONTextField(
         null=False,
-        default={
+        default=lambda: {
             "system": "",
             "prologue": "Hi! I'm your assistant. What can I do for you?",
             "parameters": [],
             "empty_response": "Sorry! No relevant content was found in the knowledge base!",
         },
     )
-    meta_data_filter = JSONTextField(null=True, default={})
+    meta_data_filter = JSONTextField(null=True, default=dict)
     similarity_threshold = peewee.FloatField(null=False, default=0.2)
     vector_similarity_weight = peewee.FloatField(null=False, default=0.3)
     top_n = peewee.IntegerField(null=False, default=6)
@@ -60,7 +60,7 @@ class Dialog(BaseModel):
         max_length=1, null=False, default="1", help_text="Include references (1=yes)"
     )
     rerank_id = peewee.CharField(max_length=128, null=False, default="")
-    kb_ids = ListField(null=False, default=[])
+    kb_ids = ListField(null=False, default=list)
     status = peewee.CharField(max_length=1, null=True, default="1", index=True)
 
     class Meta:
@@ -179,10 +179,15 @@ class Conversation(BaseModel):
             role: "user", "assistant", or "system"
             content: Message content
             **extra_fields: Additional fields to include in message object (e.g., sources, token_count)
+        Returns:
+            The appended message dict with a generated message_id.
         """
         if not self.message:
             self.message = []
         msg = {"role": role, "content": content, **extra_fields}
+        # Generate a unique message ID for this message
+        msg_id = f"msg_{uuid.uuid4().hex[:16]}"
+        msg["message_id"] = msg_id
         self.message.append(msg)
         # Update timestamps
         now = datetime.utcnow()

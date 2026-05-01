@@ -69,6 +69,7 @@ class AppendMessageRequest(BaseModel):
 class MessageResponse(BaseModel):
     """Response for a single appended message."""
 
+    message_id: str
     role: str
     content: str
     token_count: Optional[int] = None

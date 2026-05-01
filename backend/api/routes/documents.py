@@ -8,6 +8,9 @@ Endpoints:
 
 from __future__ import annotations
 
+import logging
+import os
+import tempfile
 from pathlib import Path
 
 from fastapi import (
@@ -20,10 +23,12 @@ from fastapi import (
 )
 
 from backend.api.routes._limiter import limiter
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.knowledgebases import DocumentResponse, FileUploadResponse
 from backend.services.database import run_db_operation
 from backend.services.knowledge_base_store import get_knowledge_base_store
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -99,10 +104,11 @@ async def upload_file_to_document(
             task_id=task_rec.id,
             doc_id=doc_id,
             kb_id=kb_id,
-            file_path=dest_path,
+            minio_key=None,  # File already on disk, no MinIO download needed
             parser_id=doc.parser_id,
             chunk_size=None,
             chunk_overlap=None,
+            temp_file_path=str(dest_path),  # Pass the file path on disk
         )
     except ImportError:
         # Fallback: do not run ingestion in background; just return queued status.

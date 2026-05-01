@@ -14,7 +14,7 @@ from typing import Any
 from jose import jwt
 from passlib.context import CryptContext
 
-from backend.config import settings
+from backend.config_loader import settings
 
 _log = logging.getLogger(__name__)
 
@@ -39,7 +39,11 @@ def generate_verification_token() -> str:
 
 def create_access_token(user_id: str, username: str, is_admin: bool = False) -> str:
     """Create a JWT access token."""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    try:
+        expire_minutes = int(settings.jwt_expire_minutes)
+    except (ValueError, TypeError):
+        expire_minutes = 1440  # default 24 hours
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
     payload = {
         "user_id": user_id,
         "username": username,

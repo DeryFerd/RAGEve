@@ -12,10 +12,10 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from backend.api.routes._limiter import limiter
 from backend.api.routes.agents import router as agents_router
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.chat import router as chat_router
-from backend.api.routes.chat_history import router as chat_history_router
 from backend.api.routes.conversations import router as conversations_router
 from backend.api.routes.datasets import router as datasets_router
 from backend.api.routes.dialogs import router as dialogs_router
@@ -25,15 +25,15 @@ from backend.api.routes.huggingface import router as hf_router
 from backend.api.routes.knowledgebases import router as knowledgebases_router
 from backend.api.routes.ollama import router as ollama_router
 from backend.api.routes.rerank import router as rerank_router
-from backend.config import settings
+from backend.config_loader import settings
 from backend.logging_config import setup_logging
 from backend.models_peewee import close_db as peewee_close_db
 from backend.models_peewee import get_database
 from backend.models_peewee import init_db as peewee_init_db
-from backend.services.chat_store import close_db as sqlalchemy_close_db
-from backend.services.chat_store import init_db as sqlalchemy_init_db
 from backend.services.database import run_db_operation
-from backend.services.ingestion_factory import close_qdrant_store, get_qdrant_store
+from backend.services.ingestion_factory import close_qdrant_store, get_ingestion_service
+from backend.services.redis_client import close_redis, init_redis
+from backend.services.cache_service import init_cache, close_cache
 
 # Initialise file-based logging before any route handlers run.
 setup_logging(settings.logs_dir)
@@ -42,42 +42,21 @@ _log = logging.getLogger("app")
 
 app = FastAPI(title=settings.app_name)
 
-
-# ── Client IP helper (used by rate limiter + middleware) ──────────────────────
-def _get_client_ip(request: Request) -> str:
-    """
-    Return the real client IP, accounting for trusted reverse proxies.
-
-    When TRUSTED_PROXY_COUNT > 0 the function reads X-Forwarded-For and
-    returns the leftmost (original client) IP from the chain.  For deeper
-    chains (e.g. Cloudflare → nginx → backend) set TRUSTED_PROXY_COUNT=2.
-    Set to 0 to disable proxy awareness entirely.
-    """
-    if settings.trusted_proxy_count <= 0:
-        return request.client.host if request.client else "127.0.0.1"
-    fwd = request.headers.get("X-Forwarded-For", "")
-    if fwd:
-        ips = [ip.strip() for ip in fwd.split(",")]
-        idx = len(ips) - settings.trusted_proxy_count
-        if 0 <= idx < len(ips):
-            return ips[idx]
-        return ips[-1]
-    return request.client.host if request.client else "127.0.0.1"
-
-
-# ── Rate limiter (slowapi) ────────────────────────────────────────────────────
-# Active only when API_KEY is configured; otherwise no-op.
-limiter = Limiter(key_func=_get_client_ip, enabled=bool(settings.api_key))
+# Rate limiter is imported from _limiter and attached to app.state
 app.state.limiter = limiter
 
 
 @app.exception_handler(RateLimitExceeded)
 async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     _log.warning("Rate limit exceeded: %s %s", request.method, request.url.path)
-    return JSONResponse(
+    response = JSONResponse(
         status_code=429,
         content={"error": "Too many requests. Please slow down and retry."},
     )
+    # Include Retry-After header if available (seconds)
+    if hasattr(exc, "retry_after"):
+        response.headers["Retry-After"] = str(int(exc.retry_after))
+    return response
 
 
 # ── Global exception handler ───────────────────────────────────────────────────
@@ -187,11 +166,15 @@ async def lifespan(app: FastAPI):
     _log.info("Ollama      : %s", settings.ollama_base_url)
     _log.info("Qdrant      : %s", settings.qdrant_url)
     _log.info("CORS origins: %s", _allowed_origins)
-    _log.info("Trusted proxies (XFF): %d", settings.trusted_proxy_count)
+    _log.info("Trusted proxies (XFF): %s", settings.trusted_proxy_count)
     if settings.api_key:
+        try:
+            rate_limit = int(settings.rate_limit_per_minute)
+        except (ValueError, TypeError):
+            rate_limit = 120
         _log.info(
             "API Auth    : enabled (%d req/min limit per IP)",
-            settings.rate_limit_per_minute,
+            rate_limit,
         )
     else:
         _log.info("API Auth    : disabled (set API_KEY in .env to enable)")
@@ -207,22 +190,46 @@ async def lifespan(app: FastAPI):
     else:
         _log.info("Chat DB     : SQLite (%s)", settings.db_path)
     _log.info(
-        "Peewee ORM DB        : MySQL (%s:%d/%s)",
+        "Peewee ORM DB        : MySQL (%s:%s/%s)",
         settings.mysql_host,
         settings.mysql_port,
         settings.mysql_dbname,
     )
     _log.info("─" * 60)
     # Initialise DB tables (creates them on first run)
-    await sqlalchemy_init_db()
     await peewee_init_db()
+    # Initialize Redis
+    await init_redis()
+    # Initialize cache service
+    await init_cache()
+    # Initialize MinIO buckets
+    try:
+        from botocore.exceptions import ClientError
+        from backend.services.minio_client import get_minio_client
+        minio_client = get_minio_client()
+        buckets = ["uploads", "chunks", "vectors"]
+        for bucket in buckets:
+            try:
+                # Check if bucket exists using head_bucket
+                await minio_client.client.head_bucket(Bucket=bucket)
+                _log.debug("MinIO bucket exists: %s", bucket)
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code")
+                if error_code == "404" or error_code == "NoSuchBucket":
+                    await minio_client.client.create_bucket(Bucket=bucket)
+                    _log.info("Created MinIO bucket: %s", bucket)
+                else:
+                    _log.warning("Failed to check/create bucket %s: %s", bucket, e)
+    except Exception as e:
+        _log.warning("MinIO initialization skipped: %s", e)
     # Pre-warm Qdrant store so the first request is fast
-    _ = get_qdrant_store()
+    _ = get_ingestion_service()
     yield
     # ── Shutdown ──────────────────────────────────────────────────────────
-    _log.info("Shutting down… closing QdrantStore HTTP client")
+    _log.info("Shutting down… closing connections")
     await close_qdrant_store()
-    await sqlalchemy_close_db()
+    await close_redis()
+    await close_cache()
     peewee_close_db()
     _log.info("Shutdown complete")
 
@@ -230,12 +237,15 @@ async def lifespan(app: FastAPI):
 app.router.lifespan_context = lifespan
 
 
-# ── Health (verifies Ollama + Qdrant + Database connectivity) ────────────────────────────
+# ── Health (verifies Ollama + Qdrant + Database + Redis connectivity) ─────────────
 @app.get("/health")
 async def health():
     ollama_ok = False
     qdrant_ok = False
     db_ok = False
+    redis_ok = False
+    minio_ok = False
+
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
             r = await client.get(f"{settings.ollama_base_url}/api/tags")
@@ -247,6 +257,7 @@ async def health():
             qdrant_ok = r.status_code == 200
         except Exception:
             pass
+
     # Check database connectivity
     try:
         db = get_database()
@@ -256,12 +267,35 @@ async def health():
         _log.error("Database health check failed: %s", e)
         db_ok = False
 
-    status_val = "ok" if (ollama_ok and qdrant_ok and db_ok) else "degraded"
+    # Check Redis connectivity
+    try:
+        from backend.services.redis_client import get_redis_client
+        redis_client = get_redis_client()
+        redis_ok = await redis_client.ping()
+    except Exception as e:
+        _log.warning("Redis health check failed: %s", e)
+        redis_ok = False
+
+    # Check MinIO connectivity (basic check)
+    try:
+        from backend.services.minio_client import get_minio_client
+        minio_client = get_minio_client()
+        # MinIO client does bucket head check on init, so if we got here it's OK
+        minio_ok = True
+    except Exception as e:
+        _log.warning("MinIO health check failed: %s", e)
+        minio_ok = False
+
+    all_ok = ollama_ok and qdrant_ok and db_ok and redis_ok and minio_ok
+    status_val = "ok" if all_ok else "degraded"
+
     return {
         "status": status_val,
         "ollama": "ok" if ollama_ok else "unreachable",
         "qdrant": "ok" if qdrant_ok else "unreachable",
         "database": "ok" if db_ok else "unreachable",
+        "redis": "ok" if redis_ok else "unreachable",
+        "minio": "ok" if minio_ok else "unreachable",
     }
 
 
@@ -272,7 +306,6 @@ app.include_router(files_router)
 app.include_router(datasets_router)
 app.include_router(hf_router)
 app.include_router(agents_router)
-app.include_router(chat_history_router)
 app.include_router(chat_router)
 app.include_router(rerank_router)
 app.include_router(dialogs_router)

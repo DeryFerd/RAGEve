@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from backend.config import settings
+from backend.config_loader import settings
 from backend.models import (
     Base,
     ChatFeedback,

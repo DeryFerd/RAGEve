@@ -234,7 +234,7 @@ class KnowledgeBaseStore:
         with get_database().connection_context():
             try:
                 doc = Document.get(Document.id == doc_id)
-                doc.process_duation = duration
+                doc.process_duration = duration
                 doc.progress = 100.0
                 if doc_metadata:
                     doc.doc_metadata = doc_metadata

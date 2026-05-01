@@ -41,7 +41,7 @@ from backend.schemas.chat_history import (
 from backend.services.chat_store import get_chat_store
 from backend.services.ingestion_factory import get_agent_store, get_rag_pipeline
 
-router = APIRouter(prefix="/chat", tags=["chat-history"])
+router = APIRouter(prefix="/legacy/chat", tags=["chat-history"])
 
 
 # ──────────────────────────────────────────────────────────────────────────────

@@ -10,10 +10,13 @@ Provides:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from typing import Any
 
 import peewee
+
+_log = logging.getLogger(__name__)
 
 
 class JSONTextField(peewee.TextField):
@@ -31,7 +34,14 @@ class JSONTextField(peewee.TextField):
             return {}
         try:
             return json.loads(value)
-        except (json.JSONDecodeError, TypeError):
+        except (json.JSONDecodeError, TypeError) as e:
+            # Log warning with field context for debugging malformed JSON
+            _log.warning(
+                "JSONTextField: Failed to decode JSON value (truncated: %s, error: %s)",
+                value[:100] if isinstance(value, str) else type(value),
+                str(e),
+            )
+            # Return empty dict as safe fallback for non-critical fields
             return {}
 
 

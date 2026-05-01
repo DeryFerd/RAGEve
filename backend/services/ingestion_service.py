@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from backend.config import settings
+from backend.config_loader import settings
 from rag.chunking.adaptive import adaptive_chunk_text
 from rag.deepdoc.layout_parser import layout_to_readable_text, parse_pdf_layout
 from rag.deepdoc.quality_scorer import ChunkProfile, score_and_select_profile

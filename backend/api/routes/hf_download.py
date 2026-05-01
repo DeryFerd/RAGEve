@@ -19,7 +19,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
 from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.huggingface import (
     HuggingFaceDownloadRequest,
     HuggingFaceDownloadResponse,
@@ -116,13 +116,16 @@ async def _download_hf_dataset_to_server(
             # Resolve split names (config-aware) — timeout to prevent indefinite hangs
             try:
                 async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):
+                    split_kwargs: dict[str, Any] = {}
+                    if hf_token:
+                        split_kwargs["token"] = hf_token
                     split_names = (
                         get_dataset_split_names(
-                            dataset_id, config_name=config, use_auth_token=hf_token
+                            dataset_id, config_name=config, **split_kwargs
                         )
                         if config
                         else get_dataset_split_names(
-                            dataset_id, use_auth_token=hf_token
+                            dataset_id, **split_kwargs
                         )
                     )
             except asyncio.TimeoutError:
@@ -173,8 +176,9 @@ async def _download_hf_dataset_to_server(
 
                     _load_kwargs: dict[str, Any] = {
                         "cache_dir": str(temp_dir),
-                        "use_auth_token": hf_token,
                     }
+                    if hf_token:
+                        _load_kwargs["token"] = hf_token
                     if config:
                         _load_kwargs["name"] = config
                     async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):
@@ -233,8 +237,9 @@ async def _download_hf_dataset_to_server(
                         _split_load_kwargs: dict[str, Any] = {
                             "split": split_name,
                             "cache_dir": str(temp_dir),
-                            "use_auth_token": hf_token,
                         }
+                        if hf_token:
+                            _split_load_kwargs["token"] = hf_token
                         if config:
                             _split_load_kwargs["name"] = config
                         async with asyncio.timeout(hf_status.MAX_DOWNLOAD_TIMEOUT):

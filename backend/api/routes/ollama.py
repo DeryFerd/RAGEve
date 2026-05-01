@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from backend.api.routes._limiter import limiter
 from backend.clients.ollama_client import OllamaClient
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.ollama import (
     ModelSelectionRequest,
     ModelValidationResponse,

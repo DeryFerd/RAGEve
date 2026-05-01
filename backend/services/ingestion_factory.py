@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.config import settings
+from backend.config_loader import settings
 from backend.services.ingestion_service import IngestionService
 from rag.embedding.ollama_embedder import OllamaEmbedder
 from rag.embedding.sparse_embedder import SparseEmbedder

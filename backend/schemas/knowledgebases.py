@@ -73,7 +73,7 @@ class DocumentResponse(BaseModel):
     created_by: str = Field(..., min_length=32, max_length=32)
     progress: float
     progress_msg: str
-    process_duation: float
+    process_duration: float
     doc_type: Optional[str] = None
     doc_metadata: Dict[str, Any] = Field(default_factory=dict)
     meta_fields: Dict[str, Any] = Field(default_factory=dict)
@@ -122,7 +122,7 @@ class TaskResponse(BaseModel):
     to_page: int
     priority: int
     begin_at: Optional[str] = None
-    process_duation: float
+    process_duration: float
     progress: float
     progress_msg: str
     retry_count: int

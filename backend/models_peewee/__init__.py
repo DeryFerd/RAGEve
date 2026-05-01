@@ -1,5 +1,5 @@
 """
-Peewee ORM models with RAGFlow schema.
+Peewee ORM models with RAGEve schema.
 
 This module provides:
 - Database connection management (singleton with retry logic)
@@ -17,7 +17,7 @@ from typing import Optional
 import peewee
 from playhouse.pool import PooledMySQLDatabase
 
-from backend.config import settings
+from backend.config_loader import settings
 
 # Set up logger
 _log = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ from .user import Tenant, User, UserTenant  # noqa: E402
 
 MYSQL_CONFIG = {
     "host": settings.mysql_host,
-    "port": settings.mysql_port,
+    "port": int(settings.mysql_port),
     "user": settings.mysql_user,
     "password": settings.mysql_password,
     "database": settings.mysql_dbname,

@@ -21,7 +21,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, StreamingResponse
 
 from backend.api.routes._limiter import limiter
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.datasets import (
     CollectionDeleteResponse,
     DatasetInfo,

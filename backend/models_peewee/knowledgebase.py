@@ -91,7 +91,7 @@ class Document(BaseModel):
     created_by = peewee.CharField(max_length=32, null=False, index=True)
     progress = peewee.FloatField(null=False, default=0, index=True)
     progress_msg = peewee.TextField(null=True, default="")
-    process_duation = peewee.FloatField(
+    process_duration = peewee.FloatField(
         null=False, default=0, help_text="Processing time in seconds"
     )
     doc_type = peewee.CharField(max_length=32, null=True, help_text="Document type")
@@ -126,7 +126,7 @@ class Document(BaseModel):
             created_by=created_by,
             progress=0,
             progress_msg="",
-            process_duation=0,
+            process_duration=0,
             doc_type=doc_type,
             doc_metadata={},
             meta_fields={},
@@ -210,7 +210,7 @@ class Task(BaseModel):
     task_type = peewee.CharField(max_length=32, null=False, default="")
     priority = peewee.IntegerField(null=False, default=0)
     begin_at = peewee.DateTimeField(null=True, index=True)
-    process_duation = peewee.FloatField(null=False, default=0)
+    process_duration = peewee.FloatField(null=False, default=0)
     progress = peewee.FloatField(null=False, default=0, index=True)
     progress_msg = peewee.TextField(null=True, default="")
     retry_count = peewee.IntegerField(null=False, default=0)
@@ -238,7 +238,7 @@ class Task(BaseModel):
             task_type=task_type,
             priority=priority,
             begin_at=None,
-            process_duation=0,
+            process_duration=0,
             progress=0,
             progress_msg="",
             retry_count=0,
@@ -255,7 +255,7 @@ class Task(BaseModel):
 
     def complete(self, duration: float):
         """Mark task as completed."""
-        self.process_duation = duration
+        self.process_duration = duration
         self.progress = 100
         self.save()
 

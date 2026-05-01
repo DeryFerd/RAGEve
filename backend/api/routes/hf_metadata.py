@@ -23,8 +23,11 @@ def _fetch_hf_card_metadata(
         from huggingface_hub import HfApi  # type: ignore[import-untyped]
 
         api = HfApi()
-        info = api.list_dataset_info(
-            dataset_id, files_metadata=False, use_auth_token=hf_token
+        kwargs: dict[str, Any] = {}
+        if hf_token:
+            kwargs["token"] = hf_token
+        info = api.dataset_info(
+            dataset_id, files_metadata=False, **kwargs
         )
 
         tags: list[str] = list(info.tags) if info.tags else []
@@ -44,8 +47,19 @@ def _fetch_hf_card_metadata(
             ) or info.card_data.get("paperswithcode_id")
             leaderboard = info.card_data.get("leaderboard")
 
+        # Convert card_data to dict if available
+        card_data_dict = None
+        if info.card_data:
+            try:
+                card_data_dict = info.card_data.to_dict()  # type: ignore[attr-defined]
+            except Exception:
+                try:
+                    card_data_dict = dict(info.card_data)
+                except Exception:
+                    card_data_dict = info.card_data  # Pass through as-is
+
         return {
-            "card_data": dict(info.card_data) if info.card_data else None,
+            "card_data": card_data_dict,
             "tags": tags,
             "language": language,
             "license": license_str,

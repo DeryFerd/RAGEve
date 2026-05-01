@@ -7,6 +7,8 @@ Endpoints for managing knowledgebases, documents, files, and ingestion tasks.
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 import time as _time
 from pathlib import Path
 from typing import List
@@ -23,7 +25,7 @@ from fastapi import (
 )
 
 from backend.api.routes._limiter import limiter
-from backend.config import settings
+from backend.config_loader import settings
 from backend.schemas.knowledgebases import (
     DocumentResponse,
     FileUploadResponse,
@@ -36,11 +38,59 @@ from backend.schemas.knowledgebases import (
 from backend.services.database import run_db_operation
 from backend.services.ingestion_factory import get_ingestion_service
 from backend.services.knowledge_base_store import get_knowledge_base_store
+from backend.services.minio_client import get_minio_client
+from backend.services.cache_service import get_cache_service
 from rag.storage.qdrant_store import QdrantStore
+from rag.ingestion.pipeline import SUPPORTED_EXTENSIONS
 
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledgebases", tags=["knowledgebases"])
+
+
+def _sanitize_filename(filename: str, use_uuid: bool = True) -> str:
+    """
+    Sanitize a user-provided filename to prevent path traversal attacks.
+
+    Strips directory paths, null bytes, and dangerous characters.
+    Returns a safe filename. If use_uuid=True, generates a UUID-based filename
+    with the original extension to avoid filename collisions and information leakage.
+    """
+    import uuid
+
+    if not filename:
+        if use_uuid:
+            return f"{uuid.uuid4().hex}.txt"
+        return "untitled"
+
+    # Remove null bytes
+    filename = filename.replace("\x00", "")
+
+    # Get only the basename (strip any path components)
+    path = Path(filename)
+    safe_name = path.name
+
+    # Remove path traversal sequences
+    if ".." in safe_name:
+        safe_name = safe_name.replace("..", "_")
+
+    # Replace dangerous path separators
+    safe_name = safe_name.replace("/", "_").replace("\\", "_")
+
+    # Strip leading/trailing dots and handle empty names
+    safe_name = safe_name.strip(".")
+    if not safe_name or safe_name in (".", ".."):
+        safe_name = "file" if not use_uuid else uuid.uuid4().hex
+
+    if use_uuid:
+        # Preserve extension but use UUID for the stem
+        ext = path.suffix.lower()
+        # Validate extension is supported
+        if ext not in SUPPORTED_EXTENSIONS:
+            ext = ".txt"
+        return f"{uuid.uuid4().hex}{ext}"
+    else:
+        return safe_name
 
 
 @router.post(
@@ -123,18 +173,44 @@ async def update_knowledgebase(
 async def delete_knowledgebase(request: Request, kb_id: str) -> None:
     """Delete a knowledge base and all its documents, files, and tasks."""
     store = get_knowledge_base_store()
-    # First, delete Qdrant collection if it exists
-    try:
-        qdrant: QdrantStore = get_ingestion_service().qdrant
-        await qdrant.delete_collection(kb_id)
-    except Exception as e:
-        _log.warning("Failed to delete Qdrant collection %s: %s", kb_id, e)
+    cache_service = get_cache_service()
 
-    # Delete knowledgebase and cascade
-    deleted = await run_db_operation(store.delete_knowledgebase, kb_id)
-    if not deleted:
+    # First, verify knowledgebase exists before any destructive operations
+    kb_exists = await run_db_operation(store.get_knowledgebase, kb_id)
+    if not kb_exists:
         raise HTTPException(
             status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
+
+    # Use atomic transaction: delete DB first, then invalidate cache on success
+    # If cache invalidation fails, we log but don't fail the request (cache will expire naturally)
+    try:
+        # Delete knowledgebase and cascade (this is atomic within the DB transaction)
+        deleted = await run_db_operation(store.delete_knowledgebase, kb_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+            )
+
+        # Delete Qdrant collection if it exists (non-blocking)
+        try:
+            qdrant: QdrantStore = get_ingestion_service().qdrant
+            qdrant.delete_collection(kb_id)
+        except Exception as e:
+            _log.warning("Failed to delete Qdrant collection %s: %s", kb_id, e)
+
+        # Invalidate cache AFTER successful deletion
+        try:
+            invalidated = await cache_service.invalidate_collection(kb_id)
+            _log.info("Invalidated %d cached items for KB %s (delete)", invalidated, kb_id)
+        except Exception as e:
+            _log.warning("Cache invalidation failed for KB %s (deletion succeeded): %s", kb_id, e)
+
+    except Exception as e:
+        # On any failure after existence check, attempt cache rollback if we invalidated prematurely
+        _log.error("Failed to delete knowledge base %s: %s", kb_id, e)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete knowledge base: {str(e)}"
         )
 
 
@@ -165,86 +241,160 @@ async def upload_files(
     # Determine created_by - for now use kb.created_by or a placeholder
     created_by = kb.created_by
 
-    upload_root: Path = settings.upload_root / kb_id
-    upload_root.mkdir(parents=True, exist_ok=True)
-
     results: list[FileUploadResponse] = []
+    minio_client = get_minio_client()
 
     for upload in files:
-        # Read file bytes
-        file_bytes = await upload.read()
-        file_size = len(file_bytes)
-        # Validate file size
-        if file_size > settings.max_upload_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File '{upload.filename}' exceeds maximum size of {settings.max_upload_bytes} bytes",
+        # SECURITY: Check Content-Length header BEFORE reading any data
+        # This prevents memory exhaustion from reading huge files into memory
+        content_length = upload.size or request.headers.get("content-length")
+        if content_length:
+            try:
+                content_length_int = int(content_length)
+                if content_length_int > settings.max_upload_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File '{upload.filename}' exceeds maximum size of {settings.max_upload_bytes} bytes (Content-Length: {content_length_int})",
+                    )
+            except (ValueError, TypeError):
+                pass  # Invalid content-length, will catch during actual read
+
+        # Validate filename BEFORE processing
+        original_filename = upload.filename or "untitled"
+        safe_filename = _sanitize_filename(original_filename)
+        if safe_filename != original_filename:
+            _log.warning(
+                "Filename sanitized: '%s' -> '%s'",
+                original_filename,
+                safe_filename,
             )
-        file_name = upload.filename or "untitled"
-        file_ext = Path(file_name).suffix.lower()
-        # Basic type from extension
+
+        file_ext = Path(safe_filename).suffix.lower()
         file_type = file_ext.lstrip(".") if file_ext else "unknown"
 
-        # Save to disk
-        dest_path = upload_root / file_name
-        dest_path.write_bytes(file_bytes)
-
-        # Create File record
-        file_rec = await run_db_operation(
-            store.create_file,
-            name=file_name,
-            size=file_size,
-            file_type=file_type,
-            created_by=created_by,
-            source_type="upload",
-        )
-
-        # Create Document record
-        doc_rec = await run_db_operation(
-            store.create_document,
-            kb_id=kb_id,
-            name=file_name,
-            parser_id=parser_id,
-            created_by=created_by,
-            doc_type=file_type,
-        )
-
-        # Link file to document
-        await run_db_operation(store.link_file_to_document, file_rec.id, doc_rec.id)
-
-        # Create Task for ingestion
-        task_rec = await run_db_operation(
-            store.create_task,
-            doc_id=doc_rec.id,
-            task_type="ingestion",
-            from_page=0,
-            to_page=100000000,
-        )
-
-        # Kick off background ingestion
-        # We'll run the ingestion in a separate asyncio task, updating Task and Document as we go.
-        background_tasks.add_task(
-            run_ingestion_background,
-            task_id=task_rec.id,
-            doc_id=doc_rec.id,
-            kb_id=kb_id,
-            file_path=dest_path,
-            parser_id=parser_id,
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
-
-        results.append(
-            FileUploadResponse(
-                filename=file_name,
-                file_id=file_rec.id,
-                doc_id=doc_rec.id,
-                task_id=task_rec.id,
-                size=file_size,
-                file_type=file_type,
-                status="queued",
+        # SECURITY: Validate file extension against whitelist
+        if file_ext not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File type '{file_ext}' is not supported. Supported extensions: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
             )
-        )
+
+        # Stream file to temporary location to avoid memory exhaustion
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                suffix=file_ext if file_ext else ".tmp",
+                delete=False,
+            ) as tmp:
+                temp_file_path = tmp.name
+                # Stream in chunks to avoid loading entire file into memory
+                chunk_size_stream = 1024 * 1024  # 1MB chunks
+                total_read = 0
+                while True:
+                    chunk = await upload.read(chunk_size_stream)
+                    if not chunk:
+                        break
+                    total_read += len(chunk)
+                    if total_read > settings.max_upload_bytes:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"File '{safe_filename}' exceeds maximum size of {settings.max_upload_bytes} bytes",
+                        )
+                    tmp.write(chunk)
+
+            # Get actual file size
+            file_size = total_read
+
+            # SECURITY: Validate MIME type using both extension and magic bytes
+            from backend.services.file_processor import validate_mime_type
+            mime_valid, mime_type, mime_error = validate_mime_type(temp_file_path, safe_filename)
+            if not mime_valid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid file type: {mime_error}",
+                )
+
+            # Read bytes for MinIO upload (file is now on disk, not in memory)
+            with open(temp_file_path, "rb") as f:
+                file_bytes = f.read()
+
+            # Upload to MinIO
+            minio_key = minio_client.get_upload_path(kb_id, safe_filename)
+            try:
+                await minio_client.upload_file(minio_key, file_bytes, content_type=mime_type)
+            except Exception as e:
+                _log.error("Failed to upload file to MinIO: %s", e)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to store file: {str(e)}",
+                )
+
+            # Create File record
+            file_rec = await run_db_operation(
+                store.create_file,
+                name=safe_filename,
+                size=file_size,
+                file_type=mime_type.split("/")[0] if "/" in mime_type else file_type,
+                created_by=created_by,
+                source_type="upload",
+            )
+
+            # Create Document record
+            doc_rec = await run_db_operation(
+                store.create_document,
+                kb_id=kb_id,
+                name=safe_filename,
+                parser_id=parser_id,
+                created_by=created_by,
+                doc_type=file_type,
+            )
+
+            # Link file to document
+            await run_db_operation(store.link_file_to_document, file_rec.id, doc_rec.id)
+
+            # Create Task for ingestion
+            task_rec = await run_db_operation(
+                store.create_task,
+                doc_id=doc_rec.id,
+                task_type="ingestion",
+                from_page=0,
+                to_page=100000000,
+            )
+
+            # Kick off background ingestion, passing temp file to avoid re-download
+            background_tasks.add_task(
+                run_ingestion_background,
+                task_id=task_rec.id,
+                doc_id=doc_rec.id,
+                kb_id=kb_id,
+                minio_key=minio_key,
+                parser_id=parser_id,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                temp_file_path=temp_file_path,  # Pass to avoid re-download
+            )
+            temp_file_path = None  # Background task now owns cleanup
+
+            results.append(
+                FileUploadResponse(
+                    filename=safe_filename,
+                    file_id=file_rec.id,
+                    doc_id=doc_rec.id,
+                    task_id=task_rec.id,
+                    size=file_size,
+                    file_type=mime_type.split("/")[0] if "/" in mime_type else file_type,
+                    status="queued",
+                )
+            )
+
+        finally:
+            # Clean up temp file if not passed to background task
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except OSError:
+                    pass
 
     return results
 
@@ -253,27 +403,56 @@ async def run_ingestion_background(
     task_id: str,
     doc_id: str,
     kb_id: str,
-    file_path: Path,
-    parser_id: str,
+    minio_key: str | None = None,
+    parser_id: str | None = None,
     chunk_size: int | None = None,
     chunk_overlap: int | None = None,
+    temp_file_path: str | None = None,  # Optional pre-downloaded temp file
 ):
     """Background task to run ingestion and update Task/Document records."""
+    import os
+
     store = get_knowledge_base_store()
     ingestion = get_ingestion_service()
+    minio_client = get_minio_client()
+    cache_service = get_cache_service()
 
     # Mark task as started
     await run_db_operation(store.start_task, task_id)
     t0 = _time.monotonic()
 
+    temp_file_path_local: str | None = temp_file_path
+
     try:
-        # Update document progress: starting
         await run_db_operation(
             store.update_document_progress,
             doc_id,
-            progress=5.0,
+            progress=10.0,
             progress_msg="Starting ingestion",
         )
+
+        # If no temp file provided, we need to either use it directly
+        # or download from MinIO
+        file_path = Path(temp_file_path_local) if temp_file_path_local else None
+
+        if not file_path or not file_path.exists():
+            # Download from MinIO
+            if not minio_key:
+                raise ValueError("No file path provided and no MinIO key available for download")
+            await run_db_operation(
+                store.update_document_progress,
+                doc_id,
+                progress=15.0,
+                progress_msg="Downloading file from MinIO",
+            )
+            file_bytes = await minio_client.download_file(minio_key)
+            filename = Path(minio_key).name
+            with tempfile.NamedTemporaryFile(
+                suffix=Path(filename).suffix, delete=False
+            ) as tmp:
+                tmp.write(file_bytes)
+                temp_file_path_local = tmp.name
+            file_path = Path(temp_file_path_local)
 
         # Run ingestion
         result = await ingestion.ingest_file(
@@ -281,10 +460,16 @@ async def run_ingestion_background(
             dataset_id=kb_id,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            # force_profile could be passed if needed
         )
 
         elapsed = _time.monotonic() - t0
+
+        # Invalidate cache for this knowledge base after successful ingestion
+        try:
+            invalidated = await cache_service.invalidate_collection(kb_id)
+            _log.info("Invalidated %d cached items for KB %s", invalidated, kb_id)
+        except Exception as e:
+            _log.warning("Cache invalidation failed for KB %s: %s", kb_id, e)
 
         # Update document as complete
         await run_db_operation(
@@ -318,6 +503,13 @@ async def run_ingestion_background(
             progress=-1.0,
             progress_msg=f"Ingestion failed: {str(e)}",
         )
+    finally:
+        # Clean up temp file only if we created it (not passed from upload)
+        if temp_file_path_local and (temp_file_path_local != temp_file_path):
+            try:
+                os.unlink(temp_file_path_local)
+            except OSError:
+                pass
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
@@ -422,56 +614,132 @@ async def upload_file_to_document(
     if not doc:
         raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
     kb_id = doc.kb_id
-    # Read file
-    file_bytes = await file.read()
-    file_size = len(file_bytes)
-    file_name = file.filename or "untitled"
-    file_ext = Path(file_name).suffix.lower()
+
+    # SECURITY: Check Content-Length header BEFORE reading
+    content_length = file.size or request.headers.get("content-length")
+    if content_length:
+        try:
+            content_length_int = int(content_length)
+            if content_length_int > settings.max_upload_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File '{file.filename}' exceeds maximum size of {settings.max_upload_bytes} bytes",
+                )
+        except (ValueError, TypeError):
+            pass
+
+    # Validate filename
+    original_filename = file.filename or "untitled"
+    safe_filename = _sanitize_filename(original_filename)
+
+    file_ext = Path(safe_filename).suffix.lower()
     file_type = file_ext.lstrip(".") if file_ext else "unknown"
-    # Save to disk
-    upload_root: Path = settings.upload_root / kb_id
-    upload_root.mkdir(parents=True, exist_ok=True)
-    dest_path = upload_root / file_name
-    dest_path.write_bytes(file_bytes)
-    # Create File record
-    file_rec = await run_db_operation(
-        store.create_file,
-        name=file_name,
-        size=file_size,
-        file_type=file_type,
-        created_by=doc.created_by,
-        source_type="upload",
-    )
-    # Link file to document
-    await run_db_operation(store.link_file_to_document, file_rec.id, doc_id)
-    # Create Task for ingestion
-    task_rec = await run_db_operation(
-        store.create_task,
-        doc_id=doc_id,
-        task_type="ingestion",
-        from_page=0,
-        to_page=100000000,
-    )
-    # Kick off background ingestion
-    background_tasks.add_task(
-        run_ingestion_background,
-        task_id=task_rec.id,
-        doc_id=doc_id,
-        kb_id=kb_id,
-        file_path=dest_path,
-        parser_id=doc.parser_id,
-        chunk_size=None,
-        chunk_overlap=None,
-    )
-    return FileUploadResponse(
-        filename=file_name,
-        file_id=file_rec.id,
-        doc_id=doc_id,
-        task_id=task_rec.id,
-        size=file_size,
-        file_type=file_type,
-        status="queued",
-    )
+
+    # Validate extension
+    if file_ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type '{file_ext}' is not supported. Supported extensions: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+        )
+
+    # Stream to temp file
+    temp_file_path = None
+    minio_client = get_minio_client()
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=file_ext if file_ext else ".tmp",
+            delete=False,
+        ) as tmp:
+            temp_file_path = tmp.name
+            chunk_size_stream = 1024 * 1024
+            total_read = 0
+            while True:
+                chunk = await file.read(chunk_size_stream)
+                if not chunk:
+                    break
+                total_read += len(chunk)
+                if total_read > settings.max_upload_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File '{safe_filename}' exceeds maximum size of {settings.max_upload_bytes} bytes",
+                    )
+                tmp.write(chunk)
+
+        file_size = total_read
+
+        # Validate MIME type
+        from backend.services.file_processor import validate_mime_type
+        mime_valid, mime_type, mime_error = validate_mime_type(temp_file_path, safe_filename)
+        if not mime_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid file type: {mime_error}",
+            )
+
+        # Read for MinIO upload
+        with open(temp_file_path, "rb") as f:
+            file_bytes = f.read()
+
+        minio_key = minio_client.get_upload_path(kb_id, safe_filename)
+        try:
+            await minio_client.upload_file(minio_key, file_bytes, content_type=mime_type)
+        except Exception as e:
+            _log.error("Failed to upload file to MinIO: %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to store file: {str(e)}",
+            )
+
+        # Create File record
+        file_rec = await run_db_operation(
+            store.create_file,
+            name=safe_filename,
+            size=file_size,
+            file_type=mime_type.split("/")[0] if "/" in mime_type else file_type,
+            created_by=doc.created_by,
+            source_type="upload",
+        )
+        # Link file to document
+        await run_db_operation(store.link_file_to_document, file_rec.id, doc_id)
+        # Create Task for ingestion
+        task_rec = await run_db_operation(
+            store.create_task,
+            doc_id=doc_id,
+            task_type="ingestion",
+            from_page=0,
+            to_page=100000000,
+        )
+        # Kick off background ingestion
+        background_tasks.add_task(
+            run_ingestion_background,
+            task_id=task_rec.id,
+            doc_id=doc_id,
+            kb_id=kb_id,
+            minio_key=minio_key,
+            parser_id=doc.parser_id,
+            chunk_size=None,
+            chunk_overlap=None,
+            temp_file_path=temp_file_path,
+        )
+        temp_file_path = None
+
+        return FileUploadResponse(
+            filename=safe_filename,
+            file_id=file_rec.id,
+            doc_id=doc_id,
+            task_id=task_rec.id,
+            size=file_size,
+            file_type=mime_type.split("/")[0] if "/" in mime_type else file_type,
+            status="queued",
+        )
+
+    finally:
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
 
 
 @router.get("/{kb_id}/documents", response_model=list[DocumentResponse])
