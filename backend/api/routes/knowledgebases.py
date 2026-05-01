@@ -214,7 +214,7 @@ async def delete_knowledgebase(request: Request, kb_id: str) -> None:
         )
 
 
-@router.post("/{kb_id}/upload", response_model=FileUploadResponse)
+@router.post("/{kb_id}/upload", response_model=list[FileUploadResponse])
 @limiter.limit("60/minute")
 async def upload_files(
     request: Request,
@@ -362,7 +362,7 @@ async def upload_files(
                 to_page=100000000,
             )
 
-            # Kick off background ingestion, passing temp file to avoid re-download
+            # Kick off background ingestion
             background_tasks.add_task(
                 run_ingestion_background,
                 task_id=task_rec.id,
@@ -372,9 +372,7 @@ async def upload_files(
                 parser_id=parser_id,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                temp_file_path=temp_file_path,  # Pass to avoid re-download
             )
-            temp_file_path = None  # Background task now owns cleanup
 
             results.append(
                 FileUploadResponse(
@@ -389,7 +387,7 @@ async def upload_files(
             )
 
         finally:
-            # Clean up temp file if not passed to background task
+            # Clean up temp file
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.unlink(temp_file_path)
@@ -407,7 +405,6 @@ async def run_ingestion_background(
     parser_id: str | None = None,
     chunk_size: int | None = None,
     chunk_overlap: int | None = None,
-    temp_file_path: str | None = None,  # Optional pre-downloaded temp file
 ):
     """Background task to run ingestion and update Task/Document records."""
     import os
@@ -421,7 +418,7 @@ async def run_ingestion_background(
     await run_db_operation(store.start_task, task_id)
     t0 = _time.monotonic()
 
-    temp_file_path_local: str | None = temp_file_path
+    temp_file_path_local: str | None = None
 
     try:
         await run_db_operation(
@@ -431,28 +428,26 @@ async def run_ingestion_background(
             progress_msg="Starting ingestion",
         )
 
-        # If no temp file provided, we need to either use it directly
-        # or download from MinIO
-        file_path = Path(temp_file_path_local) if temp_file_path_local else None
+        # Download file from MinIO
+        if not minio_key:
+            raise ValueError("No MinIO key available for download")
 
-        if not file_path or not file_path.exists():
-            # Download from MinIO
-            if not minio_key:
-                raise ValueError("No file path provided and no MinIO key available for download")
-            await run_db_operation(
-                store.update_document_progress,
-                doc_id,
-                progress=15.0,
-                progress_msg="Downloading file from MinIO",
-            )
-            file_bytes = await minio_client.download_file(minio_key)
-            filename = Path(minio_key).name
-            with tempfile.NamedTemporaryFile(
-                suffix=Path(filename).suffix, delete=False
-            ) as tmp:
-                tmp.write(file_bytes)
-                temp_file_path_local = tmp.name
-            file_path = Path(temp_file_path_local)
+        await run_db_operation(
+            store.update_document_progress,
+            doc_id,
+            progress=15.0,
+            progress_msg="Downloading file from MinIO",
+        )
+        file_bytes = await minio_client.download_file(minio_key)
+        filename = Path(minio_key).name
+        # Write to temp file (delete=False so it persists for ingestion)
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=Path(filename).suffix, delete=False
+        )
+        tmp.write(file_bytes)
+        tmp.close()
+        temp_file_path_local = tmp.name
+        file_path = Path(temp_file_path_local)
 
         # Run ingestion
         result = await ingestion.ingest_file(
@@ -504,8 +499,8 @@ async def run_ingestion_background(
             progress_msg=f"Ingestion failed: {str(e)}",
         )
     finally:
-        # Clean up temp file only if we created it (not passed from upload)
-        if temp_file_path_local and (temp_file_path_local != temp_file_path):
+        # Clean up temp file created during download
+        if 'temp_file_path_local' in dir() and temp_file_path_local and os.path.exists(temp_file_path_local):
             try:
                 os.unlink(temp_file_path_local)
             except OSError:
@@ -720,7 +715,6 @@ async def upload_file_to_document(
             parser_id=doc.parser_id,
             chunk_size=None,
             chunk_overlap=None,
-            temp_file_path=temp_file_path,
         )
         temp_file_path = None
 

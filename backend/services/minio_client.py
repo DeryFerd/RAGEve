@@ -2,6 +2,7 @@
 MinIO (S3-compatible) object storage client for RAGEve.
 
 Provides async interface for file operations used by the ingestion pipeline.
+Uses boto3 with proper signature version for MinIO compatibility.
 """
 
 from __future__ import annotations
@@ -31,13 +32,16 @@ class MinIOClient:
         self.bucket = settings.minio.bucket
         self.prefix = settings.minio.prefix_path or ""
 
-        # Initialize boto3 client
+        # Initialize boto3 client with signature_version='s3v4' for MinIO
         self.client = boto3.client(
             "s3",
             endpoint_url=self.endpoint,
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
-            config=Config(signature_version="s3v4"),
+            config=Config(
+                signature_version='s3v4',
+                s3={'payload_signing_enabled': False, 'payload_checksum_algorithm': None},
+            ),
             use_ssl=self.secure,
         )
 
@@ -54,9 +58,10 @@ class MinIOClient:
             if error_code == "404":
                 _log.info("Creating MinIO bucket '%s'", self.bucket)
                 self.client.create_bucket(Bucket=self.bucket)
+            elif error_code == "403":
+                _log.warning("Access denied for MinIO bucket '%s' check credentials", self.bucket)
             else:
-                _log.error("Error checking MinIO bucket: %s", e)
-                raise
+                _log.warning("Could not verify MinIO bucket '%s': %s", self.bucket, e)
 
     def _get_key(self, path: str) -> str:
         """Build full object key with prefix."""
@@ -82,10 +87,12 @@ class MinIOClient:
             extra_args["ContentType"] = content_type
 
         try:
+            # Use bytes directly - BytesIO can cause signature mismatch with MinIO
             self.client.put_object(
                 Bucket=self.bucket,
                 Key=full_key,
-                Body=io.BytesIO(data),
+                Body=data,
+                ContentLength=len(data),
                 **extra_args,
             )
             url = f"{self.endpoint}/{self.bucket}/{full_key}"
