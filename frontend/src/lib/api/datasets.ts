@@ -4,7 +4,6 @@ import type {
   DatasetListResponse,
   HuggingFaceRegisterResponse,
   IngestRequest,
-  IngestResponse,
   ProcessedFileResponse,
   CollectionDeleteResponse,
   HFIngestSubmitResponse,
@@ -18,9 +17,10 @@ import type {
   HuggingFacePreviewResponse,
   HuggingFaceStatusResponse,
   HuggingFaceStatusTextsResponse,
-  UploadProgressEvent,
   UploadProgressHandlers,
   KbTaskResponse,
+  KnowledgebaseResponse,
+  KbDocumentResponse,
 } from "@/lib/types";
 
 // Import knowledgebases API functions
@@ -28,6 +28,8 @@ import {
   listKnowledgebases,
   uploadFilesToKnowledgebase,
   deleteKnowledgebase,
+  getKnowledgebase,
+  listDocuments,
 } from "./knowledgebases";
 
 // ── Core knowledge base operations (adapted to legacy Dataset* types) ─────────────
@@ -40,6 +42,7 @@ export async function listDatasets(): Promise<DatasetListResponse> {
   const res = await listKnowledgebases();
   const datasets: DatasetInfo[] = res.knowledgebases.map((kb): DatasetInfo => ({
     dataset_id: kb.id,
+    name: kb.name,
     collection: kb.id,
     chunks_count: 0,
     vector_size: 0,
@@ -126,7 +129,7 @@ export async function uploadFilesStreaming(
             file: fileInfo.filename,
             file_index: fileInfo.index + 1,
             file_total: totalFiles,
-            result: {} as any,
+            result: {} as ProcessedFileResponse,
           });
         }
       } catch (err) {
@@ -160,6 +163,7 @@ export async function uploadFilesStreaming(
 export async function getDatasetInfo(kbId: string): Promise<DatasetInfo> {
   return {
     dataset_id: kbId,
+    name: kbId,
     collection: kbId,
     chunks_count: 0,
     vector_size: 0,
@@ -177,6 +181,25 @@ export async function deleteDataset(kbId: string): Promise<CollectionDeleteRespo
     deleted: true,
     message: `Dataset '${kbId}' deleted.`,
   };
+}
+
+/**
+ * Get full details for a single knowledge base.
+ * Wraps getKnowledgebase() from knowledgebases.ts.
+ */
+export async function getDatasetDetail(kbId: string): Promise<KnowledgebaseResponse> {
+  return getKnowledgebase(kbId);
+}
+
+/**
+ * List all documents for a specific knowledge base.
+ * Wraps listDocuments() from knowledgebases.ts.
+ */
+export async function listDocumentsForDataset(
+  kbId: string
+): Promise<KbDocumentResponse[]> {
+  const res = await listDocuments({ kb_id: kbId });
+  return res;
 }
 
 // ── HuggingFace operations (unchanged) ───────────────────────────────────────────

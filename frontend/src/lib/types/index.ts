@@ -202,6 +202,7 @@ export interface IngestResponse {
 
 export interface DatasetInfo {
   dataset_id: string;
+  name: string;
   collection: string;
   chunks_count: number;
   vector_size: number;

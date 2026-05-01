@@ -1,0 +1,131 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.uploadRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.fileList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.fileName {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.fileSize {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.removeBtn:hover:not(:disabled) {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.removeBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.progressSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-secondary);
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progressStage {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.progressPct {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.progressBar {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 220ms ease;
+}
+
+.progressMessage {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.progressFile {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
