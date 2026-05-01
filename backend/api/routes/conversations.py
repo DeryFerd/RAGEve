@@ -12,10 +12,12 @@ from __future__ import annotations
 import time as _time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
+from backend.models_peewee import User
 from backend.schemas.conversations import (
     AppendMessageRequest,
     ConversationContextResponse,
@@ -34,6 +36,43 @@ from backend.services.tenant_user_store import get_tenant_user_store
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
+async def _ensure_dialog_access(user: User, dialog_id: str):
+    dialog_store = get_dialog_store()
+    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
+    if not dialog:
+        raise HTTPException(
+            status_code=404, detail=f"Dialog '{dialog_id}' not found"
+        )
+
+    if user.is_admin or dialog.tenant_id == user.id:
+        return dialog
+
+    tenant_store = get_tenant_user_store()
+    role = await run_db_operation(
+        tenant_store.get_user_role_in_tenant, user.id, dialog.tenant_id
+    )
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this dialog",
+        )
+    return dialog
+
+
+async def _ensure_conversation_access(user: User, conv) -> None:
+    if user.is_admin:
+        return
+    if conv.user_id:
+        if conv.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this conversation",
+            )
+        return
+    # Legacy conversations may not have user_id: fall back to dialog tenant access.
+    await _ensure_dialog_access(user, conv.dialog_id)
+
+
 @router.post(
     "/", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED
 )
@@ -41,8 +80,11 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 async def create_conversation(
     payload: ConversationCreate,
     request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),
 ) -> ConversationResponse:
     """Create a new conversation for a dialog (agent)."""
+    await _ensure_dialog_access(user, payload.dialog_id)
+
     store = get_conversation_store()
     conv = await run_db_operation(
         store.create_conversation,
@@ -50,7 +92,7 @@ async def create_conversation(
         name=payload.name,
         messages=payload.messages,
         reference=payload.reference,
-        user_id=payload.user_id,
+        user_id=user.id,
     )
     conv_dict = conv.to_dict()
     return ConversationResponse(**conv_dict)
@@ -64,13 +106,20 @@ async def list_conversations(
     user_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
 ) -> ConversationListResponse:
     """List conversations, optionally filtered by dialog_id or user_id."""
+    effective_user_id = user_id
+    if not user.is_admin:
+        effective_user_id = user.id
+        if dialog_id:
+            await _ensure_dialog_access(user, dialog_id)
+
     store = get_conversation_store()
     conversations, total = await run_db_operation(
         store.list_conversations,
         dialog_id=dialog_id,
-        user_id=user_id,
+        user_id=effective_user_id,
         limit=limit,
         offset=offset,
     )
@@ -85,7 +134,9 @@ async def list_conversations(
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 @limiter.limit("120/minute")
 async def get_conversation(
-    conversation_id: str, request: Request
+    conversation_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
 ) -> ConversationResponse:  # noqa: F841
     """Get a conversation by ID, including its message history."""
     store = get_conversation_store()
@@ -94,6 +145,7 @@ async def get_conversation(
         raise HTTPException(
             status_code=404, detail=f"Conversation '{conversation_id}' not found"
         )
+    await _ensure_conversation_access(user, conv)
     conv_dict = conv.to_dict()
     return ConversationResponse(**conv_dict)
 
@@ -101,10 +153,20 @@ async def get_conversation(
 @router.put("/{conversation_id}", response_model=ConversationResponse)
 @limiter.limit("60/minute")
 async def update_conversation(
-    conversation_id: str, payload: ConversationUpdate, request: Request  # noqa: F841
+    conversation_id: str,
+    payload: ConversationUpdate,
+    request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),
 ) -> ConversationResponse:
     """Update conversation metadata (name, reference)."""
     store = get_conversation_store()
+    existing = await run_db_operation(store.get_conversation, conversation_id)
+    if not existing:
+        raise HTTPException(
+            status_code=404, detail=f"Conversation '{conversation_id}' not found"
+        )
+    await _ensure_conversation_access(user, existing)
+
     updates = payload.dict(exclude_unset=True)
     conv = await run_db_operation(store.update_conversation, conversation_id, **updates)
     if not conv:
@@ -118,10 +180,19 @@ async def update_conversation(
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
 async def delete_conversation(
-    conversation_id: str, request: Request
+    conversation_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
 ) -> None:  # noqa: F841
     """Delete a conversation and all its messages."""
     store = get_conversation_store()
+    existing = await run_db_operation(store.get_conversation, conversation_id)
+    if not existing:
+        raise HTTPException(
+            status_code=404, detail=f"Conversation '{conversation_id}' not found"
+        )
+    await _ensure_conversation_access(user, existing)
+
     deleted = await run_db_operation(store.delete_conversation, conversation_id)
     if not deleted:
         raise HTTPException(
@@ -132,10 +203,20 @@ async def delete_conversation(
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
 @limiter.limit("120/minute")
 async def append_message(
-    conversation_id: str, payload: AppendMessageRequest, request: Request  # noqa: F841
+    conversation_id: str,
+    payload: AppendMessageRequest,
+    request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),
 ) -> MessageResponse:
     """Append a message to the conversation."""
     store = get_conversation_store()
+    conv = await run_db_operation(store.get_conversation, conversation_id)
+    if not conv:
+        raise HTTPException(
+            status_code=404, detail=f"Conversation '{conversation_id}' not found"
+        )
+    await _ensure_conversation_access(user, conv)
+
     msg = await run_db_operation(
         store.append_message,
         conversation_id,
@@ -157,9 +238,17 @@ async def get_conversation_context(
     request: Request,  # noqa: F841
     conversation_id: str,
     max_turns: int = Query(default=6, ge=1, le=20),
+    user: User = Depends(get_current_user),
 ) -> ConversationContextResponse:
     """Get conversation history formatted for LLM context."""
     store = get_conversation_store()
+    conv = await run_db_operation(store.get_conversation, conversation_id)
+    if not conv:
+        raise HTTPException(
+            status_code=404, detail=f"Conversation '{conversation_id}' not found"
+        )
+    await _ensure_conversation_access(user, conv)
+
     context = await run_db_operation(
         store.get_conversation_context, conversation_id, max_turns=max_turns
     )
@@ -180,6 +269,7 @@ async def chat_stream_with_conversation(
     use_reranker: bool = Query(default=False),
     reranker_model: str | None = Query(default=None),
     score_threshold: float = Query(default=0.0, ge=0.0, le=1.0),
+    user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Streaming RAG chat with conversation history.
@@ -201,6 +291,7 @@ async def chat_stream_with_conversation(
         raise HTTPException(
             status_code=404, detail=f"Conversation '{conversation_id}' not found"
         )
+    await _ensure_conversation_access(user, conv)
 
     dialog = await run_db_operation(dialog_store.get_dialog, conv.dialog_id)
     if not dialog:
