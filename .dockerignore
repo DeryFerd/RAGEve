@@ -1,0 +1,67 @@
+# Docker build exclusions
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+*.egg-info
+dist
+build
+*.egg
+.pytest_cache
+.coverage
+htmlcov
+
+# Node.js
+node_modules
+.npm
+.next/cache
+.next/trace
+out
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker data (persistent volumes - exclude from build context)
+docker/data/*
+!docker/data/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+test_api.db
+test/
+.coverage
+.python-version
+
+# uv
+.uv
