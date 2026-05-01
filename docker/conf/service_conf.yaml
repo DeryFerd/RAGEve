@@ -1,0 +1,108 @@
+# RAGEve Service Configuration
+# This file is loaded by the backend at startup.
+# Values are substituted from environment variables (${VAR_NAME}).
+
+app:
+  name: "RAGEve"
+  env: ${RAGEVE_ENV:-dev}
+
+mysql:
+  host: ${MYSQL_HOST:-mysql}
+  port: ${MYSQL_PORT:-3306}
+  user: ${MYSQL_USER:-root}
+  password: ${MYSQL_ROOT_PASSWORD:-rag_eve}
+  dbname: ${MYSQL_DBNAME:-rag_eve}
+  max_connections: 900
+  stale_timeout: 300
+  max_allowed_packet: 1073741824
+
+minio:
+  host: ${MINIO_HOST:-minio}:9000
+  user: ${MINIO_USER:-rag_eve}
+  password: ${MINIO_PASSWORD:-rag_eve}
+  bucket: ${MINIO_BUCKET:-rageve}
+  prefix_path: ${MINIO_PREFIX_PATH:-}
+  secure: false
+
+redis:
+  host: ${REDIS_HOST:-redis}
+  port: ${REDIS_PORT:-6379}
+  db: ${REDIS_DB:-0}
+  password: ${REDIS_PASSWORD:-rag_eve}
+
+qdrant:
+  url: ${QDRANT_URL:-http://qdrant:6333}
+  api_key: ${QDRANT_API_KEY:-}
+
+ollama:
+  base_url: ${OLLAMA_BASE_URL:-http://localhost:11434}
+  timeout: ${OLLAMA_TIMEOUT:-300}
+
+cors:
+  origins: ${CORS_ORIGINS:-http://localhost:3000}
+
+security:
+  api_key: ${API_KEY:-}
+  rate_limit_per_minute: ${RATE_LIMIT_PER_MINUTE:-120}
+  trusted_proxy_count: ${TRUSTED_PROXY_COUNT:-1}
+  jwt_secret_key: ${JWT_SECRET_KEY:-change-me-in-production}
+  jwt_expire_minutes: ${JWT_EXPIRE_MINUTES:-1440}
+
+frontend:
+  url: ${FRONTEND_URL:-http://localhost:3000}
+
+smtp:
+  dev_mode: ${SMTP_DEV_MODE:-console}
+  host: ${SMTP_HOST:-}
+  port: ${SMTP_PORT:-587}
+  user: ${SMTP_USER:-}
+  password: ${SMTP_PASSWORD:-}
+  from: ${SMTP_FROM:-noreply@rageve.local}
+  use_tls: ${SMTP_USE_TLS:-true}
+
+huggingface:
+  token: ${HF_TOKEN:-}
+
+storage:
+  data_root: ${DATA_ROOT:-./data}
+  upload_dir_name: ${UPLOAD_DIR_NAME:-uploads}
+  chunk_dir_name: ${CHUNK_DIR_NAME:-chunks}
+  vector_dir_name: ${VECTOR_DIR_NAME:-vector}
+
+chunking:
+  default_size: ${DEFAULT_CHUNK_SIZE:-1200}
+  default_overlap: ${DEFAULT_CHUNK_OVERLAP:-180}
+  default_max_tokens: ${DEFAULT_MAX_TOKENS_PER_CHUNK:-500}
+
+pdf_parsing:
+  enable_column_detection: ${ENABLE_COLUMN_DETECTION:-true}
+  enable_structured_tables: ${ENABLE_STRUCTURED_TABLES:-true}
+  enable_hierarchical_chunking: ${ENABLE_HIERARCHICAL_CHUNKING:-true}
+  enable_reading_order_optimization: ${ENABLE_READING_ORDER_OPTIMIZATION:-true}
+
+ocr:
+  engine: ${OCR_ENGINE:-paddle}
+  threshold_chars: ${OCR_THRESHOLD_CHARS:-50}
+
+column_detection:
+  histogram_bins: ${COLUMN_HISTOGRAM_BINS:-50}
+  peak_threshold: ${COLUMN_PEAK_THRESHOLD:-0.3}
+  min_gap: ${COLUMN_MIN_GAP:-20.0}
+
+pdfplumber:
+  table_strategy: ${PDFPLUMBER_TABLE_STRATEGY:-text}
+  snap_tolerance: ${PDFPLUMBER_SNAP_TOLERANCE:-3.0}
+  join_tolerance: ${PDFPLUMBER_JOIN_TOLERANCE:-3.0}
+
+limits:
+  max_upload_bytes: ${MAX_UPLOAD_BYTES:-524288000}
+  max_dataset_bytes: ${MAX_DATASET_BYTES:-107374182400}
+
+logging:
+  level: ${LOG_LEVEL:-INFO}
+  dir: ${DATA_ROOT:-/app/data}/logs
+
+cache:
+  embedding_ttl: ${CACHE_EMBEDDING_TTL:-604800}  # 7 days in seconds
+  search_ttl: ${CACHE_SEARCH_TTL:-3600}          # 1 hour
+  answer_ttl: ${CACHE_ANSWER_TTL:-1800}          # 30 minutes
