@@ -38,7 +38,15 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt<4.0",
+    "filetype>=1.2.0",  # MIME type detection via magic bytes
     "pytest>=9.0.3",
+    # MinIO (S3-compatible) client
+    "boto3>=1.35.0",
+    # Redis async client
+    "redis>=5.0.0",
+    # YAML and env loading
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
