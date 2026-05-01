@@ -19,7 +19,7 @@ import peewee
 from peewee import SqliteDatabase
 
 import backend.models_peewee as mp
-from backend.config import settings
+from backend.config_loader import settings
 from backend.models_peewee import (
     LLM,
     MCP,

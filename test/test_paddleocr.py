@@ -13,7 +13,7 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
-from backend.config import settings
+from backend.config_loader import settings
 from rag.ingestion.extractors import Extractors
 from rag.ingestion.ocr import get_ocr_engine, ocr_pdf
 

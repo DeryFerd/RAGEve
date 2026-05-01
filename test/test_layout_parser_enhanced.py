@@ -306,7 +306,7 @@ def test_enhanced_parsing_with_real_pdf():
     if not pdf_path.exists():
         pytest.skip(f"Test PDF not found: {pdf_path}")
 
-    from backend.config import Settings
+    from backend.config_loader import Settings
     from rag.ingestion.pipeline import run_deepdoc_ingestion
 
     # Override settings to enable features

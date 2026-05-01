@@ -113,6 +113,7 @@ class TestKnowledgebasesAPI(APITestBase):
         assert data["name"] == "Test Document"
         assert data["kb_id"] == self.kb_id
         self.__class__.doc_id = data["id"]
+        print(f"DEBUG: Set doc_id to {self.doc_id!r}, class doc_id = {self.__class__.doc_id!r}")
 
     def test_get_document(self):
         """Test GET /documents/{doc_id} returns the document."""
@@ -134,11 +135,24 @@ class TestKnowledgebasesAPI(APITestBase):
 
     def test_file_upload(self):
         """Test POST /documents/{doc_id}/upload uploads a file and creates File, Task."""
+        # Create a document first (test should be independent)
+        payload = {
+            "name": "Upload Test Document",
+            "parser_id": "pdf",
+            "created_by": self.test_user_id,
+        }
+        response = self.client.post(
+            f"/knowledgebases/{self.kb_id}/documents", json=payload
+        )
+        assert response.status_code == 201, f"Failed: {response.text}"
+        doc_data = response.json()
+        doc_id = doc_data["id"]
+
         # Create a simple text file content
         file_content = b"Hello, this is a test document for RAG."
         file_like = io.BytesIO(file_content)
         files = {"file": ("test.txt", file_like, "text/plain")}
-        response = self.client.post(f"/documents/{self.doc_id}/upload", files=files)
+        response = self.client.post(f"/documents/{doc_id}/upload", files=files)
         assert response.status_code == 200, f"Failed: {response.text}"
         data = response.json()
         assert "file_id" in data
@@ -147,7 +161,6 @@ class TestKnowledgebasesAPI(APITestBase):
         assert data["file_id"] is not None
         assert data["doc_id"] == self.doc_id
         assert data["task_id"] is not None
-        self.file_id = data["file_id"]
         self.__class__.task_id = data["task_id"]
 
     def test_get_task(self):

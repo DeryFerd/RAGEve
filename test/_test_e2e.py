@@ -506,7 +506,7 @@ async def scenario_enhanced_parsing() -> bool:
     """
     section("Scenario 4 — Enhanced PDF parsing")
 
-    from backend.config import settings
+    from backend.config_loader import settings
     from rag.ingestion.pipeline import run_deepdoc_ingestion
 
     # Find a suitable test PDF (use existing uploads)

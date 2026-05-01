@@ -19,7 +19,6 @@ import uuid
 
 import peewee
 from fastapi.testclient import TestClient
-from playhouse.shortcuts import model_to_dict
 
 import backend.models_peewee as mp
 from backend.api.dependencies import get_current_user
