@@ -16,6 +16,7 @@ from typing import List
 from fastapi import (
     APIRouter,
     BackgroundTasks,
+    Depends,
     File,
     HTTPException,
     Query,
@@ -24,8 +25,10 @@ from fastapi import (
     status,
 )
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
+from backend.models_peewee import User
 from backend.schemas.knowledgebases import (
     DocumentResponse,
     FileUploadResponse,
@@ -40,12 +43,64 @@ from backend.services.ingestion_factory import get_ingestion_service
 from backend.services.knowledge_base_store import get_knowledge_base_store
 from backend.services.minio_client import get_minio_client
 from backend.services.cache_service import get_cache_service
+from backend.services.tenant_user_store import get_tenant_user_store
 from rag.storage.qdrant_store import QdrantStore
 from rag.ingestion.pipeline import SUPPORTED_EXTENSIONS
 
 _log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledgebases", tags=["knowledgebases"])
+
+
+async def _get_allowed_tenant_ids(user: User) -> set[str]:
+    if user.is_admin:
+        return set()
+    tenant_store = get_tenant_user_store()
+    tenant_objs = await run_db_operation(tenant_store.get_tenants_for_user, user.id)
+    return {user.id, *(tenant.id for tenant in tenant_objs)}
+
+
+async def _ensure_tenant_access(user: User, tenant_id: str) -> None:
+    if user.is_admin or tenant_id == user.id:
+        return
+    tenant_store = get_tenant_user_store()
+    role = await run_db_operation(
+        tenant_store.get_user_role_in_tenant, user.id, tenant_id
+    )
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this tenant",
+        )
+
+
+async def _ensure_kb_access(user: User, kb_id: str):
+    store = get_knowledge_base_store()
+    kb = await run_db_operation(store.get_knowledgebase, kb_id)
+    if not kb:
+        raise HTTPException(
+            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
+        )
+    await _ensure_tenant_access(user, kb.tenant_id)
+    return kb
+
+
+async def _ensure_document_access(user: User, doc_id: str):
+    store = get_knowledge_base_store()
+    doc = await run_db_operation(store.get_document, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+    await _ensure_kb_access(user, doc.kb_id)
+    return doc
+
+
+async def _ensure_task_access(user: User, task_id: str):
+    store = get_knowledge_base_store()
+    task = await run_db_operation(store.get_task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    await _ensure_document_access(user, task.doc_id)
+    return task
 
 
 def _sanitize_filename(filename: str, use_uuid: bool = True) -> str:
@@ -98,15 +153,19 @@ def _sanitize_filename(filename: str, use_uuid: bool = True) -> str:
 )
 @limiter.limit("60/minute")
 async def create_knowledgebase(
-    request: Request, payload: KnowledgebaseCreate
+    request: Request,
+    payload: KnowledgebaseCreate,
+    user: User = Depends(get_current_user),
 ) -> KnowledgebaseResponse:
     """Create a new knowledge base."""
+    await _ensure_tenant_access(user, payload.tenant_id)
+
     store = get_knowledge_base_store()
     kb = await run_db_operation(
         store.create_knowledgebase,
         tenant_id=payload.tenant_id,
         name=payload.name,
-        created_by=payload.created_by,
+        created_by=user.id,
         description=payload.description,
         avatar=payload.avatar,
         parser_ids=payload.parser_ids,
@@ -125,12 +184,22 @@ async def list_knowledgebases(
     tenant_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
 ) -> KnowledgebaseListResponse:
     """List knowledge bases, optionally filtered by tenant."""
+    if tenant_id:
+        await _ensure_tenant_access(user, tenant_id)
+
     store = get_knowledge_base_store()
     kbs, total = await run_db_operation(
         store.list_knowledgebases, tenant_id=tenant_id, limit=limit, offset=offset
     )
+
+    if not user.is_admin:
+        allowed_tenants = await _get_allowed_tenant_ids(user)
+        kbs = [kb for kb in kbs if kb.get("tenant_id") in allowed_tenants]
+        total = len(kbs)
+
     return KnowledgebaseListResponse(
         knowledgebases=[KnowledgebaseResponse(**kb) for kb in kbs],
         total=total,
@@ -139,14 +208,13 @@ async def list_knowledgebases(
 
 @router.get("/{kb_id}", response_model=KnowledgebaseResponse)
 @limiter.limit("120/minute")
-async def get_knowledgebase(request: Request, kb_id: str) -> KnowledgebaseResponse:
+async def get_knowledgebase(
+    request: Request,
+    kb_id: str,
+    user: User = Depends(get_current_user),
+) -> KnowledgebaseResponse:
     """Get a knowledge base by ID."""
-    store = get_knowledge_base_store()
-    kb = await run_db_operation(store.get_knowledgebase, kb_id)
-    if not kb:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
-        )
+    kb = await _ensure_kb_access(user, kb_id)
     kb_dict = kb.to_dict()
     return KnowledgebaseResponse(**kb_dict)
 
@@ -154,9 +222,14 @@ async def get_knowledgebase(request: Request, kb_id: str) -> KnowledgebaseRespon
 @router.put("/{kb_id}", response_model=KnowledgebaseResponse)
 @limiter.limit("60/minute")
 async def update_knowledgebase(
-    request: Request, kb_id: str, payload: KnowledgebaseUpdate
+    request: Request,
+    kb_id: str,
+    payload: KnowledgebaseUpdate,
+    user: User = Depends(get_current_user),
 ) -> KnowledgebaseResponse:
     """Update a knowledge base."""
+    await _ensure_kb_access(user, kb_id)
+
     store = get_knowledge_base_store()
     updates = payload.dict(exclude_unset=True)
     kb = await run_db_operation(store.update_knowledgebase, kb_id, **updates)
@@ -170,8 +243,14 @@ async def update_knowledgebase(
 
 @router.delete("/{kb_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_knowledgebase(request: Request, kb_id: str) -> None:
+async def delete_knowledgebase(
+    request: Request,
+    kb_id: str,
+    user: User = Depends(get_current_user),
+) -> None:
     """Delete a knowledge base and all its documents, files, and tasks."""
+    await _ensure_kb_access(user, kb_id)
+
     store = get_knowledge_base_store()
     cache_service = get_cache_service()
 
@@ -224,6 +303,7 @@ async def upload_files(
     parser_id: str = Query(default="pdf", description="Parser to use for these files"),
     chunk_size: int | None = Query(default=None, ge=100, le=10000),
     chunk_overlap: int | None = Query(default=None, ge=0, le=1000),
+    user: User = Depends(get_current_user),
 ) -> list[FileUploadResponse]:
     """Upload files to a knowledge base.
 
@@ -232,11 +312,7 @@ async def upload_files(
     """
     # Validate knowledgebase exists
     store = get_knowledge_base_store()
-    kb = await run_db_operation(store.get_knowledgebase, kb_id)
-    if not kb:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
-        )
+    kb = await _ensure_kb_access(user, kb_id)
 
     # Determine created_by - for now use kb.created_by or a placeholder
     created_by = kb.created_by
@@ -509,12 +585,13 @@ async def run_ingestion_background(
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
 @limiter.limit("120/minute")
-async def get_document(request: Request, doc_id: str) -> DocumentResponse:
+async def get_document(
+    request: Request,
+    doc_id: str,
+    user: User = Depends(get_current_user),
+) -> DocumentResponse:
     """Get document details by ID."""
-    store = get_knowledge_base_store()
-    doc = await run_db_operation(store.get_document, doc_id)
-    if not doc:
-        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+    doc = await _ensure_document_access(user, doc_id)
     doc_dict = doc.to_dict()
     return DocumentResponse(**doc_dict)
 
@@ -526,31 +603,50 @@ async def list_documents(
     kb_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
 ) -> list[DocumentResponse]:
     """List documents, optionally filtered by knowledge base."""
     store = get_knowledge_base_store()
+    if kb_id:
+        await _ensure_kb_access(user, kb_id)
+
     docs, _ = await run_db_operation(
         store.list_documents, kb_id=kb_id, limit=limit, offset=offset
     )
+    if not user.is_admin and not kb_id:
+        allowed_tenants = await _get_allowed_tenant_ids(user)
+        filtered_docs: list[dict] = []
+        for doc in docs:
+            kb = await run_db_operation(store.get_knowledgebase, doc.get("kb_id"))
+            if kb and kb.tenant_id in allowed_tenants:
+                filtered_docs.append(doc)
+        docs = filtered_docs
     return [DocumentResponse(**d) for d in docs]
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 @limiter.limit("120/minute")
-async def get_task(request: Request, task_id: str) -> TaskResponse:
+async def get_task(
+    request: Request,
+    task_id: str,
+    user: User = Depends(get_current_user),
+) -> TaskResponse:
     """Get task details by ID."""
-    store = get_knowledge_base_store()
-    task = await run_db_operation(store.get_task, task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    task = await _ensure_task_access(user, task_id)
     task_dict = task.to_dict()
     return TaskResponse(**task_dict)
 
 
 @router.get("/documents/{doc_id}/tasks", response_model=List[TaskResponse])
 @limiter.limit("120/minute")
-async def list_document_tasks(request: Request, doc_id: str) -> list[TaskResponse]:
+async def list_document_tasks(
+    request: Request,
+    doc_id: str,
+    user: User = Depends(get_current_user),
+) -> list[TaskResponse]:
     """List all tasks for a document."""
+    await _ensure_document_access(user, doc_id)
+
     store = get_knowledge_base_store()
     tasks = await run_db_operation(store.get_document_tasks, doc_id)
     return [TaskResponse(**t.to_dict()) for t in tasks]
@@ -566,29 +662,25 @@ async def create_document_for_kb(
     request: Request,
     kb_id: str,
     payload: dict,
+    user: User = Depends(get_current_user),
 ) -> DocumentResponse:
     """Create a new document within a knowledge base."""
     store = get_knowledge_base_store()
-    # Validate KB exists
-    kb = await run_db_operation(store.get_knowledgebase, kb_id)
-    if not kb:
-        raise HTTPException(
-            status_code=404, detail=f"Knowledge base '{kb_id}' not found"
-        )
+    await _ensure_kb_access(user, kb_id)
+
     name = payload.get("name")
     parser_id = payload.get("parser_id")
-    created_by = payload.get("created_by")
-    if not all([name, parser_id, created_by]):
+    if not all([name, parser_id]):
         raise HTTPException(
             status_code=400,
-            detail="Missing required fields: name, parser_id, created_by",
+            detail="Missing required fields: name, parser_id",
         )
     doc = await run_db_operation(
         store.create_document,
         kb_id=kb_id,
         name=name,
         parser_id=parser_id,
-        created_by=created_by,
+        created_by=user.id,
     )
     doc_dict = doc.to_dict()
     return DocumentResponse(**doc_dict)
@@ -601,13 +693,11 @@ async def upload_file_to_document(
     doc_id: str,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
 ) -> FileUploadResponse:
     """Upload a file and attach it to an existing document."""
     store = get_knowledge_base_store()
-    # Get document
-    doc = await run_db_operation(store.get_document, doc_id)
-    if not doc:
-        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+    doc = await _ensure_document_access(user, doc_id)
     kb_id = doc.kb_id
 
     # SECURITY: Check Content-Length header BEFORE reading
@@ -743,8 +833,11 @@ async def list_documents_for_kb(
     kb_id: str,
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
 ) -> list[DocumentResponse]:
     """List documents for a specific knowledge base."""
+    await _ensure_kb_access(user, kb_id)
+
     store = get_knowledge_base_store()
     docs, _ = await run_db_operation(
         store.list_documents, kb_id=kb_id, limit=limit, offset=offset
