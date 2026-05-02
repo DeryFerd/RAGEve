@@ -53,6 +53,32 @@ def _check_content_length(request: Request) -> None:
         )
 
 
+def _resolve_within_root(root: Path, value: str, field_name: str) -> Path:
+    """Resolve user-influenced path segments and enforce root containment."""
+    candidate = (root / value).resolve()
+    root_resolved = root.resolve()
+    try:
+        candidate.relative_to(root_resolved)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}")
+    return candidate
+
+
+def _resolve_dataset_upload_dir(dataset_id: str) -> Path:
+    return _resolve_within_root(settings.upload_root, dataset_id, "dataset_id")
+
+
+def _resolve_dataset_chunk_dir(dataset_id: str) -> Path:
+    return _resolve_within_root(settings.chunk_root, dataset_id, "dataset_id")
+
+
+def _resolve_dataset_file_path(dataset_id: str, filename: str) -> Path:
+    if "/" in filename or "\\" in filename or filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    dataset_dir = _resolve_dataset_upload_dir(dataset_id)
+    return _resolve_within_root(dataset_dir, filename, "filename")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Per-dataset byte tracking
 #
@@ -977,12 +1003,7 @@ async def ingest_existing_files(
     """
     req = req or IngestRequest()
 
-    # Path-traversal guard: resolve the joined path and verify it stays within upload_root
-    resolved = (settings.upload_root / dataset_id).resolve()
-    if not str(resolved).startswith(str(settings.upload_root.resolve())):
-        raise HTTPException(status_code=400, detail="Invalid dataset_id")
-
-    upload_dir = resolved
+    upload_dir = _resolve_dataset_upload_dir(dataset_id)
 
     if not upload_dir.exists():
         raise HTTPException(
@@ -1081,11 +1102,7 @@ async def download_dataset_file(
     frontend can render it with highlighted citations. Only files within the
     dataset's upload directory are accessible.
     """
-    # Security: prevent path traversal
-    if "/" in filename or "\\" in filename or filename.startswith("."):
-        raise HTTPException(status_code=400, detail="Invalid filename")
-
-    file_path = settings.upload_root / dataset_id / filename
+    file_path = _resolve_dataset_file_path(dataset_id, filename)
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -1110,8 +1127,8 @@ async def delete_dataset(
     # Also clear upload + chunk dirs
     import shutil
 
-    upload_dir = settings.upload_root / dataset_id
-    chunk_dir = settings.chunk_root / dataset_id
+    upload_dir = _resolve_dataset_upload_dir(dataset_id)
+    chunk_dir = _resolve_dataset_chunk_dir(dataset_id)
 
     if upload_dir.exists():
         shutil.rmtree(upload_dir)
