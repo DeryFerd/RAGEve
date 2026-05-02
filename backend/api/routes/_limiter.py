@@ -57,5 +57,5 @@ def _get_client_ip(request) -> str:
 
 
 # Shared rate limiter instance used by all route modules.
-# Active only when API_KEY is configured; otherwise no-op.
-limiter = Limiter(key_func=_get_client_ip, enabled=bool(settings.api_key))
+# Keep limiter independent from API key mode.
+limiter = Limiter(key_func=_get_client_ip, enabled=True)
