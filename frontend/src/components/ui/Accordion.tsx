@@ -9,7 +9,11 @@ interface AccordionItemProps {
   defaultOpen?: boolean;
 }
 
-export function AccordionItem({ title, children, defaultOpen = false }: AccordionItemProps) {
+export function AccordionItem({
+  title,
+  children,
+  defaultOpen = false,
+}: AccordionItemProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (

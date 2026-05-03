@@ -38,14 +38,14 @@ from backend.schemas.knowledgebases import (
     KnowledgebaseUpdate,
     TaskResponse,
 )
+from backend.services.cache_service import get_cache_service
 from backend.services.database import run_db_operation
 from backend.services.ingestion_factory import get_ingestion_service
 from backend.services.knowledge_base_store import get_knowledge_base_store
 from backend.services.minio_client import get_minio_client
-from backend.services.cache_service import get_cache_service
 from backend.services.tenant_user_store import get_tenant_user_store
-from rag.storage.qdrant_store import QdrantStore
 from rag.ingestion.pipeline import SUPPORTED_EXTENSIONS
+from rag.storage.qdrant_store import QdrantStore
 
 _log = logging.getLogger(__name__)
 
@@ -281,9 +281,13 @@ async def delete_knowledgebase(
         # Invalidate cache AFTER successful deletion
         try:
             invalidated = await cache_service.invalidate_collection(kb_id)
-            _log.info("Invalidated %d cached items for KB %s (delete)", invalidated, kb_id)
+            _log.info(
+                "Invalidated %d cached items for KB %s (delete)", invalidated, kb_id
+            )
         except Exception as e:
-            _log.warning("Cache invalidation failed for KB %s (deletion succeeded): %s", kb_id, e)
+            _log.warning(
+                "Cache invalidation failed for KB %s (deletion succeeded): %s", kb_id, e
+            )
 
     except Exception as e:
         # On any failure after existence check, attempt cache rollback if we invalidated prematurely
@@ -384,7 +388,10 @@ async def upload_files(
 
             # SECURITY: Validate MIME type using both extension and magic bytes
             from backend.services.file_processor import validate_mime_type
-            mime_valid, mime_type, mime_error = validate_mime_type(temp_file_path, safe_filename)
+
+            mime_valid, mime_type, mime_error = validate_mime_type(
+                temp_file_path, safe_filename
+            )
             if not mime_valid:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -398,7 +405,9 @@ async def upload_files(
             # Upload to MinIO
             minio_key = minio_client.get_upload_path(kb_id, safe_filename)
             try:
-                await minio_client.upload_file(minio_key, file_bytes, content_type=mime_type)
+                await minio_client.upload_file(
+                    minio_key, file_bytes, content_type=mime_type
+                )
             except Exception as e:
                 _log.error("Failed to upload file to MinIO: %s", e)
                 raise HTTPException(
@@ -457,7 +466,9 @@ async def upload_files(
                     doc_id=doc_rec.id,
                     task_id=task_rec.id,
                     size=file_size,
-                    file_type=mime_type.split("/")[0] if "/" in mime_type else file_type,
+                    file_type=(
+                        mime_type.split("/")[0] if "/" in mime_type else file_type
+                    ),
                     status="queued",
                 )
             )
@@ -517,9 +528,7 @@ async def run_ingestion_background(
         file_bytes = await minio_client.download_file(minio_key)
         filename = Path(minio_key).name
         # Write to temp file (delete=False so it persists for ingestion)
-        tmp = tempfile.NamedTemporaryFile(
-            suffix=Path(filename).suffix, delete=False
-        )
+        tmp = tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False)
         tmp.write(file_bytes)
         tmp.close()
         temp_file_path_local = tmp.name
@@ -576,7 +585,11 @@ async def run_ingestion_background(
         )
     finally:
         # Clean up temp file created during download
-        if 'temp_file_path_local' in dir() and temp_file_path_local and os.path.exists(temp_file_path_local):
+        if (
+            "temp_file_path_local" in dir()
+            and temp_file_path_local
+            and os.path.exists(temp_file_path_local)
+        ):
             try:
                 os.unlink(temp_file_path_local)
             except OSError:
@@ -755,7 +768,10 @@ async def upload_file_to_document(
 
         # Validate MIME type
         from backend.services.file_processor import validate_mime_type
-        mime_valid, mime_type, mime_error = validate_mime_type(temp_file_path, safe_filename)
+
+        mime_valid, mime_type, mime_error = validate_mime_type(
+            temp_file_path, safe_filename
+        )
         if not mime_valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -768,7 +784,9 @@ async def upload_file_to_document(
 
         minio_key = minio_client.get_upload_path(kb_id, safe_filename)
         try:
-            await minio_client.upload_file(minio_key, file_bytes, content_type=mime_type)
+            await minio_client.upload_file(
+                minio_key, file_bytes, content_type=mime_type
+            )
         except Exception as e:
             _log.error("Failed to upload file to MinIO: %s", e)
             raise HTTPException(

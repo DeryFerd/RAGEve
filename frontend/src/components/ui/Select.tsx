@@ -18,7 +18,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, options, placeholder, id, className = "", ...props }, ref) => {
     return (
       <div className={styles.wrapper}>
-        {label && <label className={styles.label} htmlFor={id}>{label}</label>}
+        {label && (
+          <label className={styles.label} htmlFor={id}>
+            {label}
+          </label>
+        )}
         <select
           ref={ref}
           id={id}
@@ -38,7 +42,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         </select>
       </div>
     );
-  }
+  },
 );
 
 Select.displayName = "Select";

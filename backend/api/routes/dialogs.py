@@ -2,8 +2,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from backend.api.routes._limiter import limiter
 from backend.api.dependencies import get_current_user
+from backend.api.routes._limiter import limiter
 from backend.models_peewee import User
 from backend.schemas.dialogs import (
     DialogCreate,
