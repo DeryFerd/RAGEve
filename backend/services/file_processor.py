@@ -255,8 +255,10 @@ def validate_mime_type(file_path: Path | str, filename: str) -> Tuple[bool, str,
 
                 return True, mime_type, ""
             else:
-                # Could not determine MIME type - be cautious
-                return False, "", "Could not determine file type from content"
+                # Plain text files do not have reliable magic bytes, so fall
+                # through to the extension-based MIME mapping below.
+                if ext not in {".txt"}:
+                    return False, "", "Could not determine file type from content"
         except Exception as e:
             _log.warning("filetype check failed: %s", e)
             # Fall back to extension-only check
