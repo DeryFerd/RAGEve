@@ -26,9 +26,7 @@ def _fetch_hf_card_metadata(
         kwargs: dict[str, Any] = {}
         if hf_token:
             kwargs["token"] = hf_token
-        info = api.dataset_info(
-            dataset_id, files_metadata=False, **kwargs
-        )
+        info = api.dataset_info(dataset_id, files_metadata=False, **kwargs)
 
         tags: list[str] = list(info.tags) if info.tags else []
         license_str: str | None = info.license

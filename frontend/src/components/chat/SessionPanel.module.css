@@ -51,7 +51,9 @@
   border-left: 2px solid transparent;
   cursor: pointer;
   text-align: left;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .sessionItem:hover {
@@ -98,7 +100,9 @@
   color: var(--text-muted);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--transition-fast), color var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    color var(--transition-fast);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }

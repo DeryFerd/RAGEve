@@ -40,9 +40,7 @@ async def _ensure_dialog_access(user: User, dialog_id: str):
     dialog_store = get_dialog_store()
     dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
     if not dialog:
-        raise HTTPException(
-            status_code=404, detail=f"Dialog '{dialog_id}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
 
     if user.is_admin or dialog.tenant_id == user.id:
         return dialog
@@ -409,7 +407,9 @@ async def chat_stream_with_conversation(
                         "sources": retrieved_sources,
                         "reranker_model": reranker_model,
                         "use_hybrid": use_hybrid,
-                        "message_id": user_msg.get("message_id"),  # Use actual message ID
+                        "message_id": user_msg.get(
+                            "message_id"
+                        ),  # Use actual message ID
                     }
                 ) + "\n"
 

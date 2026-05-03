@@ -97,7 +97,9 @@
   border-radius: 10px;
   background-color: var(--bg-elevated);
   border: 1px solid var(--border);
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
   position: relative;
 }
 
@@ -110,7 +112,9 @@
   height: 12px;
   border-radius: 50%;
   background-color: var(--text-muted);
-  transition: transform var(--transition-fast), background-color var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .toggle input:checked + .toggleTrack {
@@ -190,7 +194,9 @@
   border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast),
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
     background-color var(--transition-fast);
 }
 
@@ -237,7 +243,9 @@
   font-family: var(--font-sans);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast),
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
     background-color var(--transition-fast);
 }
 
@@ -257,6 +265,10 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

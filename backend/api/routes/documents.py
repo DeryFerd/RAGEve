@@ -8,13 +8,12 @@ Endpoints:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, File, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, UploadFile
 
 from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
 from backend.models_peewee import User
 from backend.schemas.knowledgebases import DocumentResponse, FileUploadResponse
-from fastapi import Depends
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 

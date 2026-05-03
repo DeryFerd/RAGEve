@@ -36,7 +36,13 @@ interface ModelCardProps {
   onSetChat: () => void;
 }
 
-function ModelCard({ model, isEmbeddingDefault, isChatDefault, onSetEmbedding, onSetChat }: ModelCardProps) {
+function ModelCard({
+  model,
+  isEmbeddingDefault,
+  isChatDefault,
+  onSetEmbedding,
+  onSetChat,
+}: ModelCardProps) {
   const isEmbedding = !!(
     model.name.includes("embed") ||
     model.name.includes("nomic") ||
@@ -53,13 +59,19 @@ function ModelCard({ model, isEmbeddingDefault, isChatDefault, onSetEmbedding, o
         </div>
         <div className={styles.cardBadges}>
           {isEmbeddingDefault && (
-            <span className={`${styles.badge} ${styles.badgeEmbed}`}>Embedding default</span>
+            <span className={`${styles.badge} ${styles.badgeEmbed}`}>
+              Embedding default
+            </span>
           )}
           {isChatDefault && (
-            <span className={`${styles.badge} ${styles.badgeChat}`}>Chat default</span>
+            <span className={`${styles.badge} ${styles.badgeChat}`}>
+              Chat default
+            </span>
           )}
           {isEmbedding && !isEmbeddingDefault && (
-            <span className={`${styles.badge} ${styles.badgePossible}`}>Embedding</span>
+            <span className={`${styles.badge} ${styles.badgePossible}`}>
+              Embedding
+            </span>
           )}
         </div>
       </div>
@@ -68,13 +80,17 @@ function ModelCard({ model, isEmbeddingDefault, isChatDefault, onSetEmbedding, o
         {model.details.parameter_size && (
           <div className={styles.metaRow}>
             <span className={styles.metaKey}>Params</span>
-            <span className={styles.metaVal}>{model.details.parameter_size}</span>
+            <span className={styles.metaVal}>
+              {model.details.parameter_size}
+            </span>
           </div>
         )}
         {model.details.quantization_level && (
           <div className={styles.metaRow}>
             <span className={styles.metaKey}>Quant</span>
-            <span className={styles.metaVal}>{model.details.quantization_level}</span>
+            <span className={styles.metaVal}>
+              {model.details.quantization_level}
+            </span>
           </div>
         )}
         {model.details.family && (
@@ -145,7 +161,9 @@ export default function ModelsPage() {
     try {
       await refreshOllamaModels();
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Failed to reach Ollama");
+      setFetchError(
+        err instanceof Error ? err.message : "Failed to reach Ollama",
+      );
     } finally {
       setRefreshing(false);
     }
@@ -158,10 +176,19 @@ export default function ModelsPage() {
 
   // Auto-select embedding candidates when defaults are unset
   useEffect(() => {
-    const { embeddingModel: emb, chatModel: chat, modelDetails: details, setEmbeddingModel: setEmb, setChatModel: setChat } = useModelStore.getState();
+    const {
+      embeddingModel: emb,
+      chatModel: chat,
+      modelDetails: details,
+      setEmbeddingModel: setEmb,
+      setChatModel: setChat,
+    } = useModelStore.getState();
     if (!emb && details.length > 0) {
-      const embed = details.find((m) =>
-        m.name.includes("embed") || m.name.includes("nomic") || m.name.includes("bge")
+      const embed = details.find(
+        (m) =>
+          m.name.includes("embed") ||
+          m.name.includes("nomic") ||
+          m.name.includes("bge"),
       );
       if (embed) setEmb(embed.name);
     }
@@ -180,12 +207,21 @@ export default function ModelsPage() {
         chat_model: chatModel,
       });
       if (result.valid) {
-        addToast(`Defaults saved — Embedding: ${embeddingModel}, Chat: ${chatModel}`, "success");
+        addToast(
+          `Defaults saved — Embedding: ${embeddingModel}, Chat: ${chatModel}`,
+          "success",
+        );
       } else {
-        addToast(`Validation failed. Missing: ${result.missing_models.join(", ")}`, "error");
+        addToast(
+          `Validation failed. Missing: ${result.missing_models.join(", ")}`,
+          "error",
+        );
       }
     } catch (err) {
-      addToast(`Validation error: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Validation error: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     } finally {
       setValidating(false);
     }
@@ -208,11 +244,14 @@ export default function ModelsPage() {
       m.name.includes("nomic") ||
       m.name.includes("bge") ||
       m.name.includes("e5") ||
-      m.name.includes("gte")
+      m.name.includes("gte"),
   );
-  const chatCandidates = modelDetails.filter((m) => !embedCandidates.some((e) => e.name === m.name));
+  const chatCandidates = modelDetails.filter(
+    (m) => !embedCandidates.some((e) => e.name === m.name),
+  );
 
-  const embedOptions = embedCandidates.length > 0 ? embedCandidates : modelDetails;
+  const embedOptions =
+    embedCandidates.length > 0 ? embedCandidates : modelDetails;
   const chatOptions = chatCandidates.length > 0 ? chatCandidates : modelDetails;
 
   return (
@@ -235,7 +274,9 @@ export default function ModelsPage() {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
-                style={{ animation: refreshing ? "spin 0.8s linear infinite" : "none" }}
+                style={{
+                  animation: refreshing ? "spin 0.8s linear infinite" : "none",
+                }}
               >
                 <path d="M11 6.5A4.5 4.5 0 1 1 6.5 2" />
                 <path d="M11 2v3.5H7.5" />
@@ -247,26 +288,27 @@ export default function ModelsPage() {
 
         {/* Connection status */}
         <div className={styles.statusBar}>
-          <div className={`${styles.statusDot} ${modelsLoaded ? styles.statusOk : styles.statusError}`} />
+          <div
+            className={`${styles.statusDot} ${modelsLoaded ? styles.statusOk : styles.statusError}`}
+          />
           <span className={styles.statusText}>
             {refreshing
               ? "Connecting to Ollama at localhost:11434…"
               : modelsLoaded
-              ? `Connected — ${modelDetails.length} model(s) available`
-              : "Ollama unreachable — pull models with `ollama pull <name>`"}
+                ? `Connected — ${modelDetails.length} model(s) available`
+                : "Ollama unreachable — pull models with `ollama pull <name>`"}
           </span>
         </div>
       </div>
 
-      {fetchError && (
-        <div className={styles.errorBanner}>{fetchError}</div>
-      )}
+      {fetchError && <div className={styles.errorBanner}>{fetchError}</div>}
 
       {/* Defaults section */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Global Defaults</h2>
         <p className={styles.sectionDesc}>
-          These models are used as defaults for all agents. Override per-agent in the Agents page.
+          These models are used as defaults for all agents. Override per-agent
+          in the Agents page.
         </p>
 
         <div className={styles.defaultsGrid}>
@@ -276,7 +318,10 @@ export default function ModelsPage() {
             </label>
             <Select
               id="default-embed"
-              options={embedOptions.map((m) => ({ value: m.name, label: m.name }))}
+              options={embedOptions.map((m) => ({
+                value: m.name,
+                label: m.name,
+              }))}
               value={embeddingModel}
               onChange={(e) => setEmbeddingModel(e.target.value)}
               placeholder="Select embedding model…"
@@ -296,7 +341,10 @@ export default function ModelsPage() {
             </label>
             <Select
               id="default-chat"
-              options={chatOptions.map((m) => ({ value: m.name, label: m.name }))}
+              options={chatOptions.map((m) => ({
+                value: m.name,
+                label: m.name,
+              }))}
               value={chatModel}
               onChange={(e) => setChatModel(e.target.value)}
               placeholder="Select chat model…"
@@ -314,7 +362,14 @@ export default function ModelsPage() {
           </Button>
           {setupComplete && embeddingModel && chatModel && (
             <span className={styles.savedLabel}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M2 7l3.5 3.5L12 3" />
               </svg>
               Defaults saved
@@ -347,7 +402,15 @@ export default function ModelsPage() {
 
       {modelDetails.length === 0 && !refreshing && (
         <div className={styles.emptyState}>
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.emptyIcon}>
+          <svg
+            width="48"
+            height="48"
+            viewBox="0 0 48 48"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className={styles.emptyIcon}
+          >
             <rect x="6" y="8" width="36" height="28" rx="3" />
             <path d="M14 20h20M14 28h12" />
             <path d="M30 8V4M18 8V4" />
@@ -358,7 +421,11 @@ export default function ModelsPage() {
           </p>
           <pre className={styles.emptyCode}>{`ollama pull nomic-embed-text
 ollama pull llama3.2`}</pre>
-          <Button variant="secondary" onClick={fetchModels} disabled={refreshing}>
+          <Button
+            variant="secondary"
+            onClick={fetchModels}
+            disabled={refreshing}
+          >
             Retry Connection
           </Button>
         </div>

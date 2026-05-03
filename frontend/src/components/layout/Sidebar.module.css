@@ -62,7 +62,9 @@
   text-decoration: none;
   font-size: var(--text-sm);
   font-weight: 500;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
   white-space: nowrap;
   overflow: hidden;
   cursor: pointer;
