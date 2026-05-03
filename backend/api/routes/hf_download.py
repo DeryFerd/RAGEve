@@ -15,11 +15,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
+from backend.models_peewee import User
 from backend.schemas.huggingface import (
     HuggingFaceDownloadRequest,
     HuggingFaceDownloadResponse,
@@ -469,6 +471,7 @@ async def download_hf_dataset(
     request: Request,
     payload: HuggingFaceDownloadRequest,
     background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),  # noqa: F841
 ) -> HuggingFaceDownloadResponse:
     """
     Submit a HuggingFace dataset for download.
@@ -571,7 +574,9 @@ async def get_hf_download_status(
 )
 @limiter.limit("60/minute")
 async def cancel_hf_download(
-    request: Request, dataset_id: str
+    request: Request,
+    dataset_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
 ) -> HuggingFaceDownloadResponse:
     """Cancel an in-progress or queued dataset download."""
     status_obj = hf_status._hf_download_status.get(dataset_id)
