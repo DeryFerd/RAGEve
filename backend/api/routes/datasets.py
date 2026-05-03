@@ -12,6 +12,7 @@ import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
+    Depends,
     File,
     HTTPException,
     Query,
@@ -20,8 +21,10 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, StreamingResponse
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
+from backend.models_peewee import User
 from backend.schemas.datasets import (
     CollectionDeleteResponse,
     DatasetInfo,
@@ -407,6 +410,7 @@ async def submit_background_ingest(
     request: Request,
     dataset_id: str,
     background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> IngestSubmitResponse:
@@ -564,7 +568,11 @@ async def get_ingest_status(
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_ingest(ingest_id: str, request: Request) -> dict:  # noqa: F841
+async def cancel_ingest(
+    ingest_id: str,
+    request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),  # noqa: F841
+) -> dict:
     """
     Cancel a running or queued ingest.  Marks the status as cancelled;
     the background task checks this flag on every stage transition and
@@ -694,6 +702,7 @@ async def list_datasets(
 async def upload_and_ingest(
     request: Request,
     dataset_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> dict:
@@ -967,6 +976,7 @@ async def _stream_upload_and_ingest(
 async def upload_and_ingest_stream(
     request: Request,
     dataset_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> StreamingResponse:
@@ -995,6 +1005,7 @@ async def upload_and_ingest_stream(
 async def ingest_existing_files(
     request: Request,  # noqa: F841
     dataset_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
     req: IngestRequest | None = None,
 ) -> IngestResponse:
     """
@@ -1118,6 +1129,7 @@ async def download_dataset_file(
 async def delete_dataset(
     request: Request,  # noqa: F841
     dataset_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
 ) -> CollectionDeleteResponse:
     from backend.services.ingestion_factory import get_qdrant_store
 
