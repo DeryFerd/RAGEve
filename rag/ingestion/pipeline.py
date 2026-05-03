@@ -22,6 +22,7 @@ SUPPORTED_EXTENSIONS = {
     ".pdf",
     ".doc",
     ".docx",
+    ".txt",
     ".xlsx",
     ".png",
     ".jpg",
@@ -93,6 +94,10 @@ class Extractors:
             chunks.append(f"[Sheet: {sheet_name}]")
             chunks.append(frame.fillna("").to_csv(index=False))
         return "\n".join(chunks).strip()
+
+    @staticmethod
+    def from_text(file_path: Path) -> str:
+        return file_path.read_text(encoding="utf-8", errors="replace").strip()
 
     @staticmethod
     def from_image(file_path: Path) -> str:
@@ -208,6 +213,10 @@ def extract_text(
         text = Extractors.from_docx(file_path)
         return text, {"extractor": "python-docx"}
 
+    if ext == ".txt":
+        text = Extractors.from_text(file_path)
+        return text, {"extractor": "plain-text"}
+
     if ext == ".xlsx":
         text = Extractors.from_xlsx(file_path)
         return text, {"extractor": "pandas"}
@@ -255,6 +264,7 @@ def run_deepdoc_ingestion(
         ".pdf",
         ".doc",
         ".docx",
+        ".txt",
         ".xlsx",
         ".png",
         ".jpg",
