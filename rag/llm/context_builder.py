@@ -93,6 +93,14 @@ def build_context(chunks: list["SearchResult"]) -> str:  # noqa: F821
         if ann.source_file:
             meta_parts.append(f"File: {ann.source_file}")
 
+        if ann.text_columns_used:
+            meta_parts.append(f"Columns: {', '.join(ann.text_columns_used)}")
+
+        if ann.chunk_index is not None and ann.total_chunks_in_row:
+            meta_parts.append(
+                f"Chunk: {int(ann.chunk_index) + 1}/{ann.total_chunks_in_row}"
+            )
+
         header = f"[Source {i} | {' | '.join(meta_parts)}]"
         parts.append(f"{header}\n{chunk.chunk_text}\n")
 
