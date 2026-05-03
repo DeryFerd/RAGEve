@@ -21,9 +21,19 @@ import { Modal } from "@/components/ui/Modal";
 import styles from "./AgentsPage.module.css";
 
 export default function AgentsPage() {
-  const { agents, setAgents, addAgent, updateAgent: updateAgentInStore, removeAgent } = useAgentsStore();
+  const {
+    agents,
+    setAgents,
+    addAgent,
+    updateAgent: updateAgentInStore,
+    removeAgent,
+  } = useAgentsStore();
   const { datasets, setDatasets } = useDatasetsStore();
-  const { availableModels, embeddingModel: defaultEmbed, chatModel: defaultChat } = useModelStore();
+  const {
+    availableModels,
+    embeddingModel: defaultEmbed,
+    chatModel: defaultChat,
+  } = useModelStore();
   const { addToast } = useToastStore();
 
   const [showModal, setShowModal] = useState(false);
@@ -33,7 +43,9 @@ export default function AgentsPage() {
   // Form state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [systemPrompt, setSystemPrompt] = useState("You are a helpful AI assistant.");
+  const [systemPrompt, setSystemPrompt] = useState(
+    "You are a helpful AI assistant.",
+  );
   const [datasetId, setDatasetId] = useState("");
   const [embedModel, setEmbedModel] = useState("");
   const [chatModel, setChatModel] = useState("");
@@ -109,7 +121,10 @@ export default function AgentsPage() {
       }
       setShowModal(false);
     } catch (err) {
-      addToast(`Save failed: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Save failed: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     } finally {
       setSaving(false);
     }
@@ -126,7 +141,10 @@ export default function AgentsPage() {
   };
 
   const modelOptions = availableModels.map((m) => ({ value: m, label: m }));
-  const datasetOptions = datasets.map((d) => ({ value: d.dataset_id, label: d.dataset_id }));
+  const datasetOptions = datasets.map((d) => ({
+    value: d.dataset_id,
+    label: d.dataset_id,
+  }));
 
   return (
     <div className={styles.page}>
@@ -151,30 +169,52 @@ export default function AgentsPage() {
                   )}
                 </div>
                 <div className={styles.cardActions}>
-                  <Button variant="ghost" size="sm" onClick={() => openEdit(agent)}>Edit</Button>
-                  <Button variant="danger" size="sm" onClick={() => handleDelete(agent)}>Delete</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openEdit(agent)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDelete(agent)}
+                  >
+                    Delete
+                  </Button>
                 </div>
               </div>
               <div className={styles.cardBody}>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Dataset</span>
-                  <span className={styles.fieldValue}>{agent.config.dataset_id}</span>
+                  <span className={styles.fieldValue}>
+                    {agent.config.dataset_id}
+                  </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Embed Model</span>
-                  <span className={styles.fieldValue}>{agent.config.embedding_model}</span>
+                  <span className={styles.fieldValue}>
+                    {agent.config.embedding_model}
+                  </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Chat Model</span>
-                  <span className={styles.fieldValue}>{agent.config.chat_model}</span>
+                  <span className={styles.fieldValue}>
+                    {agent.config.chat_model}
+                  </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Temperature</span>
-                  <span className={styles.fieldValue}>{agent.config.temperature}</span>
+                  <span className={styles.fieldValue}>
+                    {agent.config.temperature}
+                  </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Top-K</span>
-                  <span className={styles.fieldValue}>{agent.config.top_k}</span>
+                  <span className={styles.fieldValue}>
+                    {agent.config.top_k}
+                  </span>
                 </div>
               </div>
             </div>
@@ -188,15 +228,29 @@ export default function AgentsPage() {
         title={editingAgent ? "Edit Agent" : "New Agent"}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button onClick={handleSave} loading={saving}>{editingAgent ? "Save Changes" : "Create"}</Button>
+            <Button variant="ghost" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} loading={saving}>
+              {editingAgent ? "Save Changes" : "Create"}
+            </Button>
           </>
         }
       >
         <div className={styles.form}>
           <div className={styles.formGrid}>
-            <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Research Assistant" />
-            <Input label="Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+            <Input
+              label="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Research Assistant"
+            />
+            <Input
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
           </div>
 
           <div className={styles.formFull}>

@@ -11,11 +11,18 @@ import styles from "./page.module.css";
 
 export default function SetupPage() {
   const router = useRouter();
-  const { setEmbeddingModel, setChatModel, setAvailableModels, embeddingModel, chatModel } =
-    useModelStore();
+  const {
+    setEmbeddingModel,
+    setChatModel,
+    setAvailableModels,
+    embeddingModel,
+    chatModel,
+  } = useModelStore();
 
   const [loading, setLoading] = useState(false);
-  const [modelList, setModelList] = useState<OllamaModelListResponse | null>(null);
+  const [modelList, setModelList] = useState<OllamaModelListResponse | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [validating, setValidating] = useState(false);
 
@@ -30,7 +37,7 @@ export default function SetupPage() {
       setError(
         `Cannot reach Ollama at http://localhost:11434. Is Ollama running? Error: ${
           err instanceof Error ? err.message : String(err)
-        }`
+        }`,
       );
     } finally {
       setLoading(false);
@@ -55,7 +62,7 @@ export default function SetupPage() {
         router.push("/datasets");
       } else {
         setError(
-          `Missing models: ${result.missing_models.join(", ")}. Run:\nollama pull ${result.missing_models.join("\nollama pull ")}`
+          `Missing models: ${result.missing_models.join(", ")}. Run:\nollama pull ${result.missing_models.join("\nollama pull ")}`,
         );
       }
     } catch (err) {
@@ -72,11 +79,9 @@ export default function SetupPage() {
       m.includes("nomic") ||
       m.includes("bge") ||
       m.includes("e5") ||
-      m.includes("gte")
+      m.includes("gte"),
   );
-  const chatCandidates = allModels.filter(
-    (m) => !embedCandidates.includes(m)
-  );
+  const chatCandidates = allModels.filter((m) => !embedCandidates.includes(m));
 
   const embedOptions = embedCandidates.length > 0 ? embedCandidates : allModels;
   const chatOptions = chatCandidates.length > 0 ? chatCandidates : allModels;
@@ -89,7 +94,9 @@ export default function SetupPage() {
         <div className={styles.logo}>
           <img src="/logo.png" alt="RAGEve logo" className={styles.logoIcon} />
           <div className={styles.logoTitle}>RAGEve</div>
-          <div className={styles.logoSubtitle}>Setup — Select your Ollama models</div>
+          <div className={styles.logoSubtitle}>
+            Setup — Select your Ollama models
+          </div>
         </div>
 
         {error && <div className={styles.errorBox}>{error}</div>}
@@ -97,7 +104,13 @@ export default function SetupPage() {
         {needsModels && !loading ? (
           <div className={styles.infoBox}>
             <div className={styles.infoTitle}>No local Ollama models found</div>
-            <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: "var(--space-2)" }}>
+            <p
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "var(--text-sm)",
+                marginBottom: "var(--space-2)",
+              }}
+            >
               Download models from the Ollama library before continuing:
             </p>
             <code className={styles.infoCode}>
@@ -142,7 +155,13 @@ export default function SetupPage() {
               Validate &amp; Save
             </Button>
 
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", textAlign: "center" }}>
+            <p
+              style={{
+                fontSize: "var(--text-xs)",
+                color: "var(--text-muted)",
+                textAlign: "center",
+              }}
+            >
               {allModels.length} model(s) found: {allModels.join(", ")}
             </p>
           </div>

@@ -38,7 +38,11 @@ const fmtSize = (bytes: number) => {
 };
 
 const scoreColor = (s: number) =>
-  s > 0.85 ? "var(--text-primary)" : s > 0.7 ? "var(--text-secondary)" : "var(--text-muted)";
+  s > 0.85
+    ? "var(--text-primary)"
+    : s > 0.7
+      ? "var(--text-secondary)"
+      : "var(--text-muted)";
 
 // ── Ingest options state ───────────────────────────────────────────────────────
 
@@ -68,7 +72,11 @@ function LibraryCard({
 
   // Status indicator color
   const getStatusColor = () => {
-    if (panel?.ingestStatus?.status === "running" || panel?.ingestStatus?.status === "queued") return "var(--warning)";
+    if (
+      panel?.ingestStatus?.status === "running" ||
+      panel?.ingestStatus?.status === "queued"
+    )
+      return "var(--warning)";
     if (panel?.ingestStatus?.status === "failed") return "var(--error)";
     if (ds.is_ingested) return "var(--success)";
     return "var(--text-muted)";
@@ -77,11 +85,18 @@ function LibraryCard({
   return (
     <div className={styles.libraryCard}>
       <div className={styles.libraryCardTop}>
-        <div className={styles.libraryCardIcon} style={{ color: getStatusColor() }}>⬡</div>
+        <div
+          className={styles.libraryCardIcon}
+          style={{ color: getStatusColor() }}
+        >
+          ⬡
+        </div>
         <div className={styles.libraryCardInfo}>
           <div className={styles.libraryCardName}>
             {ds.dataset_id}
-            {ds.is_ingested && <span className={styles.ingestedDot} title="Indexed in Qdrant" />}
+            {ds.is_ingested && (
+              <span className={styles.ingestedDot} title="Indexed in Qdrant" />
+            )}
           </div>
           <div className={styles.libraryCardMeta}>
             <span>{ds.file_count} file(s)</span>
@@ -135,7 +150,9 @@ function LibraryCard({
       {/* Ingest panel */}
       {panel?.expanded && !alreadyIngested && (
         <div className={styles.libraryCardIngestPanel}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+          >
             <Select
               id={`split-${ds.dataset_id}`}
               label="Split"
@@ -159,7 +176,15 @@ function LibraryCard({
           <div style={{ marginTop: 10 }}>
             <label
               htmlFor={`row-limit-${ds.dataset_id}`}
-              style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-muted)", display: "block", marginBottom: 4 }}
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "var(--text-muted)",
+                display: "block",
+                marginBottom: 4,
+              }}
             >
               Row Limit
             </label>
@@ -182,7 +207,14 @@ function LibraryCard({
               }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
             <Button
               variant="secondary"
               size="sm"
@@ -195,7 +227,9 @@ function LibraryCard({
               onClick={() => void onIngest(ds)}
               loading={panel.loading}
             >
-              {panel.rowLimit ? `Ingest ${panel.rowLimit} rows` : "Ingest Full Dataset"}
+              {panel.rowLimit
+                ? `Ingest ${panel.rowLimit} rows`
+                : "Ingest Full Dataset"}
             </Button>
           </div>
         </div>
@@ -207,30 +241,45 @@ function LibraryCard({
           className={styles.resultCard}
           style={{
             borderLeft: `3px solid ${
-              panel.ingestStatus.status === "running" ? "var(--accent)" :
-              panel.ingestStatus.status === "failed" ? "var(--error)" :
-              "var(--warning)"
-            }`
+              panel.ingestStatus.status === "running"
+                ? "var(--accent)"
+                : panel.ingestStatus.status === "failed"
+                  ? "var(--error)"
+                  : "var(--warning)"
+            }`,
           }}
         >
           <div className={styles.resultHeader}>
-            <div className={styles.resultTitle} style={{ color: "var(--text-primary)" }}>
-              {panel.ingestStatus.status === "running" ? "⏳" : panel.ingestStatus.status === "failed" ? "✗" : "▶"} Ingesting {ds.dataset_id}
+            <div
+              className={styles.resultTitle}
+              style={{ color: "var(--text-primary)" }}
+            >
+              {panel.ingestStatus.status === "running"
+                ? "⏳"
+                : panel.ingestStatus.status === "failed"
+                  ? "✗"
+                  : "▶"}{" "}
+              Ingesting {ds.dataset_id}
             </div>
             <Button
               variant="danger"
               size="sm"
               onClick={() => {
-                cancelHFIngest(panel.ingestId!).then(() => {
-                  stopIngestPolling();
-                  onPanelUpdate(ds.dataset_id, {
-                    ingestId: null,
-                    ingestStatus: null,
-                    loading: false,
-                  });
-                }).catch((e) => addToast(`Cancel failed: ${e}`, "error"));
+                cancelHFIngest(panel.ingestId!)
+                  .then(() => {
+                    stopIngestPolling();
+                    onPanelUpdate(ds.dataset_id, {
+                      ingestId: null,
+                      ingestStatus: null,
+                      loading: false,
+                    });
+                  })
+                  .catch((e) => addToast(`Cancel failed: ${e}`, "error"));
               }}
-              disabled={panel.ingestStatus.status !== "running" && panel.ingestStatus.status !== "queued"}
+              disabled={
+                panel.ingestStatus.status !== "running" &&
+                panel.ingestStatus.status !== "queued"
+              }
             >
               Cancel
             </Button>
@@ -238,17 +287,23 @@ function LibraryCard({
           <div className={styles.resultStats}>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Progress</span>
-              <span className={styles.resultStatValue}>{panel.ingestStatus.progress}%</span>
+              <span className={styles.resultStatValue}>
+                {panel.ingestStatus.progress}%
+              </span>
             </div>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Chunks</span>
               <span className={styles.resultStatValue}>
-                {panel.ingestStatus.chunks_done.toLocaleString()} / {panel.ingestStatus.chunks_total.toLocaleString()}
+                {panel.ingestStatus.chunks_done.toLocaleString()} /{" "}
+                {panel.ingestStatus.chunks_total.toLocaleString()}
               </span>
             </div>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Stage</span>
-              <span className={styles.resultStatValue} style={{ textTransform: "capitalize" }}>
+              <span
+                className={styles.resultStatValue}
+                style={{ textTransform: "capitalize" }}
+              >
                 {panel.ingestStatus.current_stage}
               </span>
             </div>
@@ -267,15 +322,27 @@ function LibraryCard({
       {panel?.result != null && (
         <div className={styles.resultCard}>
           <div className={styles.resultHeader}>
-            <div className={styles.resultTitle} style={{ color: "var(--success)" }}>
-              ✓ {ds.is_ingested ? "Indexed" : "Ingestion complete"} — {ds.dataset_id}
+            <div
+              className={styles.resultTitle}
+              style={{ color: "var(--success)" }}
+            >
+              ✓ {ds.is_ingested ? "Indexed" : "Ingestion complete"} —{" "}
+              {ds.dataset_id}
             </div>
             <div className={styles.resultHeaderActions}>
-              <Button variant="ghost" size="sm" onClick={() => router.push("/chat")}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/chat")}
+              >
                 Go to Chat
               </Button>
               {ds.is_ingested && (
-                <Button variant="secondary" size="sm" onClick={() => void onIngest(ds)}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void onIngest(ds)}
+                >
                   Re-ingest
                 </Button>
               )}
@@ -284,32 +351,46 @@ function LibraryCard({
           <div className={styles.resultStats}>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Rows</span>
-              <span className={styles.resultStatValue}>{(panel.result.rows_processed ?? 0).toLocaleString()}</span>
+              <span className={styles.resultStatValue}>
+                {(panel.result.rows_processed ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Chunks</span>
-              <span className={styles.resultStatValue}>{(panel.result.chunks_embedded ?? 0).toLocaleString()}</span>
+              <span className={styles.resultStatValue}>
+                {(panel.result.chunks_embedded ?? 0).toLocaleString()}
+              </span>
             </div>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Quality</span>
               <span
                 className={styles.resultStatValue}
-                style={{ color: scoreColor(panel.result.avg_quality_score ?? 0) }}
+                style={{
+                  color: scoreColor(panel.result.avg_quality_score ?? 0),
+                }}
               >
                 {(panel.result.avg_quality_score ?? 0).toFixed(3)}
               </span>
             </div>
             <div className={styles.resultStat}>
               <span className={styles.resultStatLabel}>Columns</span>
-              <span className={styles.resultStatValue}>{panel.result.text_columns_used?.join(", ")}</span>
+              <span className={styles.resultStatValue}>
+                {panel.result.text_columns_used?.join(", ")}
+              </span>
             </div>
           </div>
-          {panel.result.profiles_used && Object.keys(panel.result.profiles_used).length > 0 && (
-            <p className={styles.resultHint}>
-              Profiles: {Object.entries(panel.result.profiles_used).map(([k, v]) => `${k} (${v})`).join(", ")}
-            </p>
+          {panel.result.profiles_used &&
+            Object.keys(panel.result.profiles_used).length > 0 && (
+              <p className={styles.resultHint}>
+                Profiles:{" "}
+                {Object.entries(panel.result.profiles_used)
+                  .map(([k, v]) => `${k} (${v})`)
+                  .join(", ")}
+              </p>
+            )}
+          {panel.result.message && (
+            <p className={styles.resultHint}>{panel.result.message}</p>
           )}
-          {panel.result.message && <p className={styles.resultHint}>{panel.result.message}</p>}
         </div>
       )}
     </div>
@@ -358,8 +439,8 @@ export function LocalDatasetsLibrary({
     filter === "all"
       ? datasets
       : filter === "indexed"
-      ? datasets.filter((d) => d.is_ingested)
-      : datasets.filter((d) => !d.is_ingested);
+        ? datasets.filter((d) => d.is_ingested)
+        : datasets.filter((d) => !d.is_ingested);
 
   const handleRefresh = useCallback(async () => {
     await onDiscover();
@@ -378,7 +459,14 @@ export function LocalDatasetsLibrary({
           <span className={styles.libraryCount}>{datasets.length}</span>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           {/* Filter tabs */}
           <div className={styles.libraryFilterTabs}>
             <button
@@ -417,7 +505,10 @@ export function LocalDatasetsLibrary({
 
       {/* Active download banner */}
       {isDownloading && !!downloadStatus && (
-        <div className={styles.activeDownloadBanner} style={{ marginBottom: "var(--space-4)" }}>
+        <div
+          className={styles.activeDownloadBanner}
+          style={{ marginBottom: "var(--space-4)" }}
+        >
           <span className={styles.bannerDot} />
           <span>Downloading active — see progress above</span>
         </div>
@@ -446,8 +537,10 @@ export function LocalDatasetsLibrary({
         <div className={styles.emptyStateWithIcon}>
           <div className={styles.emptyStateIcon}>⬡</div>
           <div className={styles.emptyStateText}>
-            <strong>No datasets in your library yet.</strong><br />
-            Discover and download datasets from the HuggingFace Hub to get started.
+            <strong>No datasets in your library yet.</strong>
+            <br />
+            Discover and download datasets from the HuggingFace Hub to get
+            started.
           </div>
           <Button onClick={onDiscover} loading={discovering}>
             Discover Datasets
@@ -462,7 +555,11 @@ export function LocalDatasetsLibrary({
               : "All datasets are indexed! Nothing to see here."}
           </div>
           {filter !== "all" && (
-            <Button variant="secondary" onClick={() => setFilter("all")} style={{ marginTop: 8 }}>
+            <Button
+              variant="secondary"
+              onClick={() => setFilter("all")}
+              style={{ marginTop: 8 }}
+            >
               Show All
             </Button>
           )}

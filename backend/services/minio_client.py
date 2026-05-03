@@ -7,7 +7,6 @@ Uses boto3 with proper signature version for MinIO compatibility.
 
 from __future__ import annotations
 
-import io
 import logging
 from typing import Any
 
@@ -39,8 +38,11 @@ class MinIOClient:
             aws_access_key_id=self.access_key,
             aws_secret_access_key=self.secret_key,
             config=Config(
-                signature_version='s3v4',
-                s3={'payload_signing_enabled': False, 'payload_checksum_algorithm': None},
+                signature_version="s3v4",
+                s3={
+                    "payload_signing_enabled": False,
+                    "payload_checksum_algorithm": None,
+                },
             ),
             use_ssl=self.secure,
         )
@@ -59,7 +61,9 @@ class MinIOClient:
                 _log.info("Creating MinIO bucket '%s'", self.bucket)
                 self.client.create_bucket(Bucket=self.bucket)
             elif error_code == "403":
-                _log.warning("Access denied for MinIO bucket '%s' check credentials", self.bucket)
+                _log.warning(
+                    "Access denied for MinIO bucket '%s' check credentials", self.bucket
+                )
             else:
                 _log.warning("Could not verify MinIO bucket '%s': %s", self.bucket, e)
 
@@ -163,7 +167,9 @@ class MinIOClient:
         """Generate MinIO key for an uploaded file."""
         return f"uploads/{dataset_id}/{filename}"
 
-    def get_chunk_path(self, dataset_id: str, source_file: str, chunk_index: int) -> str:
+    def get_chunk_path(
+        self, dataset_id: str, source_file: str, chunk_index: int
+    ) -> str:
         """Generate MinIO key for a chunk file."""
         stem = source_file.rsplit(".", 1)[0] if "." in source_file else source_file
         return f"chunks/{dataset_id}/{stem}.chunk-{chunk_index:04d}.txt"

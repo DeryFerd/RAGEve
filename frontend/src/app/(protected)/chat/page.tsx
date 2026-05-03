@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "@/stores/useChatStore";
@@ -43,7 +43,9 @@ export default function ChatPage() {
   useEffect(() => {
     listAgents()
       .then((res) => setAgents(res.agents))
-      .catch((err) => addToast(`Failed to load agents: ${err.message}`, "error"));
+      .catch((err) =>
+        addToast(`Failed to load agents: ${err.message}`, "error"),
+      );
   }, [setAgents, addToast]);
 
   // Refresh Ollama and reranker model lists on mount.
@@ -87,9 +89,11 @@ export default function ChatPage() {
         .then((res) => {
           loadSessionMessages(res.messages);
         })
-        .catch((err) => addToast(`Failed to load messages: ${err.message}`, "error"));
+        .catch((err) =>
+          addToast(`Failed to load messages: ${err.message}`, "error"),
+        );
     },
-    [loadSessionMessages, addToast]
+    [loadSessionMessages, addToast],
   );
 
   const handleSend = useCallback(
@@ -101,7 +105,7 @@ export default function ChatPage() {
         useReranker: boolean;
         rerankerModel: string | null;
         useHybrid: boolean;
-      }
+      },
     ) => {
       // If no session, create one on-the-fly before sending
       if (!currentSession) {
@@ -110,7 +114,10 @@ export default function ChatPage() {
           addSession(session);
           addToast("New conversation started", "success");
         } catch (err) {
-          addToast(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`, "error");
+          addToast(
+            `Failed to create session: ${err instanceof Error ? err.message : String(err)}`,
+            "error",
+          );
           return;
         }
       }
@@ -131,7 +138,14 @@ export default function ChatPage() {
         useHybrid: opts.useHybrid,
       });
     },
-    [currentSession, selectedAgentId, appendMessage, send, addSession, addToast]
+    [
+      currentSession,
+      selectedAgentId,
+      appendMessage,
+      send,
+      addSession,
+      addToast,
+    ],
   );
 
   // When the selected agent changes, reset messages and auto-create a session
@@ -143,10 +157,13 @@ export default function ChatPage() {
         addSession(session);
         addToast("New conversation started", "success");
       } catch (err) {
-        addToast(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`, "error");
+        addToast(
+          `Failed to create session: ${err instanceof Error ? err.message : String(err)}`,
+          "error",
+        );
       }
     },
-    [setSelectedAgentId, addSession, addToast]
+    [setSelectedAgentId, addSession, addToast],
   );
 
   return (
@@ -160,7 +177,14 @@ export default function ChatPage() {
               onClick={() => setSelectedAgentId(null)}
               className={styles.backButton}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M10 4l-4 4 4 4" />
               </svg>
               Back
@@ -173,13 +197,20 @@ export default function ChatPage() {
       {!selectedAgentId ? (
         agents.length === 0 ? (
           <div className={styles.emptyState}>
-            <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              className={styles.emptyIcon}
+              viewBox="0 0 48 48"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M6 8h36v28H30l-6 6V36H6V8z" />
               <path d="M14 18h20M14 24h12" />
             </svg>
             <div className={styles.emptyTitle}>No agents yet</div>
             <div className={styles.emptyDesc}>
-              Create an agent in the <strong>Agents</strong> page to start chatting.
+              Create an agent in the <strong>Agents</strong> page to start
+              chatting.
             </div>
           </div>
         ) : (
@@ -203,30 +234,48 @@ export default function ChatPage() {
           <div className={styles.chatArea}>
             {!currentSession ? (
               <div className={styles.emptyState}>
-                <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  className={styles.emptyIcon}
+                  viewBox="0 0 48 48"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M6 8h36v28H30l-6 6V36H6V8z" />
                   <path d="M14 18h20M14 24h12" />
                 </svg>
                 <div className={styles.emptyTitle}>Start a conversation</div>
                 <div className={styles.emptyDesc}>
-                  Click &ldquo;+ New&rdquo; in the sidebar to start a new conversation with this agent.
+                  Click &ldquo;+ New&rdquo; in the sidebar to start a new
+                  conversation with this agent.
                 </div>
               </div>
             ) : messages.length === 0 && !streamingText ? (
               <div className={styles.emptyState}>
-                <svg className={styles.emptyIcon} viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  className={styles.emptyIcon}
+                  viewBox="0 0 48 48"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M6 8h36v28H30l-6 6V36H6V8z" />
                   <path d="M14 18h20M14 24h12" />
                 </svg>
                 <div className={styles.emptyTitle}>Ask a question</div>
                 <div className={styles.emptyDesc}>
-                  The model will retrieve relevant context from your datasets and answer.
+                  The model will retrieve relevant context from your datasets
+                  and answer.
                 </div>
               </div>
             ) : (
               <div className={styles.messages}>
                 {messages.map((msg) => (
-                  <ChatMessage key={msg.id} message={msg} sources={msg.sources || []} />
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    sources={msg.sources || []}
+                  />
                 ))}
                 {streamingText && (
                   <ChatMessage
@@ -254,4 +303,3 @@ export default function ChatPage() {
     </div>
   );
 }
-

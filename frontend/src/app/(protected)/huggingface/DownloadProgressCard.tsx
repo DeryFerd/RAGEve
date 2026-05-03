@@ -13,8 +13,8 @@ const TERMINAL_STATES = new Set(["completed", "failed", "cancelled"]);
 
 // Stage progress thresholds (heuristic, based on backend progress reporting)
 const STAGE_PROGRESS_THRESHOLDS = {
-  extracting: 30,  // Show extracting as active when progress > 30%
-  embedding: 60,   // Show embedding as active when progress > 60%
+  extracting: 30, // Show extracting as active when progress > 30%
+  embedding: 60, // Show embedding as active when progress > 60%
 } as const;
 
 const _fmtBytes = (n: number | null | undefined): string => {
@@ -26,8 +26,10 @@ const _fmtBytes = (n: number | null | undefined): string => {
 
 const _fmtSpeed = (bytesPerSecond: number): string => {
   if (bytesPerSecond < 1024) return `${bytesPerSecond.toFixed(0)} B/s`;
-  if (bytesPerSecond < 1024 ** 2) return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
-  if (bytesPerSecond < 1024 ** 3) return `${(bytesPerSecond / 1024 ** 2).toFixed(1)} MB/s`;
+  if (bytesPerSecond < 1024 ** 2)
+    return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+  if (bytesPerSecond < 1024 ** 3)
+    return `${(bytesPerSecond / 1024 ** 2).toFixed(1)} MB/s`;
   return `${(bytesPerSecond / 1024 ** 3).toFixed(2)} GB/s`;
 };
 
@@ -75,13 +77,16 @@ export function DownloadProgressCard({
     const now = Date.now();
     const elapsedMs = now - prevTimeRef.current;
     if (elapsedMs > 500) {
-      const bytesDelta = (downloadStatus.bytes_downloaded ?? 0) - prevBytesRef.current;
+      const bytesDelta =
+        (downloadStatus.bytes_downloaded ?? 0) - prevBytesRef.current;
       if (bytesDelta > 0) {
         const bytesPerSecond = (bytesDelta / elapsedMs) * 1000;
         setSpeed(bytesPerSecond);
 
         // Calculate ETA
-        const remainingBytes = (downloadStatus.total_bytes ?? 0) - (downloadStatus.bytes_downloaded ?? 0);
+        const remainingBytes =
+          (downloadStatus.total_bytes ?? 0) -
+          (downloadStatus.bytes_downloaded ?? 0);
         if (remainingBytes > 0 && bytesPerSecond > 0) {
           setEta(remainingBytes / bytesPerSecond);
         } else {
@@ -124,13 +129,21 @@ export function DownloadProgressCard({
     }
     if (key === "extracting") {
       if (isCompleted) return "done";
-      if (isDownloading && downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.extracting) return "active";
+      if (
+        isDownloading &&
+        downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.extracting
+      )
+        return "active";
       return "pending";
     }
     if (key === "embedding") {
       if (isCompleted) return "done";
       if (isIngesting) return "active";
-      if (isDownloading && downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.embedding) return "active";
+      if (
+        isDownloading &&
+        downloadStatus.progress > STAGE_PROGRESS_THRESHOLDS.embedding
+      )
+        return "active";
       return "pending";
     }
     return "pending";
@@ -156,16 +169,32 @@ export function DownloadProgressCard({
             {downloadStatus.config && ` › ${downloadStatus.config}`}
           </span>
           <span className={styles.dlProgressSub}>
-            {isIngesting ? "Indexing…" : ingestCompleted ? "Indexed!" : ingestFailed ? "Indexing failed" : ""}
+            {isIngesting
+              ? "Indexing…"
+              : ingestCompleted
+                ? "Indexed!"
+                : ingestFailed
+                  ? "Indexing failed"
+                  : ""}
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span
             className={`${styles.dlProgressPct} ${
-              isCompleted ? styles.dlProgressPctDone : isFailed ? styles.dlProgressPctError : ""
+              isCompleted
+                ? styles.dlProgressPctDone
+                : isFailed
+                  ? styles.dlProgressPctError
+                  : ""
             }`}
           >
-            {isCompleted ? "✓ Done" : isFailed ? "✗ Failed" : isCancelled ? "— Cancelled" : `${downloadStatus.progress}%`}
+            {isCompleted
+              ? "✓ Done"
+              : isFailed
+                ? "✗ Failed"
+                : isCancelled
+                  ? "— Cancelled"
+                  : `${downloadStatus.progress}%`}
           </span>
           {isDownloading && (
             <Button variant="danger" size="sm" onClick={onCancel}>
@@ -201,7 +230,9 @@ export function DownloadProgressCard({
               className={`${styles.progressFill} ${
                 isIngesting ? "" : styles.progressFillAnimating
               }`}
-              style={{ width: `${Math.max(0, Math.min(100, downloadStatus.progress))}%` }}
+              style={{
+                width: `${Math.max(0, Math.min(100, downloadStatus.progress))}%`,
+              }}
             />
           </div>
           <div className={styles.dlProgressMeta}>
@@ -231,7 +262,11 @@ export function DownloadProgressCard({
         <div className={styles.progressBarWrap}>
           <div
             className={`${styles.progressFill} ${
-              isCompleted ? styles.progressFillSuccess : isFailed ? styles.progressFillError : ""
+              isCompleted
+                ? styles.progressFillSuccess
+                : isFailed
+                  ? styles.progressFillError
+                  : ""
             }`}
             style={{ width: "100%" }}
           />
@@ -245,18 +280,28 @@ export function DownloadProgressCard({
             {isIngesting
               ? "Indexing…"
               : ingestCompleted
-              ? "✓ Indexed & ready to chat!"
-              : ingestFailed
-              ? "✗ Indexing failed"
-              : "Indexing…"}
+                ? "✓ Indexed & ready to chat!"
+                : ingestFailed
+                  ? "✗ Indexing failed"
+                  : "Indexing…"}
           </div>
           <div className={styles.ingestSubBar}>
             <div
               className={`${styles.ingestSubFill} ${
-                ingestCompleted ? styles.ingestSubFillDone : ingestFailed ? styles.ingestSubFillError : ""
+                ingestCompleted
+                  ? styles.ingestSubFillDone
+                  : ingestFailed
+                    ? styles.ingestSubFillError
+                    : ""
               }`}
               style={{
-                width: isIngesting ? "80%" : ingestCompleted ? "100%" : ingestFailed ? "100%" : "0%",
+                width: isIngesting
+                  ? "80%"
+                  : ingestCompleted
+                    ? "100%"
+                    : ingestFailed
+                      ? "100%"
+                      : "0%",
               }}
             />
           </div>
@@ -268,15 +313,21 @@ export function DownloadProgressCard({
 
       {/* Ingest error */}
       {isIngesting && downloadStatus.ingest_message && (
-        <div className={styles.progressSubMsg}>{downloadStatus.ingest_message}</div>
+        <div className={styles.progressSubMsg}>
+          {downloadStatus.ingest_message}
+        </div>
       )}
 
       {/* Errors */}
       {isFailed && downloadStatus.error && (
-        <div className={styles.progressError}>Error: {downloadStatus.error}</div>
+        <div className={styles.progressError}>
+          Error: {downloadStatus.error}
+        </div>
       )}
       {ingestFailed && downloadStatus.ingest_error && (
-        <div className={styles.progressError}>Indexing error: {downloadStatus.ingest_error}</div>
+        <div className={styles.progressError}>
+          Indexing error: {downloadStatus.ingest_error}
+        </div>
       )}
 
       {/* Success CTA */}
@@ -285,7 +336,9 @@ export function DownloadProgressCard({
           {!autoIngestEnabled && !ingestCompleted && (
             <Button onClick={handleIngestNow}>Ingest Now</Button>
           )}
-          {ingestCompleted && <Button onClick={() => router.push("/chat")}>Go to Chat</Button>}
+          {ingestCompleted && (
+            <Button onClick={() => router.push("/chat")}>Go to Chat</Button>
+          )}
           {!ingestCompleted && (
             <Button variant="secondary" onClick={() => router.push("/chat")}>
               Go to Chat

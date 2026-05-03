@@ -10,6 +10,8 @@ from datetime import datetime
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
 
+# Import shared rate limiter
+from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
 from backend.models_peewee import User
 from backend.services.auth import (
@@ -21,9 +23,6 @@ from backend.services.auth import (
 from backend.services.database import run_db_operation
 from backend.services.redis_client import get_redis_client
 from backend.services.tenant_user_store import get_tenant_user_store
-
-# Import shared rate limiter
-from backend.api.routes._limiter import limiter
 
 _log = logging.getLogger(__name__)
 
@@ -199,7 +198,9 @@ async def register(request: Request, data: RegisterRequest, response: Response) 
 
 @router.post("/login", response_model=AuthMeResponse)
 @limiter.limit("20/minute")
-async def login(request: Request, data: LoginRequest, response: Response) -> AuthMeResponse:
+async def login(
+    request: Request, data: LoginRequest, response: Response
+) -> AuthMeResponse:
     """
     Authenticate user with email and password.
 
@@ -371,8 +372,7 @@ async def _record_failed_login(request: Request, email: str) -> None:
             await client.expire(ip_attempts_key, 24 * 60 * 60)
 
         _log.warning(
-            "Failed login attempt #%d for email=%s from IP=%s",
-            count, email, client_ip
+            "Failed login attempt #%d for email=%s from IP=%s", count, email, client_ip
         )
 
         # If threshold reached, lock the account
@@ -380,7 +380,9 @@ async def _record_failed_login(request: Request, email: str) -> None:
             await client.set(lock_key, "1", ex=LOGIN_LOCK_DURATION_SECONDS)
             _log.warning(
                 "Account locked for email=%s due to %d failed attempts (IP=%s)",
-                email, count, client_ip
+                email,
+                count,
+                client_ip,
             )
     except Exception as e:
         _log.warning("Failed to record login attempt: %s", e)

@@ -124,9 +124,7 @@ async def _download_hf_dataset_to_server(
                             dataset_id, config_name=config, **split_kwargs
                         )
                         if config
-                        else get_dataset_split_names(
-                            dataset_id, **split_kwargs
-                        )
+                        else get_dataset_split_names(dataset_id, **split_kwargs)
                     )
             except asyncio.TimeoutError:
                 raise TimeoutError(
