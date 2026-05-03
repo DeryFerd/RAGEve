@@ -8,7 +8,6 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -30,10 +29,10 @@ from backend.logging_config import setup_logging
 from backend.models_peewee import close_db as peewee_close_db
 from backend.models_peewee import get_database
 from backend.models_peewee import init_db as peewee_init_db
+from backend.services.cache_service import close_cache, init_cache
 from backend.services.database import run_db_operation
 from backend.services.ingestion_factory import close_qdrant_store, get_ingestion_service
 from backend.services.redis_client import close_redis, init_redis
-from backend.services.cache_service import init_cache, close_cache
 
 # Initialise file-based logging before any route handlers run.
 setup_logging(settings.logs_dir)
@@ -203,7 +202,9 @@ async def lifespan(app: FastAPI):
     # Initialize MinIO buckets
     try:
         from botocore.exceptions import ClientError
+
         from backend.services.minio_client import get_minio_client
+
         minio_client = get_minio_client()
         buckets = ["uploads", "chunks", "vectors"]
         for bucket in buckets:
@@ -268,6 +269,7 @@ async def health():
     # Check Redis connectivity
     try:
         from backend.services.redis_client import get_redis_client
+
         redis_client = get_redis_client()
         redis_ok = await redis_client.ping()
     except Exception as e:
@@ -277,7 +279,8 @@ async def health():
     # Check MinIO connectivity (basic check)
     try:
         from backend.services.minio_client import get_minio_client
-        minio_client = get_minio_client()
+
+        get_minio_client()
         # MinIO client does bucket head check on init, so if we got here it's OK
         minio_ok = True
     except Exception as e:

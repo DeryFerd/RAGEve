@@ -16,7 +16,10 @@ interface DatasetCreateWizardProps {
   onClose: () => void;
 }
 
-export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps) {
+export function DatasetCreateWizard({
+  open,
+  onClose,
+}: DatasetCreateWizardProps) {
   const {
     isCreateWizardOpen,
     createWizardStep,
@@ -65,7 +68,7 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
     } catch (err) {
       addToast(
         `Failed to create dataset: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error"
+        "error",
       );
     }
   };
@@ -90,24 +93,20 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
     setIngestProgress({ progress: 0, message: "Starting ingestion..." });
 
     try {
-      await uploadFilesStreaming(
-        creatingDatasetId,
-        createWizardFiles,
-        {
-          onStatus: (event) => {
-            setIngestProgress({
-              progress: event.progress,
-              message: event.message,
-            });
-          },
-          onDone: () => {
-            setIngestProgress({ progress: 100, message: "Complete" });
-          },
-          onError: (event) => {
-            throw new Error(event.message);
-          },
-        }
-      );
+      await uploadFilesStreaming(creatingDatasetId, createWizardFiles, {
+        onStatus: (event) => {
+          setIngestProgress({
+            progress: event.progress,
+            message: event.message,
+          });
+        },
+        onDone: () => {
+          setIngestProgress({ progress: 100, message: "Complete" });
+        },
+        onError: (event) => {
+          throw new Error(event.message);
+        },
+      });
 
       const newDataset: DatasetInfo = {
         dataset_id: creatingDatasetId,
@@ -118,12 +117,15 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
         status: "completed",
       };
       addDataset(newDataset);
-      addToast(`Dataset "${createForm.name}" created and ingested successfully`, "success");
+      addToast(
+        `Dataset "${createForm.name}" created and ingested successfully`,
+        "success",
+      );
       handleClose();
     } catch (err) {
       addToast(
         `Ingestion failed: ${err instanceof Error ? err.message : "Unknown error"}`,
-        "error"
+        "error",
       );
       setCreateWizardSaving(false);
     }
@@ -150,8 +152,8 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
             createWizardStep === step
               ? styles.stepActive
               : createWizardStep > step
-              ? styles.stepCompleted
-              : ""
+                ? styles.stepCompleted
+                : ""
           }`}
         >
           {step}
@@ -198,10 +200,7 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
         className={styles.hiddenInput}
         onChange={handleFileSelect}
       />
-      <Button
-        variant="secondary"
-        onClick={() => fileInputRef.current?.click()}
-      >
+      <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
         Choose Files
       </Button>
       {createWizardFiles.length > 0 && (
@@ -217,7 +216,14 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
                 onClick={() => removeFile(idx)}
                 aria-label={`Remove ${file.name}`}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M1 1l10 10M11 1L1 11" />
                 </svg>
               </button>
@@ -238,7 +244,9 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
         {createForm.description && (
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>Description:</span>
-            <span className={styles.summaryValue}>{createForm.description}</span>
+            <span className={styles.summaryValue}>
+              {createForm.description}
+            </span>
           </div>
         )}
         <div className={styles.summaryRow}>
@@ -296,7 +304,11 @@ export function DatasetCreateWizard({ open, onClose }: DatasetCreateWizardProps)
       case 3:
         return (
           <>
-            <Button variant="ghost" onClick={handleStep3Back} disabled={createWizardSaving}>
+            <Button
+              variant="ghost"
+              onClick={handleStep3Back}
+              disabled={createWizardSaving}
+            >
               Back
             </Button>
             <Button

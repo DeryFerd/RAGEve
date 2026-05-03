@@ -42,7 +42,7 @@ interface ChatState {
   finalizeStreaming: (
     sources: SourceChunk[],
     rerankerModel?: string | null,
-    storedMessageId?: string
+    storedMessageId?: string,
   ) => void;
   clearStreaming: () => void;
   setSources: (sources: SourceChunk[]) => void;
@@ -91,7 +91,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
   addSession: (session) =>
     set((state) => ({
-      sessions: [session, ...state.sessions.filter((s) => s.session_id !== session.session_id)],
+      sessions: [
+        session,
+        ...state.sessions.filter((s) => s.session_id !== session.session_id),
+      ],
       currentSession: session,
     })),
 
@@ -99,7 +102,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     set((state) => ({
       sessions: state.sessions.filter((s) => s.session_id !== sessionId),
       currentSession:
-        state.currentSession?.session_id === sessionId ? null : state.currentSession,
+        state.currentSession?.session_id === sessionId
+          ? null
+          : state.currentSession,
     })),
 
   setCurrentSession: (currentSession) =>
@@ -117,7 +122,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
   appendStreamingText: (text) =>
     set((state) => ({
-      streamingText: normalizeLLMResponse(state.streamingText + text)
+      streamingText: normalizeLLMResponse(state.streamingText + text),
     })),
 
   finalizeStreaming: (sources, rerankerModel, storedMessageId) => {
@@ -186,4 +191,3 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       activeRerankerModel: null,
     }),
 }));
-

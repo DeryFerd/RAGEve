@@ -36,31 +36,43 @@ export function normalizeLLMResponse(text: string): string {
   // legitimate "?!." sequences in dialogue. Stick to sentence-ending punctuation.
   normalized = normalized.replace(/([.:;])(?=\d+\.\s+)/g, "$1\n");
   normalized = normalized.replace(/([.:;])(?=\-\s+|\*\s+)/g, "$1\n");
-  normalized = normalized.replace(/^(\s*)(\d+)[\.\)\s]+\s*(.*?\S)\s*$/gm, (match, indent, num, content) => {
-    if (!content) return match;
-    return `${indent}${num}. ${content}`;
-  });
-  normalized = normalized.replace(/^(\s*)([\-\*])\s+(.*?\S)\s*$/gm, (match, indent, marker, content) => {
-    if (!content) return match;
-    return `${indent}${marker} ${content}`;
-  });
+  normalized = normalized.replace(
+    /^(\s*)(\d+)[\.\)\s]+\s*(.*?\S)\s*$/gm,
+    (match, indent, num, content) => {
+      if (!content) return match;
+      return `${indent}${num}. ${content}`;
+    },
+  );
+  normalized = normalized.replace(
+    /^(\s*)([\-\*])\s+(.*?\S)\s*$/gm,
+    (match, indent, marker, content) => {
+      if (!content) return match;
+      return `${indent}${marker} ${content}`;
+    },
+  );
 
   // Step 3: Normalize ordered list markers to "N. " format
   // Matches lines that START with a number followed by optional punctuation/whitespace
   // Flags: m (multiline) so ^/$ match line boundaries, g (global)
   // Preserves leading indentation (for nested lists) and captures content
-  normalized = normalized.replace(/^(\s*)(\d+)[\.\)\s]+\s*(.*?\S)\s*$/gm, (match, indent, num, content) => {
-    // If content is empty (blank line that matched), keep original
-    if (!content) return match;
-    // Standardize to "indent + number + period + space + content"
-    return `${indent}${num}. ${content}`;
-  });
+  normalized = normalized.replace(
+    /^(\s*)(\d+)[\.\)\s]+\s*(.*?\S)\s*$/gm,
+    (match, indent, num, content) => {
+      // If content is empty (blank line that matched), keep original
+      if (!content) return match;
+      // Standardize to "indent + number + period + space + content"
+      return `${indent}${num}. ${content}`;
+    },
+  );
 
   // Step 4: Normalize unordered list markers to have exactly one space after
-  normalized = normalized.replace(/^(\s*)([\-\*])\s+(.*?\S)\s*$/gm, (match, indent, marker, content) => {
-    if (!content) return match;
-    return `${indent}${marker} ${content}`;
-  });
+  normalized = normalized.replace(
+    /^(\s*)([\-\*])\s+(.*?\S)\s*$/gm,
+    (match, indent, marker, content) => {
+      if (!content) return match;
+      return `${indent}${marker} ${content}`;
+    },
+  );
   normalized = normalized.replace(/([a-z])\.([A-Z]{2,})/g, "$1. $2");
 
   // Step 5: Trim trailing whitespace on every line

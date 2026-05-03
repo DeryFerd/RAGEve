@@ -51,15 +51,15 @@ export function DatasetCard({
     preview.source === "hf-hub"
       ? styles.sourceBadgeBlue
       : preview.source === "datasets-server"
-      ? styles.sourceBadgeOrange
-      : styles.sourceBadgeGray;
+        ? styles.sourceBadgeOrange
+        : styles.sourceBadgeGray;
 
   const sourceLabel =
     preview.source === "hf-hub"
       ? "HF Hub"
       : preview.source === "datasets-server"
-      ? "datasets-server"
-      : "Hub API";
+        ? "datasets-server"
+        : "Hub API";
 
   // Determine if description needs truncation (2 lines ≈ 200 chars)
   const needsTruncate = preview.description && preview.description.length > 200;
@@ -80,13 +80,18 @@ export function DatasetCard({
               )}
               {preview.splits.length > 0 && (
                 <span className={`${styles.sourceBadge} ${sourceClass}`}>
-                  {preview.splits.length} split{preview.splits.length !== 1 ? "s" : ""}
+                  {preview.splits.length} split
+                  {preview.splits.length !== 1 ? "s" : ""}
                 </span>
               )}
               {preview.license && (
-                <span className={`${styles.sourceBadge} ${sourceClass}`}>{preview.license}</span>
+                <span className={`${styles.sourceBadge} ${sourceClass}`}>
+                  {preview.license}
+                </span>
               )}
-              <span className={`${styles.sourceBadge} ${sourceClass}`}>{sourceLabel}</span>
+              <span className={`${styles.sourceBadge} ${sourceClass}`}>
+                {sourceLabel}
+              </span>
             </div>
           </div>
         </div>
@@ -106,7 +111,13 @@ export function DatasetCard({
       {/* ── Description ───────────────────────────────────────── */}
       {preview.description && (
         <div className={styles.previewDescription}>
-          <p className={needsTruncate && !showFullDesc ? styles.previewDescriptionClamped : ""}>
+          <p
+            className={
+              needsTruncate && !showFullDesc
+                ? styles.previewDescriptionClamped
+                : ""
+            }
+          >
             {preview.description}
           </p>
           {needsTruncate && (
@@ -162,7 +173,10 @@ export function DatasetCard({
           <div className={styles.panelSection}>
             <label
               className={styles.autoIngestLabel}
-              style={{ cursor: isDownloading ? "not-allowed" : "pointer", opacity: isDownloading ? 0.5 : 1 }}
+              style={{
+                cursor: isDownloading ? "not-allowed" : "pointer",
+                opacity: isDownloading ? 0.5 : 1,
+              }}
             >
               <input
                 type="checkbox"
@@ -180,20 +194,26 @@ export function DatasetCard({
           {/* Ingest options */}
           {showIngestOptions && hasTextColumns && (
             <div className={styles.panelField}>
-              <label className={styles.panelFieldLabel}>Text Columns to Embed</label>
+              <label className={styles.panelFieldLabel}>
+                Text Columns to Embed
+              </label>
               <MultiSelect
-                id={`text-cols-${preview.full_dataset_id.replace(/\//g, '-')}`}
+                id={`text-cols-${preview.full_dataset_id.replace(/\//g, "-")}`}
                 options={textColumnOptions}
                 selected={autoIngestTextCols}
                 onChange={onAutoIngestTextColsChange}
               />
-              <p className={styles.panelFieldHint}>Select columns containing text for semantic search</p>
+              <p className={styles.panelFieldHint}>
+                Select columns containing text for semantic search
+              </p>
             </div>
           )}
 
           {showIngestOptions && (
             <div className={styles.panelField}>
-              <label className={styles.panelFieldLabel}>Row Limit (optional)</label>
+              <label className={styles.panelFieldLabel}>
+                Row Limit (optional)
+              </label>
               <input
                 className={styles.panelInput}
                 type="text"
@@ -201,7 +221,9 @@ export function DatasetCard({
                 value={rowLimitInput}
                 onChange={(e) => onRowLimitChange(e.target.value)}
               />
-              <p className={styles.panelFieldHint}>Limit rows for testing (e.g., 500)</p>
+              <p className={styles.panelFieldHint}>
+                Limit rows for testing (e.g., 500)
+              </p>
             </div>
           )}
         </div>

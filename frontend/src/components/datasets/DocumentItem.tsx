@@ -27,10 +27,20 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DocumentItem({ document, datasetId: _datasetId }: DocumentItemProps) {
+export function DocumentItem({
+  document,
+  datasetId: _datasetId,
+}: DocumentItemProps) {
   const status = getStatus(document.progress);
-  const chunks = String(document.meta_fields?.chunks ?? document.doc_metadata?.chunks ?? "—");
-  const statusVariant = status === "completed" ? "success" : status === "processing" ? "warning" : "muted";
+  const chunks = String(
+    document.meta_fields?.chunks ?? document.doc_metadata?.chunks ?? "—",
+  );
+  const statusVariant =
+    status === "completed"
+      ? "success"
+      : status === "processing"
+        ? "warning"
+        : "muted";
 
   return (
     <div className={styles.card}>
@@ -51,7 +61,8 @@ export function DocumentItem({ document, datasetId: _datasetId }: DocumentItemPr
       <div className={styles.meta}>
         <span className={styles.metaLabel}>Chunks:</span> {chunks}
         <span className={styles.metaSeparator}>|</span>
-        <span className={styles.metaLabel}>Created:</span> {formatDate(document.create_date ?? null)}
+        <span className={styles.metaLabel}>Created:</span>{" "}
+        {formatDate(document.create_date ?? null)}
         {document.doc_type && (
           <>
             <span className={styles.metaSeparator}>|</span>
@@ -61,36 +72,38 @@ export function DocumentItem({ document, datasetId: _datasetId }: DocumentItemPr
       </div>
 
       <Accordion>
-        {document.doc_metadata && Object.keys(document.doc_metadata).length > 0 && (
-          <AccordionItem title="Document Metadata">
-            <div className={styles.kvGrid}>
-              {Object.entries(document.doc_metadata).map(([key, value]) => (
-                <div key={key} className={styles.kvRow}>
-                  <span className={styles.kvKey}>{key}</span>
-                  <span className={styles.kvValue}>{String(value)}</span>
-                </div>
-              ))}
-            </div>
-          </AccordionItem>
-        )}
-        {document.meta_fields && Object.keys(document.meta_fields).length > 0 && (
-          <AccordionItem title="Meta Fields">
-            <div className={styles.kvGrid}>
-              {Object.entries(document.meta_fields).map(([key, value]) => (
-                <div key={key} className={styles.kvRow}>
-                  <span className={styles.kvKey}>{key}</span>
-                  <span className={styles.kvValue}>
-                    {typeof value === "number"
-                      ? value === Math.floor(value)
-                        ? value
-                        : formatBytes(value)
-                      : String(value)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </AccordionItem>
-        )}
+        {document.doc_metadata &&
+          Object.keys(document.doc_metadata).length > 0 && (
+            <AccordionItem title="Document Metadata">
+              <div className={styles.kvGrid}>
+                {Object.entries(document.doc_metadata).map(([key, value]) => (
+                  <div key={key} className={styles.kvRow}>
+                    <span className={styles.kvKey}>{key}</span>
+                    <span className={styles.kvValue}>{String(value)}</span>
+                  </div>
+                ))}
+              </div>
+            </AccordionItem>
+          )}
+        {document.meta_fields &&
+          Object.keys(document.meta_fields).length > 0 && (
+            <AccordionItem title="Meta Fields">
+              <div className={styles.kvGrid}>
+                {Object.entries(document.meta_fields).map(([key, value]) => (
+                  <div key={key} className={styles.kvRow}>
+                    <span className={styles.kvKey}>{key}</span>
+                    <span className={styles.kvValue}>
+                      {typeof value === "number"
+                        ? value === Math.floor(value)
+                          ? value
+                          : formatBytes(value)
+                        : String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </AccordionItem>
+          )}
       </Accordion>
     </div>
   );

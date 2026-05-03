@@ -113,7 +113,9 @@ export async function updateProfile(data: UpdateProfilePayload) {
 /**
  * Change user's password.
  */
-export async function changePassword(data: ChangePasswordPayload): Promise<void> {
+export async function changePassword(
+  data: ChangePasswordPayload,
+): Promise<void> {
   return apiFetch<void>("/api/auth/me/password", {
     method: "PUT",
     body: JSON.stringify(data),

@@ -13,9 +13,18 @@ interface SessionPanelProps {
   onSessionSelected: (sessionId: string) => void;
 }
 
-export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) {
-  const { sessions, currentSession, setSessions, addSession, removeSession, setCurrentSession } =
-    useChatStore();
+export function SessionPanel({
+  agentId,
+  onSessionSelected,
+}: SessionPanelProps) {
+  const {
+    sessions,
+    currentSession,
+    setSessions,
+    addSession,
+    removeSession,
+    setCurrentSession,
+  } = useChatStore();
   const { addToast } = useToastStore();
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -29,10 +38,12 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
         // Merge server sessions with any local sessions for this agent not yet on server
         // (e.g., auto-created session that hasn't propagated yet)
         const existingSessions = useChatStore.getState().sessions;
-        const relevantExisting = existingSessions.filter(s => s.agent_id === agentId);
+        const relevantExisting = existingSessions.filter(
+          (s) => s.agent_id === agentId,
+        );
         const mergedSessions = [...res.sessions];
         for (const s of relevantExisting) {
-          if (!res.sessions.find(rs => rs.session_id === s.session_id)) {
+          if (!res.sessions.find((rs) => rs.session_id === s.session_id)) {
             mergedSessions.push(s);
           }
         }
@@ -42,7 +53,9 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
           setCurrentSession(null);
         }
       })
-      .catch((err) => addToast(`Failed to load sessions: ${err.message}`, "error"))
+      .catch((err) =>
+        addToast(`Failed to load sessions: ${err.message}`, "error"),
+      )
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId]);
@@ -56,13 +69,19 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
       onSessionSelected(session.session_id);
       addToast("New conversation started", "success");
     } catch (err) {
-      addToast(`Failed to create session: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Failed to create session: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+  const handleDeleteSession = async (
+    sessionId: string,
+    e: React.MouseEvent,
+  ) => {
     e.stopPropagation();
     try {
       await deleteSession(sessionId);
@@ -72,7 +91,10 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
       }
       addToast("Conversation deleted", "info");
     } catch (err) {
-      addToast(`Failed to delete: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Failed to delete: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     }
   };
 
@@ -98,7 +120,7 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
           disabled={!agentId}
           title="Start a new conversation"
         >
-          New chat 
+          New chat
         </Button>
       </div>
 
@@ -117,20 +139,26 @@ export function SessionPanel({ agentId, onSessionSelected }: SessionPanelProps) 
             <div
               key={session.session_id}
               className={`${styles.sessionItem} ${
-                currentSession?.session_id === session.session_id ? styles.active : ""
+                currentSession?.session_id === session.session_id
+                  ? styles.active
+                  : ""
               }`}
               onClick={() => handleSelectSession(session.session_id)}
               title={session.title}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectSession(session.session_id); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ")
+                  handleSelectSession(session.session_id);
+              }}
             >
               <div className={styles.sessionItemContent}>
                 <div className={styles.sessionTitle}>
                   {session.title || "New conversation"}
                 </div>
                 <div className={styles.sessionMeta}>
-                  {session.message_count} message{session.message_count !== 1 ? "s" : ""}
+                  {session.message_count} message
+                  {session.message_count !== 1 ? "s" : ""}
                   {" · "}
                   {formatRelativeTime(session.updated_at)}
                 </div>

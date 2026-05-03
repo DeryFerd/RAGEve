@@ -18,7 +18,7 @@ interface ChatInputProps {
       useReranker: boolean;
       rerankerModel: string | null;
       useHybrid: boolean;
-    }
+    },
   ) => void;
   onStop: () => void;
   disabled?: boolean;
@@ -45,18 +45,21 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
     setUseHybrid,
   } = useChatStore();
 
-  const {
-    availableModels,
-    modelsLoaded,
-    refreshOllamaModels,
-  } = useModelStore();
+  const { availableModels, modelsLoaded, refreshOllamaModels } =
+    useModelStore();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = () => {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
-    onSend(trimmed, { temperature, topK, useReranker, rerankerModel, useHybrid });
+    onSend(trimmed, {
+      temperature,
+      topK,
+      useReranker,
+      rerankerModel,
+      useHybrid,
+    });
     setText("");
     textareaRef.current?.focus();
   };
@@ -83,7 +86,7 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
     } catch (err) {
       addToast(
         `Refresh failed: ${err instanceof Error ? err.message : String(err)}`,
-        "error"
+        "error",
       );
     } finally {
       setRefreshing(false);
@@ -114,7 +117,14 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
               type="button"
               aria-label="Refresh Ollama models"
             >
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 13 13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M11 6.5A4.5 4.5 0 1 1 6.5 2" />
                 <path d="M11 2v3.5H7.5" />
               </svg>
@@ -136,7 +146,9 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
                 value={temperature}
                 onChange={(e) => setTemperature(Number(e.target.value))}
               />
-              <span className={styles.settingValue}>{temperature.toFixed(1)}</span>
+              <span className={styles.settingValue}>
+                {temperature.toFixed(1)}
+              </span>
             </div>
           </div>
 
@@ -168,7 +180,9 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
             </div>
             <label
               className={styles.toggle}
-              title={useHybrid ? "Disable hybrid search" : "Enable hybrid search"}
+              title={
+                useHybrid ? "Disable hybrid search" : "Enable hybrid search"
+              }
             >
               <input
                 type="checkbox"
@@ -196,7 +210,11 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
                 checked={useReranker}
                 onChange={(e) => {
                   setUseReranker(e.target.checked);
-                  if (e.target.checked && rerankerModels.length > 0 && !rerankerModel) {
+                  if (
+                    e.target.checked &&
+                    rerankerModels.length > 0 &&
+                    !rerankerModel
+                  ) {
                     setRerankerModel(rerankerModels[0].id);
                   }
                 }}
@@ -207,7 +225,9 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
 
           {/* Reranker model selector — only when enabled */}
           {useReranker && (
-            <div className={`${styles.settingRow} ${styles.settingRowIndented}`}>
+            <div
+              className={`${styles.settingRow} ${styles.settingRowIndented}`}
+            >
               <span className={styles.settingLabel}>Model</span>
               <div className={styles.settingControl}>
                 <Select
@@ -241,7 +261,12 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
         <div className={styles.actions}>
           {isStreaming ? (
             <Button variant="danger" onClick={onStop} title="Stop generation">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="currentColor"
+              >
                 <rect x="2" y="2" width="10" height="10" rx="2" />
               </svg>
             </Button>
@@ -251,7 +276,14 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
               disabled={!text.trim() || disabled}
               title="Send message"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
                 <path d="M13 1L1 6l5 2 2 5 5-12z" />
               </svg>
               Send
@@ -264,14 +296,16 @@ export function ChatInput({ onSend, onStop, disabled }: ChatInputProps) {
             onClick={() => setSettingsOpen((v) => !v)}
             title={settingsOpen ? "Close settings" : "Open search settings"}
             type="button"
-            aria-label={settingsOpen ? "Close settings" : "Open search settings"}
+            aria-label={
+              settingsOpen ? "Close settings" : "Open search settings"
+            }
           >
-            <img 
-              src="/setting.png" 
-              alt="Settings" 
-              width="15" 
-              height="15" 
-              style={{ display: 'block', objectFit: 'contain' }}
+            <img
+              src="/setting.png"
+              alt="Settings"
+              width="15"
+              height="15"
+              style={{ display: "block", objectFit: "contain" }}
             />
           </button>
         </div>

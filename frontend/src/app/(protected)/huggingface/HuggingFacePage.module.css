@@ -128,7 +128,9 @@
   flex-shrink: 0;
 }
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .splitInput {
@@ -174,7 +176,10 @@
   font-size: 11px;
   font-family: var(--font-sans);
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 .chip:hover {
   background: var(--bg-hover);
@@ -270,8 +275,14 @@
   margin-top: 24px;
 }
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Preview hero bar */
@@ -280,7 +291,11 @@
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
   border-bottom: 1px solid var(--border);
 }
 .previewIcon {
@@ -289,7 +304,10 @@
   flex-shrink: 0;
   opacity: 0.7;
 }
-.previewHeroMeta { flex: 1; min-width: 0; }
+.previewHeroMeta {
+  flex: 1;
+  min-width: 0;
+}
 .previewDatasetName {
   font-size: 14px;
   font-weight: 700;
@@ -403,7 +421,9 @@
   align-self: flex-start;
   transition: color var(--transition-fast);
 }
-.descToggle:hover { text-decoration: underline; }
+.descToggle:hover {
+  text-decoration: underline;
+}
 
 .tags {
   display: flex;
@@ -433,7 +453,9 @@
   align-items: center;
   gap: 4px;
 }
-.readmeToggle:hover { text-decoration: underline; }
+.readmeToggle:hover {
+  text-decoration: underline;
+}
 .readmeContent {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
@@ -467,7 +489,10 @@
   color: var(--text-secondary);
   font-family: var(--font-mono);
 }
-.colText { border: 1px solid var(--border); color: var(--text-primary); }
+.colText {
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
 .colType {
   font-size: 9px;
   text-transform: uppercase;
@@ -525,12 +550,26 @@
   flex-shrink: 0;
   animation: pulse 1.4s ease-in-out infinite;
 }
-.progressDotDone { background: var(--text-muted); animation: none; }
-.progressDotError { background: var(--text-primary); animation: none; }
-.progressDotCancelled { background: var(--text-muted); animation: none; }
+.progressDotDone {
+  background: var(--text-muted);
+  animation: none;
+}
+.progressDotError {
+  background: var(--text-primary);
+  animation: none;
+}
+.progressDotCancelled {
+  background: var(--text-muted);
+  animation: none;
+}
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 .progressTitle {
   font-size: 13px;
@@ -551,8 +590,14 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.progressPctDone { color: var(--text-muted); font-weight: 600; }
-.progressPctError { color: var(--text-primary); font-weight: 600; }
+.progressPctDone {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.progressPctError {
+  color: var(--text-primary);
+  font-weight: 600;
+}
 
 .progressBarWrap {
   height: 6px;
@@ -570,18 +615,28 @@
     -45deg,
     transparent 0px,
     transparent 6px,
-    rgba(255,255,255,0.15) 6px,
-    rgba(255,255,255,0.15) 12px
+    rgba(255, 255, 255, 0.15) 6px,
+    rgba(255, 255, 255, 0.15) 12px
   );
   background-size: 28px 28px;
   animation: shimmer 0.9s linear infinite;
 }
 @keyframes shimmer {
-  0%   { background-position: 0 0; }
-  100% { background-position: 28px 0; }
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 28px 0;
+  }
 }
-.progressFillSuccess { background: var(--text-muted); animation: none; }
-.progressFillError   { background: var(--text-primary); animation: none; }
+.progressFillSuccess {
+  background: var(--text-muted);
+  animation: none;
+}
+.progressFillError {
+  background: var(--text-primary);
+  animation: none;
+}
 
 .progressBytes {
   display: flex;
@@ -648,8 +703,12 @@
   background: var(--warning);
   transition: width 0.5s ease;
 }
-.ingestSubFillDone { background: var(--success); }
-.ingestSubFillError { background: var(--error); }
+.ingestSubFillDone {
+  background: var(--success);
+}
+.ingestSubFillError {
+  background: var(--error);
+}
 
 /* ── Local datasets section ────────────────────────── */
 .localSection {
@@ -690,7 +749,10 @@
   padding: 11px 14px;
   cursor: pointer;
 }
-.localInfo { flex: 1; min-width: 0; }
+.localInfo {
+  flex: 1;
+  min-width: 0;
+}
 .localName {
   font-size: 13px;
   font-weight: 600;
@@ -715,7 +777,11 @@
   color: var(--text-muted);
   flex-wrap: wrap;
 }
-.localMeta > span { display: flex; align-items: center; gap: 3px; }
+.localMeta > span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
 
 /* Ingest panel */
 .ingestPanel {
@@ -733,7 +799,11 @@
   gap: 10px;
   overflow: visible; /* Allow MultiSelect dropdowns to escape */
 }
-.ingestField { display: flex; flex-direction: column; gap: 4px; }
+.ingestField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .ingestFieldLabel {
   font-size: 10px;
   font-weight: 600;
@@ -756,7 +826,9 @@
   outline: none;
   border-color: var(--border-focus);
 }
-.ingestFieldInput::placeholder { color: var(--text-muted); }
+.ingestFieldInput::placeholder {
+  color: var(--text-muted);
+}
 .ingestActions {
   display: flex;
   justify-content: flex-end;
@@ -826,7 +898,11 @@
   gap: 16px;
   flex-wrap: wrap;
 }
-.resultStat { display: flex; flex-direction: column; gap: 1px; }
+.resultStat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
 .resultStatLabel {
   font-size: 10px;
   text-transform: uppercase;
@@ -892,7 +968,9 @@
   font-size: 12px;
   transition: color var(--transition-fast);
 }
-.searchClear:hover { color: var(--text-primary); }
+.searchClear:hover {
+  color: var(--text-primary);
+}
 
 /* Hub search dropdown */
 .searchDropdown {
@@ -925,14 +1003,51 @@
   border-bottom: 1px solid var(--border);
   transition: background var(--transition-fast);
 }
-.searchResultItem:last-child { border-bottom: none; }
-.searchResultItem:hover { background: var(--bg-hover); }
-.searchResultIcon { font-size: 18px; flex-shrink: 0; margin-top: 1px; opacity: 0.6; }
-.searchResultInfo { flex: 1; min-width: 0; }
-.searchResultName { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.searchResultMeta { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; gap: 8px; }
-.searchResultDesc { font-size: 11px; color: var(--text-secondary); margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.searchNoResults { padding: 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.searchResultItem:last-child {
+  border-bottom: none;
+}
+.searchResultItem:hover {
+  background: var(--bg-hover);
+}
+.searchResultIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.6;
+}
+.searchResultInfo {
+  flex: 1;
+  min-width: 0;
+}
+.searchResultName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.searchResultMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+}
+.searchResultDesc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.searchNoResults {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
 
 /* Preview compact / tabbed */
 .previewDetailsBtn {
@@ -949,7 +1064,9 @@
   gap: 4px;
   transition: color var(--transition-fast);
 }
-.previewDetailsBtn:hover { text-decoration: underline; }
+.previewDetailsBtn:hover {
+  text-decoration: underline;
+}
 .previewTabStrip {
   display: flex;
   border-bottom: 1px solid var(--border);
@@ -970,9 +1087,18 @@
   background: transparent;
   font-family: var(--font-sans);
 }
-.previewTab:hover { color: var(--text-primary); }
-.previewTabActive { color: var(--accent); border-bottom-color: var(--accent); }
-.previewTabBadge { margin-left: 4px; font-size: 10px; opacity: 0.7; }
+.previewTab:hover {
+  color: var(--text-primary);
+}
+.previewTabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.previewTabBadge {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.7;
+}
 
 /* Source badges */
 .sourceBadgeBlue {
@@ -1029,7 +1155,9 @@
   border: 1px solid var(--border);
   border-top: none;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  transition: max-height 0.2s ease, opacity 0.2s ease;
+  transition:
+    max-height 0.2s ease,
+    opacity 0.2s ease;
   position: relative;
   z-index: 1;
 }
@@ -1050,7 +1178,14 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-.dlProgressHeaderLeft { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dlProgressHeaderLeft {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .dlProgressDatasetName {
   font-size: 13px;
   font-weight: 600;
@@ -1068,8 +1203,13 @@
   font-family: var(--font-mono);
   white-space: nowrap;
 }
-.dlProgressPctDone { color: var(--success); font-weight: 600; }
-.dlProgressPctError { color: var(--error); }
+.dlProgressPctDone {
+  color: var(--success);
+  font-weight: 600;
+}
+.dlProgressPctError {
+  color: var(--error);
+}
 
 /* Stage dots strip */
 .dlProgressStages {
@@ -1099,13 +1239,29 @@
   flex-shrink: 0;
   transition: background 0.3s;
 }
-.dlStageActive .dlStageDot { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
-.dlStageActive { color: var(--text-primary); font-weight: 500; }
-.dlStageDone .dlStageDot { background: var(--success); }
-.dlStageDone { color: var(--success); }
-.dlStageError .dlStageDot { background: var(--error); }
-.dlStageError { color: var(--error); }
-.dlStagePending { color: var(--text-muted); }
+.dlStageActive .dlStageDot {
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.dlStageActive {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.dlStageDone .dlStageDot {
+  background: var(--success);
+}
+.dlStageDone {
+  color: var(--success);
+}
+.dlStageError .dlStageDot {
+  background: var(--error);
+}
+.dlStageError {
+  color: var(--error);
+}
+.dlStagePending {
+  color: var(--text-muted);
+}
 
 .dlProgressMeta {
   display: flex;
@@ -1319,14 +1475,23 @@
 /* ── Skeleton loading states ─────────────────────────────────────────────── */
 
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-tertiary) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
   border-radius: var(--radius-md);
 }
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Search result skeleton */
@@ -1504,4 +1669,3 @@
 }
 
 /* (end of HuggingFacePage.module.css) */
-

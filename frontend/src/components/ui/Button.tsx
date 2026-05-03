@@ -25,7 +25,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       className = "",
       ...props
     },
-    ref
+    ref,
   ) => {
     const classes = [
       styles.btn,
@@ -52,14 +52,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             fill="none"
             style={{ animation: "spin 0.8s linear infinite" }}
           >
-            <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="20" strokeDashoffset="10" />
+            <circle
+              cx="7"
+              cy="7"
+              r="5.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeDasharray="20"
+              strokeDashoffset="10"
+            />
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </svg>
         )}
         {children}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";

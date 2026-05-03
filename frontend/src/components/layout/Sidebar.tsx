@@ -9,37 +9,33 @@ const NAV_ITEMS = [
   {
     href: "/models",
     label: "Models",
-    icon: (
-      <img src="/ollama.png" alt="Models" className={styles.navIcon} />
-    ),
+    icon: <img src="/ollama.png" alt="Models" className={styles.navIcon} />,
   },
   {
     href: "/datasets",
     label: "Datasets",
-    icon: (
-      <img src="/datasets.png" alt="Datasets" className={styles.navIcon} />
-    ),
+    icon: <img src="/datasets.png" alt="Datasets" className={styles.navIcon} />,
   },
   {
     href: "/huggingface",
     label: "HuggingFace",
     icon: (
-      <img src="/huggingface.png" alt="HuggingFace" className={styles.navIcon} />
+      <img
+        src="/huggingface.png"
+        alt="HuggingFace"
+        className={styles.navIcon}
+      />
     ),
   },
   {
     href: "/agents",
     label: "Agents",
-    icon: (
-      <img src="/agent.png" alt="Chat" className={styles.navIcon} />
-    ),
+    icon: <img src="/agent.png" alt="Chat" className={styles.navIcon} />,
   },
   {
     href: "/chat",
     label: "Chat",
-    icon: (
-      <img src="/chat.png" alt="Chat" className={styles.navIcon} />
-    ),
+    icon: <img src="/chat.png" alt="Chat" className={styles.navIcon} />,
   },
   {
     href: "/profile",
@@ -66,7 +62,9 @@ export function Sidebar() {
   const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
 
   return (
-    <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}>
+    <aside
+      className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ""}`}
+    >
       <div className={styles.logo}>
         <img src="/logo.png" alt="RAGEve logo" className={styles.logoIcon} />
         <span className={styles.logoText}>RAGEve</span>
@@ -74,7 +72,8 @@ export function Sidebar() {
 
       <nav className={styles.nav}>
         {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const active =
+            pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
@@ -101,7 +100,10 @@ export function Sidebar() {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
-          style={{ transform: sidebarCollapsed ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+          style={{
+            transform: sidebarCollapsed ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+          }}
         >
           <path d="M10 3L5 8l5 5" />
         </svg>

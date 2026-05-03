@@ -67,13 +67,16 @@ export function DownloadActionBar({
         {/* Dataset info */}
         <div className={styles.actionBarInfo}>
           <span style={{ fontSize: 20 }}>⬡</span>
-          <span className={styles.actionBarDatasetName}>{preview.full_dataset_id}</span>
+          <span className={styles.actionBarDatasetName}>
+            {preview.full_dataset_id}
+          </span>
           {preview.estimated_size_human && (
             <Badge variant="default">{preview.estimated_size_human}</Badge>
           )}
           {preview.splits.length > 0 && (
             <Badge variant="default">
-              {preview.splits.length} split{preview.splits.length !== 1 ? "s" : ""}
+              {preview.splits.length} split
+              {preview.splits.length !== 1 ? "s" : ""}
             </Badge>
           )}
         </div>
@@ -119,7 +122,10 @@ export function DownloadActionBar({
           {/* Auto-ingest toggle */}
           <label
             className={styles.ingestOptsLabel}
-            style={{ cursor: isDownloading ? "not-allowed" : "pointer", opacity: isDownloading ? 0.5 : 1 }}
+            style={{
+              cursor: isDownloading ? "not-allowed" : "pointer",
+              opacity: isDownloading ? 0.5 : 1,
+            }}
           >
             <input
               type="checkbox"
@@ -149,7 +155,9 @@ export function DownloadActionBar({
 
       {/* ── Ingest slide-in panel ───────────────────────────────────────── */}
       {(autoIngest || ingestSlideOpen) && !isDownloading && (
-        <div className={`${styles.actionBarSlideIn} ${styles.actionBarSlideInOpen}`}>
+        <div
+          className={`${styles.actionBarSlideIn} ${styles.actionBarSlideInOpen}`}
+        >
           <div className={styles.ingestOpts}>
             <div className={styles.ingestOptsRow}>
               {/* Text columns */}
