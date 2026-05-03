@@ -40,9 +40,15 @@ interface HubSearchProps {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-export function HubSearch({ datasetId, onDatasetIdChange, onChipClick }: HubSearchProps) {
+export function HubSearch({
+  datasetId,
+  onDatasetIdChange,
+  onChipClick,
+}: HubSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<HFDatasetSearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<HFDatasetSearchResult[]>(
+    [],
+  );
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -145,8 +151,15 @@ export function HubSearch({ datasetId, onDatasetIdChange, onChipClick }: HubSear
               <span className={styles.lookupSpinner} />
               Searching…
             </div>
-          ) : searchQuery.length >= 2 && searchResults.length === 0 && !searchError ? (
-            <div className={styles.lookupRow} style={{ color: "var(--text-muted)" }}>No results</div>
+          ) : searchQuery.length >= 2 &&
+            searchResults.length === 0 &&
+            !searchError ? (
+            <div
+              className={styles.lookupRow}
+              style={{ color: "var(--text-muted)" }}
+            >
+              No results
+            </div>
           ) : null}
 
           {/* Clear button */}
@@ -198,11 +211,17 @@ export function HubSearch({ datasetId, onDatasetIdChange, onChipClick }: HubSear
                   <div className={styles.searchResultInfo}>
                     <div className={styles.searchResultName}>{result.id}</div>
                     <div className={styles.searchResultMeta}>
-                      {result.downloads != null && <span>↓ {fmtCount(result.downloads)}</span>}
-                      {result.likes != null && <span>♥ {fmtCount(result.likes)}</span>}
+                      {result.downloads != null && (
+                        <span>↓ {fmtCount(result.downloads)}</span>
+                      )}
+                      {result.likes != null && (
+                        <span>♥ {fmtCount(result.likes)}</span>
+                      )}
                     </div>
                     {result.description && (
-                      <div className={styles.searchResultDesc}>{result.description}</div>
+                      <div className={styles.searchResultDesc}>
+                        {result.description}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -211,7 +230,7 @@ export function HubSearch({ datasetId, onDatasetIdChange, onChipClick }: HubSear
           </div>
         )}
       </div>
-      
+
       {/* Suggestion chips — always visible */}
       <div className={styles.chipsRow}>
         <span className={styles.chipsLabel}>Popular:</span>

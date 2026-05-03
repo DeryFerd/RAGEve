@@ -58,16 +58,25 @@ export default function RegisterPage() {
         <Card>
           <CardHeader title="Create Account" />
           <CardBody>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-4)",
+              }}
+            >
               {error && (
-                <div style={{
-                  padding: 'var(--space-3)',
-                  backgroundColor: 'var(--bg-elevated)',
-                  color: 'var(--text-primary)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-sm)',
-                  border: '1px solid var(--border)'
-                }}>
+                <div
+                  style={{
+                    padding: "var(--space-3)",
+                    backgroundColor: "var(--bg-elevated)",
+                    color: "var(--text-primary)",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--text-sm)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -128,15 +137,40 @@ export default function RegisterPage() {
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
               />
-              <Button type="submit" fullWidth loading={loading} disabled={loading}>
+              <Button
+                type="submit"
+                fullWidth
+                loading={loading}
+                disabled={loading}
+              >
                 Create Account
               </Button>
             </form>
           </CardBody>
-          <div style={{ padding: 'var(--space-3)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
+          <div
+            style={{
+              padding: "var(--space-3)",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "var(--text-sm)",
+                margin: 0,
+              }}
+            >
               Already have an account?{" "}
-              <Link href="/login" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
+              <Link
+                href="/login"
+                style={{
+                  color: "var(--accent)",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
                 Log in
               </Link>
             </p>

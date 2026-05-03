@@ -10,7 +10,12 @@ interface AgentSelectorProps {
   disabled?: boolean;
 }
 
-export function AgentSelector({ agents, selectedId, onChange, disabled }: AgentSelectorProps) {
+export function AgentSelector({
+  agents,
+  selectedId,
+  onChange,
+  disabled,
+}: AgentSelectorProps) {
   return (
     <select
       className={styles.select}

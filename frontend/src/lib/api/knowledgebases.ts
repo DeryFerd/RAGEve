@@ -29,14 +29,16 @@ export async function listKnowledgebases(params?: {
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
   const query = qs.toString();
-  return apiFetch<KnowledgebaseListResponse>(`/knowledgebases/${query ? `?${query}` : ""}`);
+  return apiFetch<KnowledgebaseListResponse>(
+    `/knowledgebases/${query ? `?${query}` : ""}`,
+  );
 }
 
 /**
  * Create a new knowledge base.
  */
 export async function createKnowledgebase(
-  payload: KnowledgebaseCreate
+  payload: KnowledgebaseCreate,
 ): Promise<KnowledgebaseResponse> {
   return apiFetch<KnowledgebaseResponse>("/knowledgebases/", {
     method: "POST",
@@ -47,7 +49,9 @@ export async function createKnowledgebase(
 /**
  * Get a single knowledge base by ID.
  */
-export async function getKnowledgebase(kbId: string): Promise<KnowledgebaseResponse> {
+export async function getKnowledgebase(
+  kbId: string,
+): Promise<KnowledgebaseResponse> {
   return apiFetch<KnowledgebaseResponse>(`/knowledgebases/${kbId}`);
 }
 
@@ -56,7 +60,7 @@ export async function getKnowledgebase(kbId: string): Promise<KnowledgebaseRespo
  */
 export async function updateKnowledgebase(
   kbId: string,
-  payload: KnowledgebaseUpdate
+  payload: KnowledgebaseUpdate,
 ): Promise<KnowledgebaseResponse> {
   return apiFetch<KnowledgebaseResponse>(`/knowledgebases/${kbId}`, {
     method: "PUT",
@@ -86,7 +90,7 @@ export async function uploadFilesToKnowledgebase(
     parser_id?: string;
     chunk_size?: number;
     chunk_overlap?: number;
-  }
+  },
 ): Promise<KbFileUploadResponse[]> {
   const form = new FormData();
   for (const file of files) {
@@ -95,8 +99,10 @@ export async function uploadFilesToKnowledgebase(
 
   const qs = new URLSearchParams();
   if (options?.parser_id) qs.set("parser_id", options.parser_id);
-  if (options?.chunk_size != null) qs.set("chunk_size", String(options.chunk_size));
-  if (options?.chunk_overlap != null) qs.set("chunk_overlap", String(options.chunk_overlap));
+  if (options?.chunk_size != null)
+    qs.set("chunk_size", String(options.chunk_size));
+  if (options?.chunk_overlap != null)
+    qs.set("chunk_overlap", String(options.chunk_overlap));
   const query = qs.toString();
 
   const url = `${BASE}/knowledgebases/${kbId}/upload${query ? `?${query}` : ""}`;
@@ -106,9 +112,12 @@ export async function uploadFilesToKnowledgebase(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    const err = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
     throw new Error(
-      (err as { detail?: string }).detail || `Upload failed: ${response.status}`
+      (err as { detail?: string }).detail ||
+        `Upload failed: ${response.status}`,
     );
   }
 
@@ -130,7 +139,9 @@ export async function listDocuments(params?: {
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
   const query = qs.toString();
-  return apiFetch<KbDocumentResponse[]>(`/knowledgebases/documents${query ? `?${query}` : ""}`);
+  return apiFetch<KbDocumentResponse[]>(
+    `/knowledgebases/documents${query ? `?${query}` : ""}`,
+  );
 }
 
 /**
@@ -143,7 +154,9 @@ export async function getDocument(docId: string): Promise<KbDocumentResponse> {
 /**
  * List all tasks for a document.
  */
-export async function listDocumentTasks(docId: string): Promise<KbTaskResponse[]> {
+export async function listDocumentTasks(
+  docId: string,
+): Promise<KbTaskResponse[]> {
   return apiFetch<KbTaskResponse[]>(`/knowledgebases/documents/${docId}/tasks`);
 }
 

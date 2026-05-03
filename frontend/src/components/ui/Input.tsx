@@ -1,6 +1,10 @@
 "use client";
 
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import styles from "./Input.module.css";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -13,7 +17,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, hint, error, className = "", id, ...props }, ref) => {
     return (
       <div className={styles.wrapper}>
-        {label && <label className={styles.label} htmlFor={id}>{label}</label>}
+        {label && (
+          <label className={styles.label} htmlFor={id}>
+            {label}
+          </label>
+        )}
         <input
           ref={ref}
           id={id}
@@ -21,11 +29,13 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {hint && (
-          <span className={`${styles.hint} ${error ? styles.errorText : ""}`}>{hint}</span>
+          <span className={`${styles.hint} ${error ? styles.errorText : ""}`}>
+            {hint}
+          </span>
         )}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = "Input";
@@ -40,7 +50,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, hint, error, className = "", id, ...props }, ref) => {
     return (
       <div className={styles.wrapper}>
-        {label && <label className={styles.label} htmlFor={id}>{label}</label>}
+        {label && (
+          <label className={styles.label} htmlFor={id}>
+            {label}
+          </label>
+        )}
         <textarea
           ref={ref}
           id={id}
@@ -48,11 +62,13 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           {...props}
         />
         {hint && (
-          <span className={`${styles.hint} ${error ? styles.errorText : ""}`}>{hint}</span>
+          <span className={`${styles.hint} ${error ? styles.errorText : ""}`}>
+            {hint}
+          </span>
         )}
       </div>
     );
-  }
+  },
 );
 
 Textarea.displayName = "Textarea";

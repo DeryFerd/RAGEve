@@ -70,9 +70,7 @@ class RedisClient:
             _log.warning("Redis get error for key '%s': %s", key, e)
             return None
 
-    async def set(
-        self, key: str, value: Any, ttl: int | None = None
-    ) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """Set value in Redis with optional TTL (seconds)."""
         try:
             client = await self.get_client()

@@ -38,9 +38,15 @@ class CacheService:
                 self._enabled = True
                 settings = get_settings()
                 # Read TTLs from config if available
-                self._embedding_ttl = getattr(settings, "cache_embedding_ttl", self._embedding_ttl)
-                self._search_ttl = getattr(settings, "cache_search_ttl", self._search_ttl)
-                self._answer_ttl = getattr(settings, "cache_answer_ttl", self._answer_ttl)
+                self._embedding_ttl = getattr(
+                    settings, "cache_embedding_ttl", self._embedding_ttl
+                )
+                self._search_ttl = getattr(
+                    settings, "cache_search_ttl", self._search_ttl
+                )
+                self._answer_ttl = getattr(
+                    settings, "cache_answer_ttl", self._answer_ttl
+                )
                 _log.info("Cache service initialized (Redis-backed)")
             else:
                 _log.warning("Redis not available - caching disabled")
@@ -66,7 +72,9 @@ class CacheService:
         use_hybrid: bool,
         query_hash: str,
     ) -> str:
-        h = self._hash_key(collection, embedding_model, top_k, score_threshold, use_hybrid, query_hash)
+        h = self._hash_key(
+            collection, embedding_model, top_k, score_threshold, use_hybrid, query_hash
+        )
         return f"rag:search:{collection}:{h}"
 
     def _answer_key(
@@ -107,7 +115,9 @@ class CacheService:
             _log.warning("Cache get embedding error: %s", e)
         return None
 
-    async def set_embedding(self, model: str, text: str, embedding: list[float]) -> None:
+    async def set_embedding(
+        self, model: str, text: str, embedding: list[float]
+    ) -> None:
         """Cache embedding vector."""
         if not self._enabled or not self._redis:
             return
@@ -130,7 +140,14 @@ class CacheService:
         if not self._enabled or not self._redis:
             return None
         try:
-            key = self._search_key(collection, embedding_model, top_k, score_threshold, use_hybrid, query_hash)
+            key = self._search_key(
+                collection,
+                embedding_model,
+                top_k,
+                score_threshold,
+                use_hybrid,
+                query_hash,
+            )
             data = await self._redis.get(key)
             if data:
                 if isinstance(data, str):
@@ -154,7 +171,14 @@ class CacheService:
         if not self._enabled or not self._redis:
             return
         try:
-            key = self._search_key(collection, embedding_model, top_k, score_threshold, use_hybrid, query_hash)
+            key = self._search_key(
+                collection,
+                embedding_model,
+                top_k,
+                score_threshold,
+                use_hybrid,
+                query_hash,
+            )
             await self._redis.set(key, json.dumps(results), ttl=self._search_ttl)
         except Exception as e:
             _log.warning("Cache set search error: %s", e)

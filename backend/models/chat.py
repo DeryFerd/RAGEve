@@ -17,16 +17,7 @@ from datetime import datetime, timezone
 from enum import Enum as PyEnum
 from typing import Any
 
-from sqlalchemy import (
-    JSON,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Text,
-)
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 

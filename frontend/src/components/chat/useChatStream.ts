@@ -31,7 +31,7 @@ export function useChatStream() {
       useReranker?: boolean;
       rerankerModel?: string | null;
       useHybrid?: boolean;
-    }
+    },
   ) => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -49,9 +49,11 @@ export function useChatStream() {
       if (!currentSession) {
         // No session yet — can't stream
         useChatStore.getState().setIsStreaming(false);
-        useChatStore.getState().appendStreamingText(
-          "\n\n[Error: No session selected. Please select or create a session first.]"
-        );
+        useChatStore
+          .getState()
+          .appendStreamingText(
+            "\n\n[Error: No session selected. Please select or create a session first.]",
+          );
         return;
       }
 
@@ -71,15 +73,19 @@ export function useChatStream() {
             useChatStore.getState().appendStreamingText(content);
           },
           onSources: (sources, rerankerModel, messageId) => {
-            useChatStore.getState().finalizeStreaming(sources, rerankerModel, messageId);
+            useChatStore
+              .getState()
+              .finalizeStreaming(sources, rerankerModel, messageId);
             useChatStore.getState().setIsStreaming(false);
           },
           onError: (error) => {
             useChatStore.getState().setIsStreaming(false);
-            useChatStore.getState().appendStreamingText(`\n\n[Error: ${error}]`);
+            useChatStore
+              .getState()
+              .appendStreamingText(`\n\n[Error: ${error}]`);
           },
         },
-        controller.signal
+        controller.signal,
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -87,9 +93,11 @@ export function useChatStream() {
         return;
       }
       useChatStore.getState().setIsStreaming(false);
-      useChatStore.getState().appendStreamingText(
-        `\n\n[Error: ${err instanceof Error ? err.message : String(err)}]`
-      );
+      useChatStore
+        .getState()
+        .appendStreamingText(
+          `\n\n[Error: ${err instanceof Error ? err.message : String(err)}]`,
+        );
     }
   };
 
@@ -103,4 +111,3 @@ export function useChatStream() {
 
   return { send, stop };
 }
-
