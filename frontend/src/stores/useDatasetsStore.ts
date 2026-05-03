@@ -41,7 +41,10 @@ interface DatasetsState {
   addDataset: (dataset: DatasetInfo) => void;
   removeDataset: (datasetId: string) => void;
   setUploading: (datasetId: string | null) => void;
-  setUploadResults: (datasetId: string, results: ProcessedFileResponse[]) => void;
+  setUploadResults: (
+    datasetId: string,
+    results: ProcessedFileResponse[],
+  ) => void;
   setUploadProgress: (progress: Partial<UploadProgressState>) => void;
   resetUploadProgress: () => void;
   setLoading: (loading: boolean) => void;
@@ -72,7 +75,7 @@ interface DatasetsState {
       progress: number;
       message: string;
       stage: string;
-    }>
+    }>,
   ) => void;
   resetIngestProgress: (datasetId: string) => void;
 }
@@ -112,7 +115,7 @@ export const useDatasetsStore = create<DatasetsState>()((set, get) => ({
     set((state) => ({
       datasets: state.datasets.filter((d) => d.dataset_id !== datasetId),
       uploadResults: Object.fromEntries(
-        Object.entries(state.uploadResults).filter(([k]) => k !== datasetId)
+        Object.entries(state.uploadResults).filter(([k]) => k !== datasetId),
       ),
     })),
   setUploading: (uploadingDatasetId) => set({ uploadingDatasetId }),
@@ -124,7 +127,8 @@ export const useDatasetsStore = create<DatasetsState>()((set, get) => ({
     set((state) => ({
       uploadProgress: { ...state.uploadProgress, ...progress },
     })),
-  resetUploadProgress: () => set({ uploadProgress: initialUploadProgressState }),
+  resetUploadProgress: () =>
+    set({ uploadProgress: initialUploadProgressState }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 
@@ -155,10 +159,7 @@ export const useDatasetsStore = create<DatasetsState>()((set, get) => ({
     set((state) => ({
       documentsByDataset: {
         ...state.documentsByDataset,
-        [datasetId]: [
-          ...(state.documentsByDataset[datasetId] || []),
-          ...docs,
-        ],
+        [datasetId]: [...(state.documentsByDataset[datasetId] || []), ...docs],
       },
     })),
   setDocumentsLoading: (datasetId, loading) =>

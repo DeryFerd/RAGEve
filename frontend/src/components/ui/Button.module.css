@@ -12,8 +12,12 @@
   font-family: var(--font-sans);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast),
-    color var(--transition-fast), opacity var(--transition-fast), transform 80ms ease;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast),
+    transform 80ms ease;
   white-space: nowrap;
   user-select: none;
   text-decoration: none;

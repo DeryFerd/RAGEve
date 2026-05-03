@@ -55,66 +55,62 @@ export function IngestInterface({ datasetId, onDone }: IngestInterfaceProps) {
     });
 
     try {
-      await uploadFilesStreaming(
-        datasetId,
-        selectedFiles,
-        {
-          onStatus: (event) => {
-            const progress = {
-              active: true,
-              progress: event.progress,
-              message: event.message,
-              stage: event.stage,
-              file: event.file,
-              fileIndex: event.file_index,
-              fileTotal: event.file_total,
-            };
-            setIngestProgress(progress);
-            setIngestProgressStore(datasetId, progress);
-          },
-          onFileDone: (event) => {
-            const msg = `Completed ${event.file} (${event.file_index}/${event.file_total})`;
-            setIngestProgress((prev) => ({
-              ...prev,
-              message: msg,
-              progress: event.progress,
-            }));
-          },
-          onDone: () => {
-            setIngestProgress({
-              active: false,
-              progress: 100,
-              message: "Ingestion complete",
-              stage: "completed",
-            });
-            setIngestProgressStore(datasetId, {
-              active: false,
-              progress: 100,
-              message: "Ingestion complete",
-              stage: "completed",
-            });
-            setSelectedFiles([]);
-            // Collapse and re-expand to refetch documents
-            toggleDetail(datasetId);
-            setTimeout(() => toggleDetail(datasetId), 100);
-            onDone?.();
-          },
-          onError: (event) => {
-            setIngestProgress({
-              active: false,
-              progress: 0,
-              message: event.message,
-              stage: "failed",
-            });
-            setIngestProgressStore(datasetId, {
-              active: false,
-              progress: 0,
-              message: event.message,
-              stage: "failed",
-            });
-          },
-        }
-      );
+      await uploadFilesStreaming(datasetId, selectedFiles, {
+        onStatus: (event) => {
+          const progress = {
+            active: true,
+            progress: event.progress,
+            message: event.message,
+            stage: event.stage,
+            file: event.file,
+            fileIndex: event.file_index,
+            fileTotal: event.file_total,
+          };
+          setIngestProgress(progress);
+          setIngestProgressStore(datasetId, progress);
+        },
+        onFileDone: (event) => {
+          const msg = `Completed ${event.file} (${event.file_index}/${event.file_total})`;
+          setIngestProgress((prev) => ({
+            ...prev,
+            message: msg,
+            progress: event.progress,
+          }));
+        },
+        onDone: () => {
+          setIngestProgress({
+            active: false,
+            progress: 100,
+            message: "Ingestion complete",
+            stage: "completed",
+          });
+          setIngestProgressStore(datasetId, {
+            active: false,
+            progress: 100,
+            message: "Ingestion complete",
+            stage: "completed",
+          });
+          setSelectedFiles([]);
+          // Collapse and re-expand to refetch documents
+          toggleDetail(datasetId);
+          setTimeout(() => toggleDetail(datasetId), 100);
+          onDone?.();
+        },
+        onError: (event) => {
+          setIngestProgress({
+            active: false,
+            progress: 0,
+            message: event.message,
+            stage: "failed",
+          });
+          setIngestProgressStore(datasetId, {
+            active: false,
+            progress: 0,
+            message: event.message,
+            stage: "failed",
+          });
+        },
+      });
     } catch {
       setIngestProgress({
         active: false,
@@ -175,7 +171,14 @@ export function IngestInterface({ datasetId, onDone }: IngestInterfaceProps) {
                 disabled={ingestProgress.active}
                 aria-label={`Remove ${file.name}`}
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
                   <path d="M1 1l10 10M11 1L1 11" />
                 </svg>
               </button>
@@ -187,9 +190,7 @@ export function IngestInterface({ datasetId, onDone }: IngestInterfaceProps) {
       {ingestProgress.active && (
         <div className={styles.progressSection}>
           <div className={styles.progressHeader}>
-            <span className={styles.progressStage}>
-              {ingestProgress.stage}
-            </span>
+            <span className={styles.progressStage}>{ingestProgress.stage}</span>
             <span className={styles.progressPct}>
               {Math.round(ingestProgress.progress)}%
             </span>

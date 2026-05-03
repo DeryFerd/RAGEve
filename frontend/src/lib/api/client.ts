@@ -4,7 +4,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public body?: unknown
+    public body?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -25,7 +25,7 @@ function _truncate(raw: string, max = 300): string {
 
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const base = getBaseUrl();
   const url = `${base}${path}`;
@@ -63,7 +63,7 @@ export async function apiFetch<T>(
     throw new ApiError(
       response.status,
       `API error ${response.status}: ${response.statusText}`,
-      body
+      body,
     );
   }
 
@@ -73,7 +73,10 @@ export async function apiFetch<T>(
   return JSON.parse(text) as T;
 }
 
-export async function apiFetchFormData<T>(path: string, body: FormData): Promise<T> {
+export async function apiFetchFormData<T>(
+  path: string,
+  body: FormData,
+): Promise<T> {
   const base = getBaseUrl();
   const url = `${base}${path}`;
 
@@ -99,7 +102,11 @@ export async function apiFetchFormData<T>(path: string, body: FormData): Promise
     } catch {
       errBody = _truncate(await response.text());
     }
-    throw new ApiError(response.status, `Upload failed: ${response.statusText}`, errBody);
+    throw new ApiError(
+      response.status,
+      `Upload failed: ${response.statusText}`,
+      errBody,
+    );
   }
 
   const text = await response.text();

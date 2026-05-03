@@ -20,7 +20,7 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
  * Create a new conversation for a dialog.
  */
 export async function createConversation(
-  payload: ConversationCreate
+  payload: ConversationCreate,
 ): Promise<ConversationResponse> {
   return apiFetch<ConversationResponse>("/conversations/", {
     method: "POST",
@@ -43,14 +43,16 @@ export async function listConversations(params?: {
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
   const query = qs.toString();
-  return apiFetch<ConversationListResponse>(`/conversations/${query ? `?${query}` : ""}`);
+  return apiFetch<ConversationListResponse>(
+    `/conversations/${query ? `?${query}` : ""}`,
+  );
 }
 
 /**
  * Get a conversation by ID including all messages.
  */
 export async function getConversation(
-  conversationId: string
+  conversationId: string,
 ): Promise<ConversationResponse> {
   return apiFetch<ConversationResponse>(`/conversations/${conversationId}`);
 }
@@ -60,7 +62,7 @@ export async function getConversation(
  */
 export async function updateConversation(
   conversationId: string,
-  payload: ConversationUpdate
+  payload: ConversationUpdate,
 ): Promise<ConversationResponse> {
   return apiFetch<ConversationResponse>(`/conversations/${conversationId}`, {
     method: "PUT",
@@ -71,8 +73,12 @@ export async function updateConversation(
 /**
  * Delete a conversation. Returns void on 204.
  */
-export async function deleteConversation(conversationId: string): Promise<void> {
-  return apiFetch<void>(`/conversations/${conversationId}`, { method: "DELETE" });
+export async function deleteConversation(
+  conversationId: string,
+): Promise<void> {
+  return apiFetch<void>(`/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
 }
 
 // ── Messages ──────────────────────────────────────────────────────────────────
@@ -82,14 +88,14 @@ export async function deleteConversation(conversationId: string): Promise<void> 
  */
 export async function appendMessage(
   conversationId: string,
-  payload: AppendMessageRequest
+  payload: AppendMessageRequest,
 ): Promise<AppendMessageResponse> {
   return apiFetch<AppendMessageResponse>(
     `/conversations/${conversationId}/messages`,
     {
       method: "POST",
       body: JSON.stringify(payload),
-    }
+    },
   );
 }
 
@@ -100,7 +106,7 @@ export type ConversationStreamHandler = {
   onSources: (
     sources: SourceChunk[],
     rerankerModel?: string | null,
-    messageId?: string
+    messageId?: string,
   ) => void;
   onError: (error: string) => void;
 };
@@ -123,14 +129,17 @@ export async function conversationChatStream(
     score_threshold?: number;
   },
   handlers: ConversationStreamHandler,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): Promise<void> {
   const qs = new URLSearchParams();
   qs.set("question", params.question);
   if (params.top_k != null) qs.set("top_k", String(params.top_k));
-  if (params.temperature != null) qs.set("temperature", String(params.temperature));
-  if (params.use_hybrid != null) qs.set("use_hybrid", String(params.use_hybrid));
-  if (params.use_reranker != null) qs.set("use_reranker", String(params.use_reranker));
+  if (params.temperature != null)
+    qs.set("temperature", String(params.temperature));
+  if (params.use_hybrid != null)
+    qs.set("use_hybrid", String(params.use_hybrid));
+  if (params.use_reranker != null)
+    qs.set("use_reranker", String(params.use_reranker));
   if (params.reranker_model) qs.set("reranker_model", params.reranker_model);
   if (params.score_threshold != null)
     qs.set("score_threshold", String(params.score_threshold));
@@ -142,14 +151,14 @@ export async function conversationChatStream(
       method: "POST",
       signal,
       headers: apiKey ? { "X-API-Key": apiKey } : undefined,
-    }
+    },
   );
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       (err as { detail?: string }).detail ||
-        `Conversation chat stream failed: ${res.status}`
+        `Conversation chat stream failed: ${res.status}`,
     );
   }
 
@@ -182,7 +191,7 @@ export async function conversationChatStream(
           handlers.onSources(
             event.sources ?? [],
             event.reranker_model ?? null,
-            event.message_id
+            event.message_id,
           );
         } else if (event.event === "error") {
           handlers.onError(event.error ?? "Unknown error");

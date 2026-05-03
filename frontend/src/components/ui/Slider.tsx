@@ -3,7 +3,10 @@
 import { type InputHTMLAttributes } from "react";
 import styles from "./Slider.module.css";
 
-interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
+interface SliderProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> {
   label?: string;
   showValue?: boolean;
   valueFormatter?: (value: number) => string;
@@ -20,11 +23,13 @@ export function Slider({
   return (
     <div className={styles.wrapper}>
       <div className={styles.header}>
-        {label && <label className={styles.label} htmlFor={id}>{label}</label>}
+        {label && (
+          <label className={styles.label} htmlFor={id}>
+            {label}
+          </label>
+        )}
         {showValue && (
-          <span className={styles.value}>
-            {valueFormatter(Number(value))}
-          </span>
+          <span className={styles.value}>{valueFormatter(Number(value))}</span>
         )}
       </div>
       <input
