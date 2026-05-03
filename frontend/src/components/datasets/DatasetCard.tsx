@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { DatasetInfo, KbDocumentResponse, KnowledgebaseResponse } from "@/lib/types";
+import type {
+  DatasetInfo,
+  KbDocumentResponse,
+  KnowledgebaseResponse,
+} from "@/lib/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DocumentList } from "./DocumentList";
@@ -48,7 +52,9 @@ export function DatasetCard({
       }
     };
     fetchDetail();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [expanded, dataset.dataset_id]);
 
   return (
@@ -100,7 +106,9 @@ export function DatasetCard({
       {expanded && (
         <div className={styles.detail}>
           {detailLoading && (
-            <div className={styles.detailMessage}>Loading dataset details...</div>
+            <div className={styles.detailMessage}>
+              Loading dataset details...
+            </div>
           )}
           {kbDetail && (
             <div className={styles.detailSection}>
@@ -112,7 +120,10 @@ export function DatasetCard({
                   <span>Language: {kbDetail.language}</span>
                 )}
                 {kbDetail.create_date && (
-                  <span>Created: {new Date(kbDetail.create_date).toLocaleDateString()}</span>
+                  <span>
+                    Created:{" "}
+                    {new Date(kbDetail.create_date).toLocaleDateString()}
+                  </span>
                 )}
               </div>
             </div>

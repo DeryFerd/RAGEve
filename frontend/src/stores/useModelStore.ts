@@ -48,13 +48,15 @@ export const useModelStore = create<ModelState>()(
           availableModels: response.models,
           modelDetails: response.model_details ?? [],
           modelsLoaded: response.has_models,
-          setupComplete: response.has_models && !!get().embeddingModel && !!get().chatModel,
+          setupComplete:
+            response.has_models && !!get().embeddingModel && !!get().chatModel,
         }),
 
       refreshOllamaModels: async () => {
         set({ modelsRefreshing: true });
         try {
-          const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          const base =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
           const res = await fetch(`${base}/ollama/models`);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data: OllamaModelListResponse = await res.json();
@@ -72,7 +74,9 @@ export const useModelStore = create<ModelState>()(
             ollamaConnected: false,
             ollamaReachable: false,
           });
-          throw new Error("Failed to refresh Ollama models. Is Ollama running?");
+          throw new Error(
+            "Failed to refresh Ollama models. Is Ollama running?",
+          );
         }
       },
 
@@ -94,6 +98,6 @@ export const useModelStore = create<ModelState>()(
         chatModel: state.chatModel,
         setupComplete: state.setupComplete,
       }),
-    }
-  )
+    },
+  ),
 );

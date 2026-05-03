@@ -27,6 +27,6 @@ export const useAppStore = create<AppState>()(
       },
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
     }),
-    { name: "ragve-app" }
-  )
+    { name: "ragve-app" },
+  ),
 );

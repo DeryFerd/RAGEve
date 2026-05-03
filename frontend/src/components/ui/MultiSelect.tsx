@@ -36,7 +36,10 @@ export function MultiSelect({
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -95,7 +98,8 @@ export function MultiSelect({
             <span className={styles.placeholder}>Select columns…</span>
           ) : (
             <span className={styles.selectedCount}>
-              {selectedOptions.length} column{selectedOptions.length !== 1 ? "s" : ""} selected
+              {selectedOptions.length} column
+              {selectedOptions.length !== 1 ? "s" : ""} selected
             </span>
           )}
         </span>
@@ -134,7 +138,11 @@ export function MultiSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className={styles.dropdown} role="listbox" aria-multiselectable="true">
+        <div
+          className={styles.dropdown}
+          role="listbox"
+          aria-multiselectable="true"
+        >
           {/* Select all / Clear all */}
           <div className={styles.dropdownActions}>
             <button

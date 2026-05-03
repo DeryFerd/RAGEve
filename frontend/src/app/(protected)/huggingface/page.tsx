@@ -58,7 +58,9 @@ export default function HuggingFacePage() {
   const ingestPollRef = useRef<number | null>(null);
   const discoverInProgress = useRef(false);
 
-  const [preview, setPreview] = useState<HuggingFacePreviewResponse | null>(null);
+  const [preview, setPreview] = useState<HuggingFacePreviewResponse | null>(
+    null,
+  );
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [selectedConfig, setSelectedConfig] = useState("");
@@ -68,14 +70,19 @@ export default function HuggingFacePage() {
 
   // ── Download state ──────────────────────────────────────────────────────
 
-  const [downloadingDatasetId, setDownloadingDatasetId] = useState<string | null>(null);
-  const [downloadStatus, setDownloadStatus] = useState<HuggingFaceDownloadStatusResponse | null>(null);
+  const [downloadingDatasetId, setDownloadingDatasetId] = useState<
+    string | null
+  >(null);
+  const [downloadStatus, setDownloadStatus] =
+    useState<HuggingFaceDownloadStatusResponse | null>(null);
 
   // ── Local datasets ───────────────────────────────────────────────────────
 
   const [discovering, setDiscovering] = useState(false);
   const [datasets, setDatasets] = useState<DiscoveredDataset[]>([]);
-  const [ingestPanels, setIngestPanels] = useState<Record<string, IngestPanelState>>({});
+  const [ingestPanels, setIngestPanels] = useState<
+    Record<string, IngestPanelState>
+  >({});
   const [, setActiveIngestDatasetId] = useState<string | null>(null);
 
   // ── Polling helpers ──────────────────────────────────────────────────────
@@ -116,7 +123,9 @@ export default function HuggingFacePage() {
               ingestId: null,
               ingestStatus: null,
               result: null,
-              selectedSplit: ds.splits.includes("train") ? "train" : (ds.splits[0] ?? "train"),
+              selectedSplit: ds.splits.includes("train")
+                ? "train"
+                : (ds.splits[0] ?? "train"),
               selectedTextCols: ds.readable_columns.slice(0, 2),
               rowLimit: "",
             };
@@ -125,7 +134,10 @@ export default function HuggingFacePage() {
         return next;
       });
     } catch (err) {
-      addToast(`Discovery failed: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Discovery failed: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     } finally {
       setDiscovering(false);
       discoverInProgress.current = false;
@@ -154,7 +166,7 @@ export default function HuggingFacePage() {
                 st.auto_ingest && st.ingested
                   ? `✓ Downloaded & indexed! Ready to chat.`
                   : `✓ ${st.dataset_id} downloaded successfully.`,
-                "success"
+                "success",
               );
               void handleDiscover();
               setDownloadingDatasetId(null);
@@ -175,7 +187,7 @@ export default function HuggingFacePage() {
       poll();
       downloadPollRef.current = window.setInterval(poll, 1500);
     },
-    [stopDownloadPolling, addToast, handleDiscover]
+    [stopDownloadPolling, addToast, handleDiscover],
   );
 
   // ── Ingest polling ────────────────────────────────────────────────────────
@@ -216,10 +228,12 @@ export default function HuggingFacePage() {
                 rows != null
                   ? `✓ ${rows.toLocaleString()} rows → ${(chunks ?? 0).toLocaleString()} chunks indexed.`
                   : "✓ Ingestion completed.",
-                "success"
+                "success",
               );
               setDatasets((prev) =>
-                prev.map((d) => (d.dataset_id === datasetId ? { ...d, is_ingested: true } : d))
+                prev.map((d) =>
+                  d.dataset_id === datasetId ? { ...d, is_ingested: true } : d,
+                ),
               );
               void handleDiscover();
             } else if (st.status === "cancelled") {
@@ -236,7 +250,7 @@ export default function HuggingFacePage() {
       poll();
       ingestPollRef.current = window.setInterval(poll, 2000);
     },
-    [stopIngestPolling, addToast, handleDiscover]
+    [stopIngestPolling, addToast, handleDiscover],
   );
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -290,13 +304,15 @@ export default function HuggingFacePage() {
           }
         }
       } catch (err) {
-        setPreviewError(err instanceof Error ? err.message : "Could not load preview");
+        setPreviewError(
+          err instanceof Error ? err.message : "Could not load preview",
+        );
         setPreview(null);
       } finally {
         setPreviewLoading(false);
       }
     },
-    [selectedConfig]
+    [selectedConfig],
   );
 
   // ── Handlers ─────────────────────────────────────────────────────────────
@@ -315,7 +331,7 @@ export default function HuggingFacePage() {
         setPreviewError(null);
       }
     },
-    [fetchPreview]
+    [fetchPreview],
   );
 
   const handleChipClick = useCallback(
@@ -327,7 +343,7 @@ export default function HuggingFacePage() {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       previewTimerRef.current = setTimeout(() => void fetchPreview(id), 600);
     },
-    [fetchPreview]
+    [fetchPreview],
   );
 
   const handleDownload = useCallback(async () => {
@@ -342,14 +358,26 @@ export default function HuggingFacePage() {
         config: selectedConfig || undefined,
         auto_ingest: autoIngest,
         row_limit: rowLimitInput ? parseInt(rowLimitInput, 10) : undefined,
-        text_columns: autoIngestTextCols.length > 0 ? autoIngestTextCols : undefined,
+        text_columns:
+          autoIngestTextCols.length > 0 ? autoIngestTextCols : undefined,
       });
       void startDownloadPolling(datasetId);
       addToast(`Download started for "${datasetId}"`, "info");
     } catch (err) {
-      addToast(`Failed to start download: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Failed to start download: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     }
-  }, [datasetIdInput, selectedConfig, autoIngest, rowLimitInput, autoIngestTextCols, startDownloadPolling, addToast]);
+  }, [
+    datasetIdInput,
+    selectedConfig,
+    autoIngest,
+    rowLimitInput,
+    autoIngestTextCols,
+    startDownloadPolling,
+    addToast,
+  ]);
 
   const handleCancelDownload = useCallback(async () => {
     const datasetId = downloadingDatasetId ?? datasetIdInput.trim();
@@ -358,14 +386,20 @@ export default function HuggingFacePage() {
       await cancelHFDownload(datasetId);
       addToast(`Cancel requested for "${datasetId}"`, "info");
     } catch (err) {
-      addToast(`Cancel failed: ${err instanceof Error ? err.message : String(err)}`, "error");
+      addToast(
+        `Cancel failed: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
     }
   }, [downloadingDatasetId, datasetIdInput, addToast]);
 
   const updatePanel = useCallback(
     (id: string, updates: Partial<IngestPanelState>) =>
-      setIngestPanels((prev) => ({ ...prev, [id]: { ...prev[id], ...updates } })),
-    []
+      setIngestPanels((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], ...updates },
+      })),
+    [],
   );
 
   const handleIngest = useCallback(
@@ -381,7 +415,10 @@ export default function HuggingFacePage() {
       try {
         const submit = await submitHFIngest(ds.dataset_id, {
           split: panel.selectedSplit,
-          text_columns: panel.selectedTextCols.length > 0 ? panel.selectedTextCols : undefined,
+          text_columns:
+            panel.selectedTextCols.length > 0
+              ? panel.selectedTextCols
+              : undefined,
           row_limit: panel.rowLimit ? parseInt(panel.rowLimit, 10) : undefined,
           force,
         });
@@ -402,10 +439,13 @@ export default function HuggingFacePage() {
           [ds.dataset_id]: { ...prev[ds.dataset_id], loading: false },
         }));
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("409") || msg.toLowerCase().includes("already ingested")) {
+        if (
+          msg.includes("409") ||
+          msg.toLowerCase().includes("already ingested")
+        ) {
           addToast(
             `"${ds.dataset_id}" is already indexed in Qdrant. Use 'Re-ingest' to re-process.`,
-            "warning"
+            "warning",
           );
           void handleDiscover();
         } else {
@@ -413,7 +453,7 @@ export default function HuggingFacePage() {
         }
       }
     },
-    [ingestPanels, addToast, handleDiscover, startIngestPolling]
+    [ingestPanels, addToast, handleDiscover, startIngestPolling],
   );
 
   // ── Derived state ────────────────────────────────────────────────────────
@@ -430,27 +470,36 @@ export default function HuggingFacePage() {
 
   const autoIngestEnabled = downloadStatus?.auto_ingest === true;
 
-  const textColumnOptions: Array<{ value: string; label: string; typeHint?: string }> =
-    preview?.columns
-      ? Object.entries(preview.columns).map(([name, type]) => ({
-          value: name,
-          label: name,
-          typeHint: type === "string" ? undefined : type,
-        }))
-      : [];
+  const textColumnOptions: Array<{
+    value: string;
+    label: string;
+    typeHint?: string;
+  }> = preview?.columns
+    ? Object.entries(preview.columns).map(([name, type]) => ({
+        value: name,
+        label: name,
+        typeHint: type === "string" ? undefined : type,
+      }))
+    : [];
 
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.page}>
-
       {/* ── Section 1: Discover & Preview ─────────────────────────────────── */}
-      <section className={styles.sectionDiscover} aria-labelledby="discover-heading">
+      <section
+        className={styles.sectionDiscover}
+        aria-labelledby="discover-heading"
+      >
         <div className={styles.sectionHeader}>
-          <h2 id="discover-heading" className={styles.sectionTitle}>Discover & Preview</h2>
-          <p className={styles.sectionSubtitle}>Search HuggingFace Hub, preview datasets, and download</p>
+          <h2 id="discover-heading" className={styles.sectionTitle}>
+            Discover & Preview
+          </h2>
+          <p className={styles.sectionSubtitle}>
+            Search HuggingFace Hub, preview datasets, and download
+          </p>
         </div>
-        
+
         {/* Search */}
         <HubSearch
           datasetId={datasetIdInput}
@@ -511,10 +560,17 @@ export default function HuggingFacePage() {
       </section>
 
       {/* ── Section 2: My Dataset Library ───────────────────────────────────── */}
-      <section className={styles.sectionLibrary} aria-labelledby="library-heading">
+      <section
+        className={styles.sectionLibrary}
+        aria-labelledby="library-heading"
+      >
         <div className={styles.sectionHeader}>
-          <h2 id="library-heading" className={styles.sectionTitle}>My Dataset Library</h2>
-          <p className={styles.sectionSubtitle}>Downloaded datasets ready for ingestion or chat</p>
+          <h2 id="library-heading" className={styles.sectionTitle}>
+            My Dataset Library
+          </h2>
+          <p className={styles.sectionSubtitle}>
+            Downloaded datasets ready for ingestion or chat
+          </p>
         </div>
 
         <LocalDatasetsLibrary
@@ -532,7 +588,6 @@ export default function HuggingFacePage() {
           router={router}
         />
       </section>
-
     </div>
   );
 }

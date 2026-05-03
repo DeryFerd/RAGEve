@@ -40,7 +40,13 @@ const jsxA11yRecommended = {
 
 export default tseslint.config(
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "node_modules/**"],
+    ignores: [
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "node_modules/**",
+    ],
   },
   {
     files: ["**/*.{ts,tsx,mts,cts}"],
@@ -72,7 +78,10 @@ export default tseslint.config(
       ...importRecommended,
       ...jsxA11yRecommended,
       // Allow unused vars with underscore prefix
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
       // Ignore purity and set-state-in-effect rules for now (too strict)
       "react-hooks/purity": "off",
       "react-hooks/set-state-in-effect": "off",
@@ -87,5 +96,5 @@ export default tseslint.config(
         typescript: { alwaysTryTypes: true },
       },
     },
-  }
+  },
 );

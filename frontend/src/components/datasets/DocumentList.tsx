@@ -10,7 +10,11 @@ interface DocumentListProps {
   datasetId: string;
 }
 
-export function DocumentList({ documents, loading, datasetId }: DocumentListProps) {
+export function DocumentList({
+  documents,
+  loading,
+  datasetId,
+}: DocumentListProps) {
   if (loading) {
     return <div className={styles.message}>Loading documents...</div>;
   }

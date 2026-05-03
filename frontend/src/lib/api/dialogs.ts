@@ -28,7 +28,9 @@ export async function listDialogs(params?: {
 /**
  * Create a new dialog.
  */
-export async function createDialog(payload: DialogCreate): Promise<DialogResponse> {
+export async function createDialog(
+  payload: DialogCreate,
+): Promise<DialogResponse> {
   return apiFetch<DialogResponse>("/dialogs/", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -47,7 +49,7 @@ export async function getDialog(dialogId: string): Promise<DialogResponse> {
  */
 export async function updateDialog(
   dialogId: string,
-  payload: DialogUpdate
+  payload: DialogUpdate,
 ): Promise<DialogResponse> {
   return apiFetch<DialogResponse>(`/dialogs/${dialogId}`, {
     method: "PUT",

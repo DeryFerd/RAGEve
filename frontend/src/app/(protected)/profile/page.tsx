@@ -142,8 +142,16 @@ export default function ProfilePage() {
           </div>
 
           {/* Feedback alerts */}
-          {error && <div className={`${styles.alert} ${styles.alertError}`}>{error}</div>}
-          {success && <div className={`${styles.alert} ${styles.alertSuccess}`}>{success}</div>}
+          {error && (
+            <div className={`${styles.alert} ${styles.alertError}`}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className={`${styles.alert} ${styles.alertSuccess}`}>
+              {success}
+            </div>
+          )}
 
           {/* Account Information */}
           <div className={styles.section}>
@@ -179,14 +187,18 @@ export default function ProfilePage() {
                 <span className={styles.infoLabel}>Member since</span>
                 <span className={styles.infoValue}>
                   <Calendar size={14} color="var(--text-muted)" />
-                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}
+                  {user.created_at
+                    ? new Date(user.created_at).toLocaleDateString()
+                    : "N/A"}
                 </span>
               </div>
               <div className={styles.infoItem}>
                 <span className={styles.infoLabel}>Last login</span>
                 <span className={styles.infoValue}>
                   <Clock size={14} color="var(--text-muted)" />
-                  {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "N/A"}
+                  {user.last_login_at
+                    ? new Date(user.last_login_at).toLocaleString()
+                    : "N/A"}
                 </span>
               </div>
             </div>
@@ -214,7 +226,11 @@ export default function ProfilePage() {
                 hint="Changing email will require re-verification."
                 placeholder="you@example.com"
               />
-              <Button type="submit" disabled={savingProfile} loading={savingProfile}>
+              <Button
+                type="submit"
+                disabled={savingProfile}
+                loading={savingProfile}
+              >
                 Save Changes
               </Button>
             </form>
@@ -256,7 +272,11 @@ export default function ProfilePage() {
                 disabled={changingPassword}
                 required
               />
-              <Button type="submit" disabled={changingPassword} loading={changingPassword}>
+              <Button
+                type="submit"
+                disabled={changingPassword}
+                loading={changingPassword}
+              >
                 Change Password
               </Button>
             </form>
