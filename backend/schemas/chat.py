@@ -12,6 +12,10 @@ class SourceChunkSchema(BaseModel):
     sparse_score: float = 0.0
     # Search mode used: "dense" | "hybrid"
     search_type: str = "dense"
+    # PDF/source location metadata for frontend citations and previews
+    pages: list[int] | None = None
+    blocks: list[dict] | None = None
+    datasetId: str | None = None
 
 
 class ChatRequest(BaseModel):
