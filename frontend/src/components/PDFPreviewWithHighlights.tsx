@@ -90,7 +90,7 @@ export default function PDFPreviewWithHighlights({
           setLoading(false);
         }
       }
-    };
+    }
 
     loadPdf();
 
@@ -136,8 +136,8 @@ export default function PDFPreviewWithHighlights({
         const sx = x0 * RENDER_SCALE;
         const sw = (x1 - x0) * RENDER_SCALE;
 
-        const cyTop = viewport.height - (y1 * RENDER_SCALE);
-        const cyBottom = viewport.height - (y0 * RENDER_SCALE);
+        const cyTop = viewport.height - y1 * RENDER_SCALE;
+        const cyBottom = viewport.height - y0 * RENDER_SCALE;
         const ch = cyBottom - cyTop;
 
         context.fillRect(sx, cyTop, sw, ch);
@@ -149,9 +149,10 @@ export default function PDFPreviewWithHighlights({
   };
 
   // Determine which page numbers to render
-  const renderPageNums = pagesToRender && pagesToRender.length > 0
-    ? pagesToRender
-    : Array.from({ length: numPages }, (_, i) => i + 1);
+  const renderPageNums =
+    pagesToRender && pagesToRender.length > 0
+      ? pagesToRender
+      : Array.from({ length: numPages }, (_, i) => i + 1);
 
   if (loading) {
     return <div className={className}>Loading PDF…</div>;
@@ -183,7 +184,9 @@ export default function PDFPreviewWithHighlights({
               }
             }}
           />
-          <div style={{ textAlign: "center", marginTop: "4px" }}>Page {num}</div>
+          <div style={{ textAlign: "center", marginTop: "4px" }}>
+            Page {num}
+          </div>
         </div>
       ))}
     </div>

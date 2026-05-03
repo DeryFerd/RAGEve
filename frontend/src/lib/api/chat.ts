@@ -13,12 +13,37 @@ import type {
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+function messageFieldAsString(
+  record: Record<string, unknown>,
+  field: string,
+  fallback: string,
+): string {
+  const value = record[field];
+  return typeof value === "string" ? value : fallback;
+}
+
+function messageFieldAsNumberOrNull(
+  record: Record<string, unknown>,
+  field: string,
+): number | null {
+  const value = record[field];
+  return typeof value === "number" ? value : null;
+}
+
+function messageSources(record: Record<string, unknown>): SourceChunk[] | null {
+  return Array.isArray(record.sources)
+    ? (record.sources as SourceChunk[])
+    : null;
+}
+
 // ── Conversation CRUD (adapted to legacy session types) ───────────────────────────
 
 /**
  * Create a new conversation for a dialog.
  */
-export async function createSession(payload: CreateSessionRequest): Promise<ChatSession> {
+export async function createSession(
+  payload: CreateSessionRequest,
+): Promise<ChatSession> {
   const convPayload = {
     dialog_id: payload.agent_id,
     name: payload.title,
@@ -40,8 +65,12 @@ export async function createSession(payload: CreateSessionRequest): Promise<Chat
       temperature: 0.7,
       top_k: 5,
     },
-    created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
-    updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+    created_at: conv.create_time
+      ? new Date(conv.create_time * 1000).toISOString()
+      : new Date().toISOString(),
+    updated_at: conv.update_time
+      ? new Date(conv.update_time * 1000).toISOString()
+      : new Date().toISOString(),
   };
 }
 
@@ -58,7 +87,9 @@ export async function listSessions(params?: {
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
   const query = qs.toString();
-  const res = await apiFetch<ConversationListResponse>(`/conversations/${query ? `?${query}` : ""}`);
+  const res = await apiFetch<ConversationListResponse>(
+    `/conversations/${query ? `?${query}` : ""}`,
+  );
   const sessions: ChatSession[] = res.conversations.map((conv) => ({
     session_id: conv.id,
     agent_id: conv.dialog_id,
@@ -72,8 +103,12 @@ export async function listSessions(params?: {
       temperature: 0.7,
       top_k: 5,
     },
-    created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
-    updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+    created_at: conv.create_time
+      ? new Date(conv.create_time * 1000).toISOString()
+      : new Date().toISOString(),
+    updated_at: conv.update_time
+      ? new Date(conv.update_time * 1000).toISOString()
+      : new Date().toISOString(),
   }));
   return {
     sessions,
@@ -87,19 +122,28 @@ export async function listSessions(params?: {
  * Get a session with its messages.
  */
 export async function getSessionWithMessages(
-  sessionId: string
+  sessionId: string,
 ): Promise<ChatSessionWithMessages> {
-  const conv = await apiFetch<ConversationResponse>(`/conversations/${sessionId}`);
-  const messages = conv.message.map((msg) => ({
-    message_id: (msg as any).message_id || `msg-${Math.random().toString(36).substr(2, 9)}`,
-    session_id: conv.id,
-    role: msg.role as "user" | "assistant",
-    content: msg.content,
-    token_count: (msg as any).token_count || null,
-    sources: (msg as any).sources || null,
-    feedback: null,
-    created_at: new Date().toISOString(),
-  }));
+  const conv = await apiFetch<ConversationResponse>(
+    `/conversations/${sessionId}`,
+  );
+  const messages = conv.message.map((msg) => {
+    const record = msg as Record<string, unknown>;
+    const fallbackId = `msg-${Math.random().toString(36).slice(2, 11)}`;
+    const role: "user" | "assistant" =
+      record.role === "assistant" ? "assistant" : "user";
+
+    return {
+      message_id: messageFieldAsString(record, "message_id", fallbackId),
+      session_id: conv.id,
+      role,
+      content: messageFieldAsString(record, "content", ""),
+      token_count: messageFieldAsNumberOrNull(record, "token_count"),
+      sources: messageSources(record),
+      feedback: null,
+      created_at: new Date().toISOString(),
+    };
+  });
   return {
     session: {
       session_id: conv.id,
@@ -114,8 +158,12 @@ export async function getSessionWithMessages(
         temperature: 0.7,
         top_k: 5,
       },
-      created_at: conv.create_time ? new Date(conv.create_time * 1000).toISOString() : new Date().toISOString(),
-      updated_at: conv.update_time ? new Date(conv.update_time * 1000).toISOString() : new Date().toISOString(),
+      created_at: conv.create_time
+        ? new Date(conv.create_time * 1000).toISOString()
+        : new Date().toISOString(),
+      updated_at: conv.update_time
+        ? new Date(conv.update_time * 1000).toISOString()
+        : new Date().toISOString(),
     },
     messages,
   };
@@ -132,7 +180,11 @@ export async function deleteSession(sessionId: string): Promise<void> {
 
 export type SessionStreamHandler = {
   onChunk: (content: string) => void;
-  onSources: (sources: SourceChunk[], rerankerModel?: string | null, messageId?: string) => void;
+  onSources: (
+    sources: SourceChunk[],
+    rerankerModel?: string | null,
+    messageId?: string,
+  ) => void;
   onError: (error: string) => void;
 };
 
@@ -145,16 +197,20 @@ export async function chatSessionStreaming(
   conversationId: string,
   payload: ChatRequest,
   handlers: SessionStreamHandler,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): Promise<void> {
   const qs = new URLSearchParams();
   qs.set("question", payload.question);
   if (payload.top_k != null) qs.set("top_k", String(payload.top_k));
-  if (payload.temperature != null) qs.set("temperature", String(payload.temperature));
-  if (payload.use_hybrid != null) qs.set("use_hybrid", String(payload.use_hybrid));
-  if (payload.use_reranker != null) qs.set("use_reranker", String(payload.use_reranker));
+  if (payload.temperature != null)
+    qs.set("temperature", String(payload.temperature));
+  if (payload.use_hybrid != null)
+    qs.set("use_hybrid", String(payload.use_hybrid));
+  if (payload.use_reranker != null)
+    qs.set("use_reranker", String(payload.use_reranker));
   if (payload.reranker_model) qs.set("reranker_model", payload.reranker_model);
-  if (payload.score_threshold != null) qs.set("score_threshold", String(payload.score_threshold));
+  if (payload.score_threshold != null)
+    qs.set("score_threshold", String(payload.score_threshold));
 
   const apiKey = process.env.NEXT_PUBLIC_API_KEY || "";
   const headers: HeadersInit = {
@@ -163,14 +219,14 @@ export async function chatSessionStreaming(
 
   const res = await fetch(
     `${BASE}/conversations/${conversationId}/chat/stream?${qs}`,
-    { method: "POST", signal, headers }
+    { method: "POST", signal, headers },
   );
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       (err as { detail?: string }).detail ||
-        `Conversation chat stream failed: ${res.status}`
+        `Conversation chat stream failed: ${res.status}`,
     );
   }
 
@@ -203,7 +259,7 @@ export async function chatSessionStreaming(
           handlers.onSources(
             event.sources ?? [],
             event.reranker_model ?? null,
-            event.message_id
+            event.message_id,
           );
         } else if (event.event === "error") {
           handlers.onError(event.error ?? "Unknown error");
@@ -219,7 +275,7 @@ export async function chatSessionStreaming(
 
 export async function submitFeedback(
   messageId: string,
-  payload: FeedbackPayload
+  payload: FeedbackPayload,
 ): Promise<void> {
   try {
     await fetch(`${BASE}/chat/messages/${messageId}/feedback`, {
@@ -236,7 +292,7 @@ export async function submitFeedback(
 
 export async function chatNonStreaming(
   dialogId: string,
-  payload: ChatRequest
+  payload: ChatRequest,
 ): Promise<ChatResponse> {
   const response = await fetch(`${BASE}/chat/${dialogId}`, {
     method: "POST",
@@ -245,7 +301,9 @@ export async function chatNonStreaming(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    const err = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
     throw new Error(err.detail || `Chat failed: ${response.status}`);
   }
 
@@ -266,7 +324,7 @@ export async function chatStreaming(
   dialogId: string,
   payload: ChatRequest,
   handlers: StreamHandler,
-  signal: AbortSignal
+  signal: AbortSignal,
 ): Promise<void> {
   const apiKey = process.env.NEXT_PUBLIC_API_KEY || "";
   const response = await fetch(`${BASE}/chat/${dialogId}/stream`, {
@@ -280,7 +338,9 @@ export async function chatStreaming(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    const err = await response
+      .json()
+      .catch(() => ({ detail: response.statusText }));
     throw new Error(err.detail || `Chat failed: ${response.status}`);
   }
 
@@ -322,5 +382,4 @@ export async function chatStreaming(
 import type {
   ConversationResponse,
   ConversationListResponse,
-  ConversationCreate,
 } from "@/lib/types";

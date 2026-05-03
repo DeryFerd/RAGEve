@@ -28,7 +28,9 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Embed Model</span>
-          <span className={styles.fieldValue}>{agent.config.embedding_model}</span>
+          <span className={styles.fieldValue}>
+            {agent.config.embedding_model}
+          </span>
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Chat Model</span>

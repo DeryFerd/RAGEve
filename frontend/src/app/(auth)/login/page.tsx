@@ -29,7 +29,9 @@ export default function LoginPage() {
       if (err instanceof Error) {
         // Check for email verification error
         if (err.message.includes("verify your email")) {
-          setError("Please verify your email before logging in. Check your inbox or request a new verification link.");
+          setError(
+            "Please verify your email before logging in. Check your inbox or request a new verification link.",
+          );
         } else {
           setError(err.message);
         }
@@ -46,16 +48,25 @@ export default function LoginPage() {
         <Card>
           <CardHeader title="Login" />
           <CardBody>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--space-4)",
+              }}
+            >
               {error && (
-                <div style={{
-                  padding: 'var(--space-3)',
-                  backgroundColor: 'var(--bg-elevated)',
-                  color: 'var(--text-primary)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-sm)',
-                  border: '1px solid var(--border)'
-                }}>
+                <div
+                  style={{
+                    padding: "var(--space-3)",
+                    backgroundColor: "var(--bg-elevated)",
+                    color: "var(--text-primary)",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--text-sm)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
                   {error}
                 </div>
               )}
@@ -70,7 +81,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 autoComplete="email"
               />
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: "relative" }}>
                 <Input
                   id="password"
                   label="Password"
@@ -91,20 +102,51 @@ export default function LoginPage() {
                   {showPassword ? "Hide" : "Show"}
                 </button>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'calc(-1 * var(--space-2))' }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: "calc(-1 * var(--space-2))",
+                }}
+              >
                 <Link href="/forgot-password" className={styles.forgotPassword}>
                   Forgot password?
                 </Link>
               </div>
-              <Button type="submit" fullWidth loading={loading} disabled={loading}>
+              <Button
+                type="submit"
+                fullWidth
+                loading={loading}
+                disabled={loading}
+              >
                 Log In
               </Button>
             </form>
           </CardBody>
-          <div style={{ padding: 'var(--space-3)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'center' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', margin: 0 }}>
+          <div
+            style={{
+              padding: "var(--space-3)",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: "var(--text-sm)",
+                margin: 0,
+              }}
+            >
               Don&apos;t have an account?{" "}
-              <Link href="/register" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
+              <Link
+                href="/register"
+                style={{
+                  color: "var(--accent)",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                }}
+              >
                 Register
               </Link>
             </p>
