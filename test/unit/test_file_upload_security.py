@@ -9,14 +9,21 @@ Tests for:
 from __future__ import annotations
 
 import sys
+import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 
 _project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_project_root))
 
 import pytest
 
-from backend.services.file_processor import _sanitize_filename, validate_mime_type
+from backend.config_loader import settings
+from backend.services.file_processor import (
+    FileProcessorService,
+    _sanitize_filename,
+    validate_mime_type,
+)
 import tempfile
 import os
 
@@ -236,6 +243,48 @@ class TestMIMEValidation:
             assert "wordprocessingml" in mime or "msword" in mime or "document" in mime
         finally:
             os.unlink(temp_path)
+
+class TestDatasetPathContainment:
+    """Tests for dataset directory path containment."""
+
+    def test_save_upload_rejects_dataset_path_traversal(self, tmp_path, monkeypatch):
+        upload_root = tmp_path / "uploads"
+        chunk_root = tmp_path / "chunks"
+        outside_dir = tmp_path / "escape"
+        monkeypatch.setattr(settings, "upload_root", upload_root)
+        monkeypatch.setattr(settings, "chunk_root", chunk_root)
+
+        service = FileProcessorService()
+        upload = SimpleNamespace(filename="sample.pdf")
+
+        with pytest.raises(ValueError, match="Invalid dataset_id"):
+            asyncio.run(
+                service.save_upload(
+                    "../escape",
+                    upload,  # type: ignore[arg-type]
+                    file_bytes=b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\nendobj\n",
+                )
+            )
+
+        assert not outside_dir.exists()
+
+    def test_persist_chunks_rejects_dataset_path_traversal(self, tmp_path, monkeypatch):
+        upload_root = tmp_path / "uploads"
+        chunk_root = tmp_path / "chunks"
+        outside_dir = tmp_path / "escape"
+        monkeypatch.setattr(settings, "upload_root", upload_root)
+        monkeypatch.setattr(settings, "chunk_root", chunk_root)
+
+        service = FileProcessorService()
+
+        with pytest.raises(ValueError, match="Invalid dataset_id"):
+            service._persist_chunks(
+                "../escape",
+                "source.pdf",
+                [("chunk text", [])],
+            )
+
+        assert not outside_dir.exists()
 
 
 if __name__ == "__main__":

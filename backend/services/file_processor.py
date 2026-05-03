@@ -266,6 +266,24 @@ def validate_mime_type(file_path: Path | str, filename: str) -> Tuple[bool, str,
     return True, mime_type, ""
 
 
+def _resolve_dataset_dir(root: Path, dataset_id: str) -> Path:
+    """Resolve a dataset directory while keeping it inside the configured root."""
+    if not dataset_id or dataset_id.strip() in {"", ".", ".."}:
+        raise ValueError("Invalid dataset_id: empty or unsafe path")
+
+    root_path = root.resolve()
+    dataset_path = (root_path / dataset_id).resolve()
+    try:
+        dataset_path.relative_to(root_path)
+    except ValueError as exc:
+        raise ValueError("Invalid dataset_id: path escapes storage root") from exc
+
+    if dataset_path == root_path:
+        raise ValueError("Invalid dataset_id: must identify a child directory")
+
+    return dataset_path
+
+
 class FileProcessorService:
     def __init__(self) -> None:
         self.chunk_size = settings.default_chunk_size
@@ -284,7 +302,7 @@ class FileProcessorService:
         Pass ``file_bytes`` when the caller has already called ``await upload.read()``
         to avoid a second read.  When omitted the method reads the bytes itself.
         """
-        dataset_dir = settings.upload_root / dataset_id
+        dataset_dir = _resolve_dataset_dir(settings.upload_root, dataset_id)
         dataset_dir.mkdir(parents=True, exist_ok=True)
 
         if upload.filename is None:
@@ -406,7 +424,7 @@ class FileProcessorService:
     def _persist_chunks(
         self, dataset_id: str, source_file: str, chunks: list[tuple[str, list]]
     ) -> None:
-        out_dir = settings.chunk_root / dataset_id
+        out_dir = _resolve_dataset_dir(settings.chunk_root, dataset_id)
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for idx, (chunk_text, _) in enumerate(chunks):
