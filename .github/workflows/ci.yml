@@ -21,6 +21,10 @@ jobs:
         image: ollama/ollama:latest
         ports:
           - 11434:11434
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
 
     steps:
       - name: Checkout code
@@ -87,6 +91,8 @@ jobs:
           MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
+          REDIS_HOST: localhost
+          REDIS_PASSWORD: ""
         run: uv run python test/test_stores.py
 
       - name: Run API integration tests
@@ -98,6 +104,8 @@ jobs:
           MYSQL_DBNAME: rag_eve_test
           OLLAMA_BASE_URL: http://localhost:11434
           QDRANT_URL: http://localhost:6333
+          REDIS_HOST: localhost
+          REDIS_PASSWORD: ""
         run: uv run python -m pytest test/api/ -v
 
       - name: Upload test results
