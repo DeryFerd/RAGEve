@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
+from backend.models_peewee import User
 from backend.schemas.agents import (
     AgentCreate,
     AgentListResponse,
@@ -10,6 +12,13 @@ from backend.schemas.agents import (
 from backend.services.ingestion_factory import get_agent_store
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+
+
+def _ensure_agent_access(agent, user: User) -> None:
+    owner_id = getattr(agent, "owner_id", None)
+    if user.is_admin or owner_id == user.id:
+        return
+    raise HTTPException(status_code=403, detail="You do not have access to this agent")
 
 
 def _agent_to_response(agent) -> AgentResponse:
@@ -34,7 +43,11 @@ def _agent_to_response(agent) -> AgentResponse:
 
 @router.post("/", response_model=AgentResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("60/minute")
-async def create_agent(request: Request, payload: AgentCreate) -> AgentResponse:
+async def create_agent(
+    request: Request,
+    payload: AgentCreate,
+    user: User = Depends(get_current_user),
+) -> AgentResponse:
     from rag.storage.agent_store import AgentConfig
 
     store = get_agent_store()
@@ -51,6 +64,7 @@ async def create_agent(request: Request, payload: AgentCreate) -> AgentResponse:
         name=payload.name,
         description=payload.description,
         config=config,
+        owner_id=user.id,
     )
 
     return _agent_to_response(agent)
@@ -58,9 +72,12 @@ async def create_agent(request: Request, payload: AgentCreate) -> AgentResponse:
 
 @router.get("/", response_model=AgentListResponse)
 @limiter.limit("120/minute")
-async def list_agents(request: Request) -> AgentListResponse:
+async def list_agents(
+    request: Request,
+    user: User = Depends(get_current_user),
+) -> AgentListResponse:
     store = get_agent_store()
-    agents = store.list()
+    agents = store.list(owner_id=None if user.is_admin else user.id)
     return AgentListResponse(
         agents=[_agent_to_response(a) for a in agents],
         total=len(agents),
@@ -69,20 +86,33 @@ async def list_agents(request: Request) -> AgentListResponse:
 
 @router.get("/{agent_id}", response_model=AgentResponse)
 @limiter.limit("120/minute")
-async def get_agent(request: Request, agent_id: str) -> AgentResponse:
+async def get_agent(
+    request: Request,
+    agent_id: str,
+    user: User = Depends(get_current_user),
+) -> AgentResponse:
     store = get_agent_store()
     agent = store.get(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    _ensure_agent_access(agent, user)
     return _agent_to_response(agent)
 
 
 @router.put("/{agent_id}", response_model=AgentResponse)
 @limiter.limit("60/minute")
 async def update_agent(
-    request: Request, agent_id: str, payload: AgentUpdate
+    request: Request,
+    agent_id: str,
+    payload: AgentUpdate,
+    user: User = Depends(get_current_user),
 ) -> AgentResponse:
     store = get_agent_store()
+    existing = store.get(agent_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    _ensure_agent_access(existing, user)
+
     updates: dict = {}
     if payload.name is not None:
         updates["name"] = payload.name
@@ -106,8 +136,17 @@ async def update_agent(
 
 @router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("60/minute")
-async def delete_agent(request: Request, agent_id: str) -> None:
+async def delete_agent(
+    request: Request,
+    agent_id: str,
+    user: User = Depends(get_current_user),
+) -> None:
     store = get_agent_store()
+    existing = store.get(agent_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
+    _ensure_agent_access(existing, user)
+
     deleted = store.delete(agent_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
