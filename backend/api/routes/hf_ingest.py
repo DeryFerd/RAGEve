@@ -15,12 +15,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes import hf_status
 from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
+from backend.models_peewee import User
 
 _log = logging.getLogger("app")
 
@@ -214,6 +216,7 @@ async def submit_hf_ingest(
     dataset_id: str,
     payload: HuggingFaceIngestRequest,
     background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),  # noqa: F841
 ) -> HFIngestSubmitResponse:
     """
     Submit a HuggingFace dataset for ingestion into Qdrant.
@@ -326,7 +329,11 @@ async def get_hf_ingest_status(
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_hf_ingest(request: Request, ingest_id: str) -> dict:
+async def cancel_hf_ingest(
+    request: Request,
+    ingest_id: str,
+    user: User = Depends(get_current_user),  # noqa: F841
+) -> dict:
     """Cancel a running or queued ingest task."""
     entry = hf_status._hf_ingest_registry.get(ingest_id)
     if not entry:
