@@ -12,7 +12,6 @@ import httpx
 from fastapi import (
     APIRouter,
     BackgroundTasks,
-    Depends,
     File,
     HTTPException,
     Query,
@@ -21,10 +20,8 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, StreamingResponse
 
-from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
 from backend.config_loader import settings
-from backend.models_peewee import User
 from backend.schemas.datasets import (
     CollectionDeleteResponse,
     DatasetInfo,
@@ -54,32 +51,6 @@ def _check_content_length(request: Request) -> None:
             status_code=413,
             detail=f"Request body exceeds {MAX_UPLOAD_BYTES // 1024 // 1024} MB size limit.",
         )
-
-
-def _resolve_within_root(root: Path, value: str, field_name: str) -> Path:
-    """Resolve user-influenced path segments and enforce root containment."""
-    candidate = (root / value).resolve()
-    root_resolved = root.resolve()
-    try:
-        candidate.relative_to(root_resolved)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid {field_name}")
-    return candidate
-
-
-def _resolve_dataset_upload_dir(dataset_id: str) -> Path:
-    return _resolve_within_root(settings.upload_root, dataset_id, "dataset_id")
-
-
-def _resolve_dataset_chunk_dir(dataset_id: str) -> Path:
-    return _resolve_within_root(settings.chunk_root, dataset_id, "dataset_id")
-
-
-def _resolve_dataset_file_path(dataset_id: str, filename: str) -> Path:
-    if "/" in filename or "\\" in filename or filename.startswith("."):
-        raise HTTPException(status_code=400, detail="Invalid filename")
-    dataset_dir = _resolve_dataset_upload_dir(dataset_id)
-    return _resolve_within_root(dataset_dir, filename, "filename")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -410,7 +381,6 @@ async def submit_background_ingest(
     request: Request,
     dataset_id: str,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> IngestSubmitResponse:
@@ -568,11 +538,7 @@ async def get_ingest_status(
 
 @router.post("/ingest/{ingest_id}/cancel")
 @limiter.limit("60/minute")
-async def cancel_ingest(
-    ingest_id: str,
-    request: Request,  # noqa: F841
-    user: User = Depends(get_current_user),  # noqa: F841
-) -> dict:
+async def cancel_ingest(ingest_id: str, request: Request) -> dict:  # noqa: F841
     """
     Cancel a running or queued ingest.  Marks the status as cancelled;
     the background task checks this flag on every stage transition and
@@ -702,7 +668,6 @@ async def list_datasets(
 async def upload_and_ingest(
     request: Request,
     dataset_id: str,
-    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> dict:
@@ -976,7 +941,6 @@ async def _stream_upload_and_ingest(
 async def upload_and_ingest_stream(
     request: Request,
     dataset_id: str,
-    user: User = Depends(get_current_user),  # noqa: F841
     files: list[UploadFile] = File(...),
     ingest_request: IngestRequest | None = None,
 ) -> StreamingResponse:
@@ -1005,7 +969,6 @@ async def upload_and_ingest_stream(
 async def ingest_existing_files(
     request: Request,  # noqa: F841
     dataset_id: str,
-    user: User = Depends(get_current_user),  # noqa: F841
     req: IngestRequest | None = None,
 ) -> IngestResponse:
     """
@@ -1014,7 +977,12 @@ async def ingest_existing_files(
     """
     req = req or IngestRequest()
 
-    upload_dir = _resolve_dataset_upload_dir(dataset_id)
+    # Path-traversal guard: resolve the joined path and verify it stays within upload_root
+    resolved = (settings.upload_root / dataset_id).resolve()
+    if not str(resolved).startswith(str(settings.upload_root.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid dataset_id")
+
+    upload_dir = resolved
 
     if not upload_dir.exists():
         raise HTTPException(
@@ -1113,7 +1081,11 @@ async def download_dataset_file(
     frontend can render it with highlighted citations. Only files within the
     dataset's upload directory are accessible.
     """
-    file_path = _resolve_dataset_file_path(dataset_id, filename)
+    # Security: prevent path traversal
+    if "/" in filename or "\\" in filename or filename.startswith("."):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_path = settings.upload_root / dataset_id / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -1129,7 +1101,6 @@ async def download_dataset_file(
 async def delete_dataset(
     request: Request,  # noqa: F841
     dataset_id: str,
-    user: User = Depends(get_current_user),  # noqa: F841
 ) -> CollectionDeleteResponse:
     from backend.services.ingestion_factory import get_qdrant_store
 
@@ -1139,8 +1110,8 @@ async def delete_dataset(
     # Also clear upload + chunk dirs
     import shutil
 
-    upload_dir = _resolve_dataset_upload_dir(dataset_id)
-    chunk_dir = _resolve_dataset_chunk_dir(dataset_id)
+    upload_dir = settings.upload_root / dataset_id
+    chunk_dir = settings.chunk_root / dataset_id
 
     if upload_dir.exists():
         shutil.rmtree(upload_dir)
