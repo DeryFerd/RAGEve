@@ -26,6 +26,7 @@ class Agent:
     config: AgentConfig
     created_at: str
     updated_at: str
+    owner_id: str | None = None
 
 
 class AgentStore:
@@ -56,7 +57,13 @@ class AgentStore:
             encoding="utf-8",
         )
 
-    def create(self, name: str, description: str, config: AgentConfig) -> Agent:
+    def create(
+        self,
+        name: str,
+        description: str,
+        config: AgentConfig,
+        owner_id: str | None = None,
+    ) -> Agent:
         agents = self._load()
         agent_id = str(uuid.uuid4())
         now = _iso_now()
@@ -76,6 +83,7 @@ class AgentStore:
             },
             "created_at": now,
             "updated_at": now,
+            "owner_id": owner_id,
         }
 
         agents[agent_id] = agent_dict
@@ -83,9 +91,12 @@ class AgentStore:
 
         return self._dict_to_agent(agent_dict)
 
-    def list(self) -> list[Agent]:
+    def list(self, owner_id: str | None = None) -> list[Agent]:
         agents = self._load()
-        return [self._dict_to_agent(a) for a in agents.values()]
+        result = [self._dict_to_agent(a) for a in agents.values()]
+        if owner_id is None:
+            return result
+        return [agent for agent in result if agent.owner_id == owner_id]
 
     def get(self, agent_id: str) -> Agent | None:
         agents = self._load()
@@ -144,6 +155,7 @@ class AgentStore:
             config=config,
             created_at=raw["created_at"],
             updated_at=raw["updated_at"],
+            owner_id=raw.get("owner_id"),
         )
 
 
