@@ -40,14 +40,16 @@ import {
  */
 export async function listDatasets(): Promise<DatasetListResponse> {
   const res = await listKnowledgebases();
-  const datasets: DatasetInfo[] = res.knowledgebases.map((kb): DatasetInfo => ({
-    dataset_id: kb.id,
-    name: kb.name,
-    collection: kb.id,
-    chunks_count: 0,
-    vector_size: 0,
-    status: "unknown",
-  }));
+  const datasets: DatasetInfo[] = res.knowledgebases.map(
+    (kb): DatasetInfo => ({
+      dataset_id: kb.id,
+      name: kb.name,
+      collection: kb.id,
+      chunks_count: 0,
+      vector_size: 0,
+      status: "unknown",
+    }),
+  );
   return { datasets, total: res.total };
 }
 
@@ -57,7 +59,7 @@ export async function listDatasets(): Promise<DatasetListResponse> {
 export async function uploadFiles(
   kbId: string,
   files: File[],
-  ingestOptions?: IngestRequest
+  ingestOptions?: IngestRequest,
 ): Promise<{ dataset_id: string; files: ProcessedFileResponse[] }> {
   const options = {
     parser_id: ingestOptions?.force_profile || undefined,
@@ -77,7 +79,7 @@ export async function uploadFilesStreaming(
   files: File[],
   handlers: UploadProgressHandlers,
   ingestOptions?: IngestRequest,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<void> {
   const options = {
     parser_id: ingestOptions?.force_profile || undefined,
@@ -88,7 +90,9 @@ export async function uploadFilesStreaming(
   const taskIds = uploadResults.map((r) => r.task_id);
   const totalFiles = files.length;
   const fileMap = new Map<string, { filename: string; index: number }>();
-  uploadResults.forEach((r, idx) => fileMap.set(r.task_id, { filename: r.filename, index: idx }));
+  uploadResults.forEach((r, idx) =>
+    fileMap.set(r.task_id, { filename: r.filename, index: idx }),
+  );
 
   let completedCount = 0;
   const completedTasks = new Set<string>();
@@ -102,7 +106,9 @@ export async function uploadFilesStreaming(
       if (completedTasks.has(taskId)) continue;
 
       try {
-        const task = await apiFetch<KbTaskResponse>(`/knowledgebases/tasks/${taskId}`);
+        const task = await apiFetch<KbTaskResponse>(
+          `/knowledgebases/tasks/${taskId}`,
+        );
         const fileInfo = fileMap.get(taskId)!;
         handlers.onStatus({
           event: "status",
@@ -174,7 +180,9 @@ export async function getDatasetInfo(kbId: string): Promise<DatasetInfo> {
 /**
  * Delete a knowledge base.
  */
-export async function deleteDataset(kbId: string): Promise<CollectionDeleteResponse> {
+export async function deleteDataset(
+  kbId: string,
+): Promise<CollectionDeleteResponse> {
   await deleteKnowledgebase(kbId);
   return {
     dataset_id: kbId,
@@ -187,7 +195,9 @@ export async function deleteDataset(kbId: string): Promise<CollectionDeleteRespo
  * Get full details for a single knowledge base.
  * Wraps getKnowledgebase() from knowledgebases.ts.
  */
-export async function getDatasetDetail(kbId: string): Promise<KnowledgebaseResponse> {
+export async function getDatasetDetail(
+  kbId: string,
+): Promise<KnowledgebaseResponse> {
   return getKnowledgebase(kbId);
 }
 
@@ -196,7 +206,7 @@ export async function getDatasetDetail(kbId: string): Promise<KnowledgebaseRespo
  * Wraps listDocuments() from knowledgebases.ts.
  */
 export async function listDocumentsForDataset(
-  kbId: string
+  kbId: string,
 ): Promise<KbDocumentResponse[]> {
   const res = await listDocuments({ kb_id: kbId });
   return res;
@@ -205,26 +215,26 @@ export async function listDocumentsForDataset(
 // ── HuggingFace operations (unchanged) ───────────────────────────────────────────
 
 export async function getHFInstructions(
-  datasetId: string
+  datasetId: string,
 ): Promise<HuggingFaceInstructionsResponse> {
   return apiFetch<HuggingFaceInstructionsResponse>(
-    `/datasets/hf/instructions/${datasetId}`
+    `/datasets/hf/instructions/${datasetId}`,
   );
 }
 
 export async function previewHFDataset(
-  datasetId: string
+  datasetId: string,
 ): Promise<HuggingFacePreviewResponse> {
   return apiFetch<HuggingFacePreviewResponse>(
-    `/datasets/hf/preview/${encodeURIComponent(datasetId)}`
+    `/datasets/hf/preview/${encodeURIComponent(datasetId)}`,
   );
 }
 
 export async function getHFStatusTexts(
-  datasetId: string
+  datasetId: string,
 ): Promise<HuggingFaceStatusTextsResponse> {
   return apiFetch<HuggingFaceStatusTextsResponse>(
-    `/datasets/hf/status-texts/${encodeURIComponent(datasetId)}`
+    `/datasets/hf/status-texts/${encodeURIComponent(datasetId)}`,
   );
 }
 
@@ -247,14 +257,14 @@ export interface HFDatasetSearchResult {
 }
 
 export async function searchHFDatasets(
-  query: string
+  query: string,
 ): Promise<HFDatasetSearchResult[]> {
   const params = new URLSearchParams({ q: query });
   return apiFetch<HFDatasetSearchResult[]>(`/datasets/hf/search?${params}`);
 }
 
 export async function downloadHFDataset(
-  payload: HuggingFaceDownloadRequest
+  payload: HuggingFaceDownloadRequest,
 ): Promise<HuggingFaceDownloadResponse> {
   return apiFetch<HuggingFaceDownloadResponse>("/datasets/hf/download", {
     method: "POST",
@@ -267,7 +277,7 @@ export async function downloadHFDataset(
 /** Submit a HuggingFace dataset ingest as a background task. Returns immediately. */
 export async function submitHFIngest(
   datasetId: string,
-  payload?: HFIngestRequest
+  payload?: HFIngestRequest,
 ): Promise<HFIngestSubmitResponse> {
   return apiFetch<HFIngestSubmitResponse>(
     `/datasets/hf/${encodeURIComponent(datasetId)}/ingest`,
@@ -275,22 +285,22 @@ export async function submitHFIngest(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload || {}),
-    }
+    },
   );
 }
 
 /** Poll the status of a background HF ingest task. */
 export async function getHFIngestStatus(
-  ingestId: string
+  ingestId: string,
 ): Promise<HFIngestStatusResponse> {
   return apiFetch<HFIngestStatusResponse>(
-    `/datasets/hf/ingest/${ingestId}/status`
+    `/datasets/hf/ingest/${ingestId}/status`,
   );
 }
 
 /** Cancel a running or queued HF ingest. */
 export async function cancelHFIngest(
-  ingestId: string
+  ingestId: string,
 ): Promise<{ ingest_id: string; status: string; message: string }> {
   return apiFetch(`/datasets/hf/ingest/${ingestId}/cancel`, {
     method: "POST",
@@ -303,30 +313,38 @@ export async function cancelHFIngest(
  */
 export async function ingestHFDataset(
   datasetId: string,
-  payload?: HFIngestRequest
+  payload?: HFIngestRequest,
 ): Promise<HFIngestResponse> {
-  return apiFetch<HFIngestResponse>(`/datasets/hf/${encodeURIComponent(datasetId)}/ingest`, {
-    method: "POST",
-    body: JSON.stringify(payload || {}),
-  });
+  return apiFetch<HFIngestResponse>(
+    `/datasets/hf/${encodeURIComponent(datasetId)}/ingest`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload || {}),
+    },
+  );
 }
 
 export async function getHFDownloadStatus(
-  datasetId: string
+  datasetId: string,
 ): Promise<HuggingFaceDownloadStatusResponse> {
-  return apiFetch<HuggingFaceDownloadStatusResponse>(`/datasets/hf/download/${datasetId}/status`);
+  return apiFetch<HuggingFaceDownloadStatusResponse>(
+    `/datasets/hf/download/${datasetId}/status`,
+  );
 }
 
 export async function cancelHFDownload(
-  datasetId: string
+  datasetId: string,
 ): Promise<HuggingFaceDownloadResponse> {
-  return apiFetch<HuggingFaceDownloadResponse>(`/datasets/hf/download/${datasetId}/cancel`, {
-    method: "POST",
-  });
+  return apiFetch<HuggingFaceDownloadResponse>(
+    `/datasets/hf/download/${datasetId}/cancel`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export async function registerHFDataset(
-  payload: HuggingFaceRegisterRequest
+  payload: HuggingFaceRegisterRequest,
 ): Promise<HuggingFaceRegisterResponse> {
   return apiFetch<HuggingFaceRegisterResponse>("/datasets/hf/register", {
     method: "POST",

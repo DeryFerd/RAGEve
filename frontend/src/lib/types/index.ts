@@ -179,7 +179,6 @@ export const initialUploadProgressState: UploadProgressState = {
   progress: 0,
 };
 
-
 export interface IngestRequest {
   chunk_size?: number;
   chunk_overlap?: number;
@@ -305,13 +304,25 @@ export interface HuggingFaceDownloadRequest {
 
 export interface HuggingFaceDownloadResponse {
   dataset_id: string;
-  status: "queued" | "downloading" | "cancelling" | "cancelled" | "completed" | "failed";
+  status:
+    | "queued"
+    | "downloading"
+    | "cancelling"
+    | "cancelled"
+    | "completed"
+    | "failed";
   message: string;
 }
 
 export interface HuggingFaceDownloadStatusResponse {
   dataset_id: string;
-  status: "queued" | "downloading" | "cancelling" | "cancelled" | "completed" | "failed";
+  status:
+    | "queued"
+    | "downloading"
+    | "cancelling"
+    | "cancelled"
+    | "completed"
+    | "failed";
   progress: number;
   message: string;
   error?: string | null;
@@ -387,7 +398,7 @@ export interface HFIngestStatusResponse {
   dataset_id: string;
   qdrant_id: string;
   status: "queued" | "running" | "completed" | "failed" | "cancelled";
-  progress: number;       // 0–100
+  progress: number; // 0–100
   current_stage: string;
   message: string;
   rows_done: number;
@@ -517,7 +528,11 @@ export type SSEEndEvent = {
   message_id?: string;
   elapsed_s?: number;
 };
-export type SSEErrorEvent = { event: "error"; error: string; message_id?: string };
+export type SSEErrorEvent = {
+  event: "error";
+  error: string;
+  message_id?: string;
+};
 export type SSEEvent = SSEChunkEvent | SSEEndEvent | SSEErrorEvent;
 
 // ── Chat Sessions / History ──────────────────────────────────────────────────

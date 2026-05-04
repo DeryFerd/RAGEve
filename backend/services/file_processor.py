@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import os
 import random
-import time
 import uuid
 from pathlib import Path
 from typing import Tuple
@@ -22,6 +21,7 @@ from rag.ingestion.pipeline import SUPPORTED_EXTENSIONS, run_deepdoc_ingestion
 
 try:
     import filetype
+
     HAS_FILETYPE = True
 except ImportError:
     HAS_FILETYPE = False
@@ -30,26 +30,47 @@ _log = logging.getLogger("backend.services.file_processor")
 
 __all__ = ["FileProcessorService", "SUPPORTED_EXTENSIONS"]
 
+
 # Error classification for retry logic
 class ErrorType:
     TRANSIENT = "transient"  # Network issues, temporary service unavailability
     PERMANENT = "permanent"  # Invalid file, unsupported format, corrupt data
-    UNKNOWN = "unknown"      # Unclassified errors
+    UNKNOWN = "unknown"  # Unclassified errors
+
 
 # Transient error indicators (substring match)
 TRANSIENT_ERROR_PATTERNS = [
-    "connection", "timeout", "network", "unreachable",
-    "temporary", "try again", "resource temporarily unavailable",
-    "econnreset", "broken pipe", "reset by peer",
-    "service unavailable", "gateway timeout", "502", "503", "504",
+    "connection",
+    "timeout",
+    "network",
+    "unreachable",
+    "temporary",
+    "try again",
+    "resource temporarily unavailable",
+    "econnreset",
+    "broken pipe",
+    "reset by peer",
+    "service unavailable",
+    "gateway timeout",
+    "502",
+    "503",
+    "504",
 ]
 
 # Permanent error indicators
 PERMANENT_ERROR_PATTERNS = [
-    "invalid file", "unsupported", "corrupt", "malformed",
-    "cannot decode", "unsupported format", "file type not supported",
-    "permission denied", "access denied", "not found",
+    "invalid file",
+    "unsupported",
+    "corrupt",
+    "malformed",
+    "cannot decode",
+    "unsupported format",
+    "file type not supported",
+    "permission denied",
+    "access denied",
+    "not found",
 ]
+
 
 def classify_error(error: Exception | str) -> str:
     """Classify an error as transient, permanent, or unknown."""
@@ -65,19 +86,23 @@ def classify_error(error: Exception | str) -> str:
 
     return ErrorType.UNKNOWN
 
+
 def sanitize_error_message(error: Exception | str, max_length: int = 500) -> str:
     """Sanitize error message for safe storage in database."""
     error_str = str(error)
     # Truncate to prevent DB overflow
     if len(error_str) > max_length:
-        error_str = error_str[:max_length - 3] + "..."
+        error_str = error_str[: max_length - 3] + "..."
     # Remove any control characters
     error_str = "".join(c for c in error_str if ord(c) >= 32 or ord(c) == 9)
     return error_str
 
-def calculate_backoff(attempt: int, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
+
+def calculate_backoff(
+    attempt: int, base_delay: float = 1.0, max_delay: float = 60.0
+) -> float:
     """Calculate exponential backoff with jitter."""
-    delay = min(base_delay * (2 ** attempt), max_delay)
+    delay = min(base_delay * (2**attempt), max_delay)
     jitter = random.uniform(0, delay * 0.1)  # 10% jitter
     return delay + jitter
 
@@ -141,7 +166,6 @@ def _sanitize_filename(filename: str, use_uuid: bool = True) -> Tuple[str, str]:
 
     # Get basename and extension
     path = Path(filename)
-    original_name = path.name
     stem = path.stem
     ext = path.suffix.lower()
 
@@ -193,7 +217,11 @@ def validate_mime_type(file_path: Path | str, filename: str) -> Tuple[bool, str,
         if file_size == 0:
             return False, "", "File is empty"
         # Convert max_upload_bytes to int (it may be stored as string)
-        max_size = int(settings.max_upload_bytes) if isinstance(settings.max_upload_bytes, str) else settings.max_upload_bytes
+        max_size = (
+            int(settings.max_upload_bytes)
+            if isinstance(settings.max_upload_bytes, str)
+            else settings.max_upload_bytes
+        )
         if file_size > max_size:
             return False, "", f"File size {file_size} exceeds limit {max_size}"
     except OSError as e:
@@ -219,12 +247,18 @@ def validate_mime_type(file_path: Path | str, filename: str) -> Tuple[bool, str,
 
                 if mime_type not in ALLOWED_MIME_TYPES:
                     # Extension/type mismatch - could be disguised file
-                    return False, "", f"File content ({mime_type}) does not match extension ({ext})"
+                    return (
+                        False,
+                        "",
+                        f"File content ({mime_type}) does not match extension ({ext})",
+                    )
 
                 return True, mime_type, ""
             else:
-                # Could not determine MIME type - be cautious
-                return False, "", "Could not determine file type from content"
+                # Plain text files do not have reliable magic bytes, so fall
+                # through to the extension-based MIME mapping below.
+                if ext not in {".txt"}:
+                    return False, "", "Could not determine file type from content"
         except Exception as e:
             _log.warning("filetype check failed: %s", e)
             # Fall back to extension-only check
@@ -266,6 +300,24 @@ def validate_mime_type(file_path: Path | str, filename: str) -> Tuple[bool, str,
     return True, mime_type, ""
 
 
+def _resolve_dataset_dir(root: Path, dataset_id: str) -> Path:
+    """Resolve a dataset directory while keeping it inside the configured root."""
+    if not dataset_id or dataset_id.strip() in {"", ".", ".."}:
+        raise ValueError("Invalid dataset_id: empty or unsafe path")
+
+    root_path = root.resolve()
+    dataset_path = (root_path / dataset_id).resolve()
+    try:
+        dataset_path.relative_to(root_path)
+    except ValueError as exc:
+        raise ValueError("Invalid dataset_id: path escapes storage root") from exc
+
+    if dataset_path == root_path:
+        raise ValueError("Invalid dataset_id: must identify a child directory")
+
+    return dataset_path
+
+
 class FileProcessorService:
     def __init__(self) -> None:
         self.chunk_size = settings.default_chunk_size
@@ -284,7 +336,7 @@ class FileProcessorService:
         Pass ``file_bytes`` when the caller has already called ``await upload.read()``
         to avoid a second read.  When omitted the method reads the bytes itself.
         """
-        dataset_dir = settings.upload_root / dataset_id
+        dataset_dir = _resolve_dataset_dir(settings.upload_root, dataset_id)
         dataset_dir.mkdir(parents=True, exist_ok=True)
 
         if upload.filename is None:
@@ -303,6 +355,7 @@ class FileProcessorService:
             try:
                 # Create temp file for streaming
                 import tempfile as tf
+
                 with tf.NamedTemporaryFile(mode="wb", suffix=ext, delete=False) as tmp:
                     temp_file = tmp.name
                     chunk_size = 1024 * 1024
@@ -338,6 +391,7 @@ class FileProcessorService:
         temp_check_path = None
         try:
             import tempfile as tf
+
             with tf.NamedTemporaryFile(mode="wb", suffix=ext, delete=False) as tmp:
                 temp_check_path = tmp.name
                 tmp.write(content)
@@ -372,7 +426,7 @@ class FileProcessorService:
             dataset_id,
             safe_filename,
             len(content) / 1024 / 1024,
-            mime_type if 'mime_type' in locals() else 'unknown',
+            mime_type if "mime_type" in locals() else "unknown",
         )
         return target
 
@@ -406,7 +460,7 @@ class FileProcessorService:
     def _persist_chunks(
         self, dataset_id: str, source_file: str, chunks: list[tuple[str, list]]
     ) -> None:
-        out_dir = settings.chunk_root / dataset_id
+        out_dir = _resolve_dataset_dir(settings.chunk_root, dataset_id)
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for idx, (chunk_text, _) in enumerate(chunks):

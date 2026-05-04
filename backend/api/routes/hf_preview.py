@@ -122,9 +122,7 @@ async def preview_hf_dataset(
         )
 
     try:
-        detected_configs = list(
-            get_dataset_config_names(dataset_id, **hf_kwargs)
-        )
+        detected_configs = list(get_dataset_config_names(dataset_id, **hf_kwargs))
     except Exception as exc:  # noqa: BLE001
         _log.warning("get_dataset_config_names failed for '%s': %s", dataset_id, exc)
         detected_configs = []
@@ -140,9 +138,7 @@ async def preview_hf_dataset(
                 )
 
                 detected_splits = list(
-                    get_dataset_split_names(
-                        dataset_id, config_name=cfg, **hf_kwargs
-                    )
+                    get_dataset_split_names(dataset_id, config_name=cfg, **hf_kwargs)
                 )
                 if detected_splits:
                     sample_ds = load_dataset(
@@ -177,9 +173,7 @@ async def preview_hf_dataset(
         try:
             from datasets import get_dataset_split_names  # type: ignore[import-untyped]
 
-            detected_splits = list(
-                get_dataset_split_names(dataset_id, **hf_kwargs)
-            )
+            detected_splits = list(get_dataset_split_names(dataset_id, **hf_kwargs))
         except Exception as exc:  # noqa: BLE001
             _log.warning("get_dataset_split_names failed for '%s': %s", dataset_id, exc)
             detected_splits = []

@@ -10,7 +10,7 @@ export async function listModels(): Promise<OllamaModelListResponse> {
 }
 
 export async function validateModels(
-  payload: ModelSelectionRequest
+  payload: ModelSelectionRequest,
 ): Promise<ModelValidationResponse> {
   return apiFetch<ModelValidationResponse>("/ollama/validate", {
     method: "POST",

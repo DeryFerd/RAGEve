@@ -113,7 +113,9 @@ class TestKnowledgebasesAPI(APITestBase):
         assert data["name"] == "Test Document"
         assert data["kb_id"] == self.kb_id
         self.__class__.doc_id = data["id"]
-        print(f"DEBUG: Set doc_id to {self.doc_id!r}, class doc_id = {self.__class__.doc_id!r}")
+        print(
+            f"DEBUG: Set doc_id to {self.doc_id!r}, class doc_id = {self.__class__.doc_id!r}"
+        )
 
     def test_get_document(self):
         """Test GET /documents/{doc_id} returns the document."""
@@ -159,7 +161,7 @@ class TestKnowledgebasesAPI(APITestBase):
         assert "doc_id" in data
         assert "task_id" in data
         assert data["file_id"] is not None
-        assert data["doc_id"] == self.doc_id
+        assert data["doc_id"] == doc_id
         assert data["task_id"] is not None
         self.__class__.task_id = data["task_id"]
 

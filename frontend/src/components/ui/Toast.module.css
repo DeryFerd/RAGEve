@@ -27,8 +27,14 @@
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .icon {
@@ -37,10 +43,18 @@
   flex-shrink: 0;
 }
 
-.success .icon { color: var(--success); }
-.error .icon { color: var(--error); }
-.warning .icon { color: var(--warning); }
-.info .icon { color: var(--info); }
+.success .icon {
+  color: var(--success);
+}
+.error .icon {
+  color: var(--error);
+}
+.warning .icon {
+  color: var(--warning);
+}
+.info .icon {
+  color: var(--info);
+}
 
 .message {
   flex: 1;
@@ -60,7 +74,9 @@
   border: none;
   color: var(--text-muted);
   border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background-color var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
   flex-shrink: 0;
 }
 

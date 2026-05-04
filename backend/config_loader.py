@@ -18,6 +18,7 @@ import yaml
 
 try:
     from dotenv import load_dotenv
+
     HAS_DOTENV = True
 except ImportError:
     HAS_DOTENV = False
@@ -189,8 +190,8 @@ class Settings:
 
         if self._config_path is None:
             raise FileNotFoundError(
-                "Could not find service_conf.yaml in any of: " +
-                ", ".join(str(p) for p in config_paths)
+                "Could not find service_conf.yaml in any of: "
+                + ", ".join(str(p) for p in config_paths)
             )
 
         with open(self._config_path, encoding="utf-8") as f:
@@ -209,36 +210,61 @@ class Settings:
         # Coerce known numeric/boolean fields from strings (env var substitution) to proper types
         # This handles cases where ${VAR:-3306} returns "3306" as a string
         _int_keys = {
-            "mysql_port", "mysql_max_connections", "mysql_stale_timeout", "mysql_max_allowed_packet",
-            "redis_port", "redis_db",
+            "mysql_port",
+            "mysql_max_connections",
+            "mysql_stale_timeout",
+            "mysql_max_allowed_packet",
+            "redis_port",
+            "redis_db",
             "qdrant_timeout",
             "ollama_timeout",
-            "security_rate_limit_per_minute", "security_trusted_proxy_count", "security_jwt_expire_minutes",
-            "storage_upload_dir_name", "storage_chunk_dir_name",  # These are actually strings but used in paths
-            "chunking_default_size", "chunking_default_overlap", "chunking_default_max_tokens",
-            "pdfplumber_snap_tolerance", "pdfplumber_join_tolerance",
-            "column_histogram_bins", "column_min_gap", "column_peak_threshold",
-            "limits_max_upload_bytes", "limits_max_dataset_bytes",
+            "security_rate_limit_per_minute",
+            "security_trusted_proxy_count",
+            "security_jwt_expire_minutes",
+            "storage_upload_dir_name",
+            "storage_chunk_dir_name",  # These are actually strings but used in paths
+            "chunking_default_size",
+            "chunking_default_overlap",
+            "chunking_default_max_tokens",
+            "pdfplumber_snap_tolerance",
+            "pdfplumber_join_tolerance",
+            "column_histogram_bins",
+            "column_min_gap",
+            "column_peak_threshold",
+            "limits_max_upload_bytes",
+            "limits_max_dataset_bytes",
             "logging_level",  # Actually string but often compared as int in some contexts
-            "cache_embedding_ttl", "cache_search_ttl", "cache_answer_ttl",
-            "huggingface_timeout", "huggingface_max_retries",
-            "rag_overfetch_multiplier", "rag_reranker_cache_size",
+            "cache_embedding_ttl",
+            "cache_search_ttl",
+            "cache_answer_ttl",
+            "huggingface_timeout",
+            "huggingface_max_retries",
+            "rag_overfetch_multiplier",
+            "rag_reranker_cache_size",
             "ocr_threshold_chars",
         }
         _float_keys = {
-            "pdfplumber_snap_tolerance", "pdfplumber_join_tolerance",
-            "column_peak_threshold", "column_min_gap",
+            "pdfplumber_snap_tolerance",
+            "pdfplumber_join_tolerance",
+            "column_peak_threshold",
+            "column_min_gap",
             "rag_reranker_cache_size",  # Can be float too
         }
         _bool_keys = {
             "minio_secure",
             "smtp_use_tls",
             "smtp_dev_mode",
-            "pdf_parsing_enable_column_detection", "pdf_parsing_enable_structured_tables",
-            "pdf_parsing_enable_hierarchical_chunking", "pdf_parsing_enable_reading_order_optimization",
+            "pdf_parsing_enable_column_detection",
+            "pdf_parsing_enable_structured_tables",
+            "pdf_parsing_enable_hierarchical_chunking",
+            "pdf_parsing_enable_reading_order_optimization",
         }
         for key in _int_keys:
-            if hasattr(self, key) and isinstance(getattr(self, key), str) and getattr(self, key).isdigit():
+            if (
+                hasattr(self, key)
+                and isinstance(getattr(self, key), str)
+                and getattr(self, key).isdigit()
+            ):
                 setattr(self, key, int(getattr(self, key)))
         for key in _float_keys:
             if hasattr(self, key) and isinstance(getattr(self, key), str):
@@ -281,34 +307,36 @@ class Settings:
     def _setup_computed_properties(self) -> None:
         """Create computed properties like upload_root, chunk_root, etc."""
         data_root_val = getattr(self, "storage_data_root", "./data")
-        data_root = Path(data_root_val) if isinstance(data_root_val, str) else Path("data")
+        data_root = (
+            Path(data_root_val) if isinstance(data_root_val, str) else Path("data")
+        )
         # Expose data_root as a Path object for path operations (overrides legacy string alias)
-        setattr(self, "data_root", data_root)
+        self.data_root = data_root
 
         # Path properties (backward compatible)
         if not hasattr(self, "upload_root"):
             upload_dir = getattr(self, "storage_upload_dir_name", "uploads")
-            setattr(self, "upload_root", data_root / upload_dir)
+            self.upload_root = data_root / upload_dir
         if not hasattr(self, "chunk_root"):
             chunk_dir = getattr(self, "storage_chunk_dir_name", "chunks")
-            setattr(self, "chunk_root", data_root / chunk_dir)
+            self.chunk_root = data_root / chunk_dir
         if not hasattr(self, "vector_root"):
             vector_dir = getattr(self, "storage_vector_dir_name", "vector")
-            setattr(self, "vector_root", data_root / vector_dir)
+            self.vector_root = data_root / vector_dir
         if not hasattr(self, "logs_dir"):
-            setattr(self, "logs_dir", data_root / "logs")
+            self.logs_dir = data_root / "logs"
 
         # db_path for SQLite fallback
         if not hasattr(self, "db_path"):
-            setattr(self, "db_path", data_root / "chat.db")
+            self.db_path = data_root / "chat.db"
 
         # Status files
         if not hasattr(self, "hf_status_file"):
-            setattr(self, "hf_status_file", data_root / "hf" / "_download_status.json")
+            self.hf_status_file = data_root / "hf" / "_download_status.json"
         if not hasattr(self, "ingest_status_file"):
-            setattr(self, "ingest_status_file", data_root / "_ingest_status.json")
+            self.ingest_status_file = data_root / "_ingest_status.json"
         if not hasattr(self, "hf_ingest_status_file"):
-            setattr(self, "hf_ingest_status_file", data_root / "hf" / "_ingest_status.json")
+            self.hf_ingest_status_file = data_root / "hf" / "_ingest_status.json"
 
         # Database URL (SQLAlchemy format) for backward compatibility
         # Uses MySQL connection parameters from nested config
@@ -318,23 +346,19 @@ class Settings:
             mysql_user = getattr(self, "mysql_user", "root")
             mysql_password = getattr(self, "mysql_password", "")
             mysql_dbname = getattr(self, "mysql_dbname", "rag_eve")
-            setattr(
-                self,
-                "db_url",
-                f"mysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_dbname}",
-            )
+            self.db_url = f"mysql://{mysql_user}:{mysql_password}@{mysql_host}:{mysql_port}/{mysql_dbname}"
 
         # SQLAlchemy connection pool settings
         if not hasattr(self, "db_pool_size"):
-            setattr(self, "db_pool_size", 10)
+            self.db_pool_size = 10
         if not hasattr(self, "db_max_overflow"):
-            setattr(self, "db_max_overflow", 20)
+            self.db_max_overflow = 20
 
         # RAG pipeline settings
         if not hasattr(self, "overfetch_multiplier"):
-            setattr(self, "overfetch_multiplier", 3)
+            self.overfetch_multiplier = 3
         if not hasattr(self, "reranker_cache_size"):
-            setattr(self, "reranker_cache_size", 10)
+            self.reranker_cache_size = 10
 
     def reload(self) -> None:
         """Reload configuration from file."""

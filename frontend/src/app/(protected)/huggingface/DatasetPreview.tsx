@@ -75,27 +75,35 @@ export function DatasetPreview({
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [];
   if (hasDescription) tabs.push({ key: "description", label: "Description" });
-  if (hasTags) tabs.push({ key: "tags", label: "Tags", count: preview.tags?.length });
+  if (hasTags)
+    tabs.push({ key: "tags", label: "Tags", count: preview.tags?.length });
   if (hasReadme) tabs.push({ key: "readme", label: "README" });
-  if (hasColumns) tabs.push({ key: "columns", label: "Columns", count: Object.keys(preview.columns).length });
+  if (hasColumns)
+    tabs.push({
+      key: "columns",
+      label: "Columns",
+      count: Object.keys(preview.columns).length,
+    });
 
   // Set active tab to first available if current is hidden
   const activeTabValid = tabs.some((t) => t.key === activeTab);
-  const effectiveTab: TabKey = activeTabValid ? activeTab : (tabs[0]?.key ?? "description");
+  const effectiveTab: TabKey = activeTabValid
+    ? activeTab
+    : (tabs[0]?.key ?? "description");
 
   const sourceClass =
     preview.source === "hf-hub"
       ? styles.sourceBadgeBlue
       : preview.source === "datasets-server"
-      ? styles.sourceBadgeOrange
-      : styles.sourceBadgeGray;
+        ? styles.sourceBadgeOrange
+        : styles.sourceBadgeGray;
 
   const sourceLabel =
     preview.source === "hf-hub"
       ? "◆ HF Hub"
       : preview.source === "datasets-server"
-      ? "◈ datasets-server"
-      : "◎ Hub API";
+        ? "◈ datasets-server"
+        : "◎ Hub API";
 
   const needsTruncate = preview.description && preview.description.length > 180;
 
@@ -105,16 +113,23 @@ export function DatasetPreview({
       <div className={styles.previewHero}>
         <div className={styles.previewIcon}>⬡</div>
         <div className={styles.previewHeroMeta}>
-          <div className={styles.previewDatasetName}>{preview.full_dataset_id}</div>
+          <div className={styles.previewDatasetName}>
+            {preview.full_dataset_id}
+          </div>
           <div className={styles.previewBadgeRow}>
             {preview.estimated_size_human && (
               <Badge variant="accent">{preview.estimated_size_human}</Badge>
             )}
             <Badge variant="default">
-              {preview.splits.length} split{preview.splits.length !== 1 ? "s" : ""}
+              {preview.splits.length} split
+              {preview.splits.length !== 1 ? "s" : ""}
             </Badge>
-            {preview.license && <Badge variant="default">{preview.license}</Badge>}
-            <span className={`${styles.previewSourceBadge} ${sourceClass}`}>{sourceLabel}</span>
+            {preview.license && (
+              <Badge variant="default">{preview.license}</Badge>
+            )}
+            <span className={`${styles.previewSourceBadge} ${sourceClass}`}>
+              {sourceLabel}
+            </span>
           </div>
         </div>
       </div>
@@ -124,13 +139,17 @@ export function DatasetPreview({
         {preview.language && preview.language.length > 0 && (
           <div className={styles.previewStat}>
             <span className={styles.statLabel}>Lang</span>
-            <span className={styles.statValue}>{preview.language.slice(0, 3).join(", ")}</span>
+            <span className={styles.statValue}>
+              {preview.language.slice(0, 3).join(", ")}
+            </span>
           </div>
         )}
         {preview.downloads && (
           <div className={styles.previewStat}>
             <span className={styles.statLabel}>↓</span>
-            <span className={styles.statValue}>{fmtCount(preview.downloads)}</span>
+            <span className={styles.statValue}>
+              {fmtCount(preview.downloads)}
+            </span>
           </div>
         )}
         {preview.likes && (
@@ -142,7 +161,9 @@ export function DatasetPreview({
         {preview.tags && preview.tags.length > 0 && (
           <div className={styles.previewStat}>
             <span className={styles.statLabel}>Tags</span>
-            <span className={styles.statValue}>{preview.tags.slice(0, 3).join(", ")}</span>
+            <span className={styles.statValue}>
+              {preview.tags.slice(0, 3).join(", ")}
+            </span>
           </div>
         )}
       </div>
@@ -217,7 +238,10 @@ export function DatasetPreview({
           )}
 
           {/* Tab content */}
-          <div className={styles.previewSection} style={{ borderBottom: "none" }}>
+          <div
+            className={styles.previewSection}
+            style={{ borderBottom: "none" }}
+          >
             {/* Description tab */}
             {effectiveTab === "description" && preview.description && (
               <p className={styles.description}>{preview.description}</p>
@@ -227,7 +251,9 @@ export function DatasetPreview({
             {effectiveTab === "tags" && preview.tags && (
               <div className={styles.tags}>
                 {preview.tags.map((tag) => (
-                  <span key={tag} className={styles.tag}>{tag}</span>
+                  <span key={tag} className={styles.tag}>
+                    {tag}
+                  </span>
                 ))}
               </div>
             )}
@@ -266,7 +292,6 @@ export function DatasetPreview({
           </div>
         </>
       )}
-
     </div>
   );
 }

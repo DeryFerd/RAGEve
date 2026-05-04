@@ -40,7 +40,7 @@ export default function DatasetsPage() {
     } catch (err) {
       addToast(
         `Delete failed: ${err instanceof Error ? err.message : String(err)}`,
-        "error"
+        "error",
       );
     }
   };
