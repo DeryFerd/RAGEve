@@ -4,15 +4,61 @@ HuggingFace Hub metadata helpers — card data and README fetching.
 Provides:
   _fetch_hf_card_metadata() — full card metadata (tags, license, language, paper, leaderboard)
   _fetch_hf_readme_html()   — README.md rendered as escaped HTML
+  _validate_dataset_id()    — validate dataset ID to prevent SSRF attacks
 """
 
 from __future__ import annotations
 
 import html as _html_module
 import logging
+import re
 from typing import Any
 
+from fastapi import HTTPException
+
 _log = logging.getLogger("app")
+
+# Pattern for valid HuggingFace dataset IDs: owner/dataset, dataset, or with config/split segments
+# Each segment: alphanumeric, hyphens, underscores, dots (no spaces, no control chars)
+# Typical examples: "squad", "microsoft/DIET", "microsoft/DIET/config_name", "owner/dataset/config/split"
+_DATASET_ID_PATTERN = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?(/[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?)*$")
+
+
+def _validate_dataset_id(dataset_id: str) -> None:
+    """
+    Validate a HuggingFace dataset ID to prevent SSRF attacks.
+
+    Raises:
+        HTTPException: 400 if the dataset_id is invalid.
+    """
+    if not dataset_id:
+        raise HTTPException(status_code=400, detail="Dataset ID cannot be empty")
+
+    # Check total length (HuggingFace dataset IDs are typically < 255)
+    if len(dataset_id) > 255:
+        raise HTTPException(status_code=400, detail="Dataset ID too long")
+
+    # Check for path traversal attempts
+    if ".." in dataset_id:
+        raise HTTPException(
+            status_code=400, detail="Invalid dataset ID: path traversal not allowed"
+        )
+
+    # Check for double slashes (empty segments)
+    if "//" in dataset_id:
+        raise HTTPException(
+            status_code=400, detail="Invalid dataset ID: empty segments not allowed"
+        )
+
+    # Check against allowed pattern
+    if not _DATASET_ID_PATTERN.fullmatch(dataset_id):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid dataset ID format. Must be alphanumeric with hyphens/underscores/dots, "
+                "optionally separated by slashes (e.g., 'owner/dataset')."
+            ),
+        )
 
 
 def _fetch_hf_card_metadata(
@@ -78,6 +124,9 @@ def _fetch_hf_card_metadata(
 
 def _fetch_hf_readme_html(dataset_id: str) -> str | None:
     """Fetch the dataset README.md from the HuggingFace Hub."""
+    # Validate dataset_id to prevent SSRF attacks
+    _validate_dataset_id(dataset_id)
+
     import httpx
 
     filenames = ["README.md", "README_fr.md", "README_de.md"]

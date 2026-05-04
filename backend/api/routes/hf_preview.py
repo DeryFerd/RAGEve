@@ -17,6 +17,7 @@ from backend.api.routes._limiter import limiter
 from backend.api.routes.hf_metadata import (
     _fetch_hf_card_metadata,
     _fetch_hf_readme_html,
+    _validate_dataset_id,
 )
 from backend.config_loader import settings
 from backend.schemas.huggingface import (
@@ -64,6 +65,9 @@ async def preview_hf_dataset(
     HF_HUB_API = "https://huggingface.co/api"
 
     dataset_id = dataset_id.strip()
+
+    # Validate dataset_id to prevent SSRF attacks
+    _validate_dataset_id(dataset_id)
 
     # 1. Try datasets-server preview endpoint
     preview_data = None
@@ -241,6 +245,9 @@ async def get_hf_download_instructions(
     request: Request, dataset_id: str
 ) -> HuggingFaceInstructionsResponse:
     """Return download command + expected local path info."""
+    dataset_id = dataset_id.strip()
+    _validate_dataset_id(dataset_id)
+
     safe_id = dataset_id.replace("/", "__")
     local_path = str(settings.data_root / "hf" / safe_id)
 
