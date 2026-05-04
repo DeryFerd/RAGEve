@@ -65,6 +65,9 @@ def _fetch_hf_card_metadata(
     dataset_id: str, hf_token: str | None = None
 ) -> dict[str, Any]:
     """Fetch full dataset card metadata using huggingface_hub HfApi."""
+    # Validate dataset_id to prevent SSRF attacks
+    _validate_dataset_id(dataset_id)
+
     try:
         from huggingface_hub import HfApi  # type: ignore[import-untyped]
 
