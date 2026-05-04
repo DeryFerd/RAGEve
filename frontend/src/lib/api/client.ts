@@ -50,6 +50,21 @@ export async function apiFetch<T>(
 
   clearTimeout(timeoutId);
 
+  // Handle 401 Unauthorized - redirect to login
+  if (response.status === 401) {
+    // Get current path to return after login
+    const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+    // Use window.location to force full page navigation to login
+    if (typeof window !== "undefined") {
+      window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+    }
+    // Throw an error that will be caught by the caller (though redirect will happen)
+    throw new ApiError(
+      401,
+      "Authentication required. Redirecting to login...",
+    );
+  }
+
   if (!response.ok) {
     let body: unknown;
     try {
@@ -94,6 +109,18 @@ export async function apiFetchFormData<T>(
   });
 
   clearTimeout(timeoutId);
+
+  // Handle 401 Unauthorized - redirect to login
+  if (response.status === 401) {
+    const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+    if (typeof window !== "undefined") {
+      window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+    }
+    throw new ApiError(
+      401,
+      "Authentication required. Redirecting to login...",
+    );
+  }
 
   if (!response.ok) {
     let errBody: unknown;

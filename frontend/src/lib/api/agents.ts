@@ -3,6 +3,7 @@
 // Backend: GET/POST/PUT/DELETE /dialogs/
 
 import { apiFetch } from "./client";
+import { getMe } from "./auth";
 import type {
   AgentCreate,
   AgentListResponse,
@@ -14,10 +15,19 @@ import type {
   DialogListResponse,
 } from "@/lib/types";
 
-// TODO: In a real multi-tenant setup, this should be dynamically determined (e.g., from user profile)
-const DEFAULT_TENANT_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID ||
-  "00000000000000000000000000000000";
+// TODO: Consider caching the user profile to avoid repeated fetches
+let cachedUserId: string | null = null;
+
+async function getUserId(): Promise<string | null> {
+  if (cachedUserId) return cachedUserId;
+  try {
+    const user = await getMe();
+    cachedUserId = user.user_id;
+    return user.user_id;
+  } catch {
+    return null;
+  }
+}
 
 // ── Adapter helpers ─────────────────────────────────────────────────────────────
 
@@ -59,22 +69,24 @@ function dialogToAgent(dialog: DialogResponse): AgentResponse {
 }
 
 function agentCreateToDialogCreate(payload: AgentCreate): DialogCreate {
-  const cfg = payload.config;
+  // Note: tenant_id will be set by the caller using the actual user ID
+  // The DialogCreate type requires tenant_id, but we'll use a placeholder
+  // that gets replaced before the API call
   return {
-    tenant_id: DEFAULT_TENANT_ID,
+    tenant_id: "", // Will be filled by createAgent
     name: payload.name,
     description: payload.description || null,
     language: "English",
-    llm_id: cfg.chat_model,
-    llm_setting: { temperature: cfg.temperature },
+    llm_id: payload.config.chat_model,
+    llm_setting: { temperature: payload.config.temperature },
     prompt_type: "simple",
-    prompt_config: { system: cfg.system_prompt },
-    kb_ids: [cfg.dataset_id],
-    meta_data_filter: { embedding_model: cfg.embedding_model },
+    prompt_config: { system: payload.config.system_prompt },
+    kb_ids: [payload.config.dataset_id],
+    meta_data_filter: { embedding_model: payload.config.embedding_model },
     similarity_threshold: 0.2,
     vector_similarity_weight: 0.3,
     top_n: 6,
-    top_k: cfg.top_k,
+    top_k: payload.config.top_k,
     do_refer: "1",
     rerank_id: "",
     status: "1",
@@ -123,7 +135,13 @@ export async function listAgents(): Promise<AgentListResponse> {
 export async function createAgent(
   payload: AgentCreate,
 ): Promise<AgentResponse> {
+  const tenantId = await getUserId();
+  if (!tenantId) {
+    throw new Error("Not authenticated. Please log in again.");
+  }
   const dialogCreate = agentCreateToDialogCreate(payload);
+  // Inject the actual tenant ID from the logged-in user
+  dialogCreate.tenant_id = tenantId;
   const dialog = await apiFetch<DialogResponse>("/dialogs/", {
     method: "POST",
     body: JSON.stringify(dialogCreate),

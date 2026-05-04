@@ -109,9 +109,16 @@ export async function uploadFilesToKnowledgebase(
   const response = await fetch(url, {
     method: "POST",
     body: form,
+    credentials: "include", // Include auth cookie
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+    }
     const err = await response
       .json()
       .catch(() => ({ detail: response.statusText }));

@@ -219,10 +219,22 @@ export async function chatSessionStreaming(
 
   const res = await fetch(
     `${BASE}/conversations/${conversationId}/chat/stream?${qs}`,
-    { method: "POST", signal, headers },
+    {
+      method: "POST",
+      signal,
+      headers,
+      credentials: "include", // Include auth cookie
+    },
   );
 
   if (!res.ok) {
+    // Handle 401 Unauthorized - redirect to login
+    if (res.status === 401) {
+      const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       (err as { detail?: string }).detail ||
@@ -278,12 +290,21 @@ export async function submitFeedback(
   payload: FeedbackPayload,
 ): Promise<void> {
   try {
-    await fetch(`${BASE}/chat/messages/${messageId}/feedback`, {
+    const response = await fetch(`${BASE}/chat/messages/${messageId}/feedback`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      credentials: "include", // Include auth cookie
     });
+    if (!response.ok && response.status !== 404) {
+      // 404 is OK - feedback not supported
+      throw new Error(`Feedback failed: ${response.status}`);
+    }
   } catch (err) {
+    if (err instanceof Error && err.message.includes("404")) {
+      // Silently ignore 404 - feedback endpoint not available
+      return;
+    }
     console.warn("Feedback not supported:", err);
   }
 }
@@ -298,9 +319,16 @@ export async function chatNonStreaming(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...payload, stream: false }),
+    credentials: "include", // Include auth cookie
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+    }
     const err = await response
       .json()
       .catch(() => ({ detail: response.statusText }));
@@ -335,9 +363,16 @@ export async function chatStreaming(
     },
     body: JSON.stringify({ ...payload, stream: true }),
     signal,
+    credentials: "include", // Include auth cookie
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+    }
     const err = await response
       .json()
       .catch(() => ({ detail: response.statusText }));

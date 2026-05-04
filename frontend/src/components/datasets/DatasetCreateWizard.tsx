@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 import { useDatasetsStore } from "@/stores/useDatasetsStore";
 import { useToastStore } from "@/stores/useToastStore";
 import { createKnowledgebase } from "@/lib/api/knowledgebases";
 import { uploadFilesStreaming } from "@/lib/api/datasets";
 import { DatasetInfo } from "@/lib/types";
+import { getMe } from "@/lib/api/auth";
+import { AuthMeResponse } from "@/lib/api/auth";
 import styles from "./DatasetCreateWizard.module.css";
 
 interface DatasetCreateWizardProps {
@@ -38,6 +41,27 @@ export function DatasetCreateWizard({
 
   const addToast = useToastStore((s) => s.addToast);
 
+  const [currentUser, setCurrentUser] = useState<AuthMeResponse | null>(null);
+  const [loadingUser, setLoadingUser] = useState(false);
+
+  // Fetch current user when wizard opens
+  useEffect(() => {
+    if (open) {
+      const fetchUser = async () => {
+        setLoadingUser(true);
+        try {
+          const user = await getMe();
+          setCurrentUser(user);
+        } catch (err) {
+          addToast("Failed to get user info. Please log in again.", "error");
+        } finally {
+          setLoadingUser(false);
+        }
+      };
+      fetchUser();
+    }
+  }, [open, addToast]);
+
   const [ingestProgress, setIngestProgress] = useState<{
     progress: number;
     message: string;
@@ -49,6 +73,7 @@ export function DatasetCreateWizard({
     closeCreateWizard();
     onClose();
     setIngestProgress({ progress: 0, message: "" });
+    setCurrentUser(null); // Reset user state
   };
 
   const handleStep1Next = async () => {
@@ -56,12 +81,16 @@ export function DatasetCreateWizard({
       addToast("Dataset name is required", "error");
       return;
     }
+    if (!currentUser) {
+      addToast("User information not loaded. Please try again.", "error");
+      return;
+    }
     try {
       const result = await createKnowledgebase({
-        tenant_id: "00000000000000000000000000000000",
+        tenant_id: currentUser.user_id,  // Use actual user ID as tenant
         name: createForm.name.trim(),
         description: createForm.description || null,
-        created_by: "00000000000000000000000000000001",
+        created_by: currentUser.user_id,  // Send user ID (backend will use it from session anyway)
       });
       setCreatingDatasetId(result.id);
       setCreateWizardStep(2);
@@ -172,24 +201,41 @@ export function DatasetCreateWizard({
     </div>
   );
 
-  const renderStep1 = () => (
-    <div className={styles.stepContent}>
-      <Input
-        label="Dataset Name"
-        placeholder="Enter dataset name"
-        value={createForm.name}
-        onChange={(e) => setCreateForm({ name: e.target.value })}
-        error={createForm.name.length === 0}
-      />
-      <Textarea
-        label="Description (optional)"
-        placeholder="Describe this dataset..."
-        value={createForm.description}
-        onChange={(e) => setCreateForm({ description: e.target.value })}
-        rows={3}
-      />
-    </div>
-  );
+  const renderStep1 = () => {
+    if (loadingUser) {
+      return (
+        <div className={styles.loadingContainer}>
+          <Spinner size={32} />
+          <p>Loading user information...</p>
+        </div>
+      );
+    }
+    if (!currentUser) {
+      return (
+        <div className={styles.errorContainer}>
+          <p>Failed to load user information. Please refresh and try again.</p>
+        </div>
+      );
+    }
+    return (
+      <div className={styles.stepContent}>
+        <Input
+          label="Dataset Name"
+          placeholder="Enter dataset name"
+          value={createForm.name}
+          onChange={(e) => setCreateForm({ name: e.target.value })}
+          error={createForm.name.length === 0}
+        />
+        <Textarea
+          label="Description (optional)"
+          placeholder="Describe this dataset..."
+          value={createForm.description}
+          onChange={(e) => setCreateForm({ description: e.target.value })}
+          rows={3}
+        />
+      </div>
+    );
+  };
 
   const renderStep2 = () => (
     <div className={styles.stepContent}>
@@ -282,7 +328,11 @@ export function DatasetCreateWizard({
     switch (createWizardStep) {
       case 1:
         return (
-          <Button variant="primary" onClick={handleStep1Next}>
+          <Button
+            variant="primary"
+            onClick={handleStep1Next}
+            disabled={loadingUser || !currentUser}
+          >
             Next
           </Button>
         );

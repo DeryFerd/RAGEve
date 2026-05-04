@@ -151,10 +151,17 @@ export async function conversationChatStream(
       method: "POST",
       signal,
       headers: apiKey ? { "X-API-Key": apiKey } : undefined,
+      credentials: "include", // Include auth cookie
     },
   );
 
   if (!res.ok) {
+    if (res.status === 401) {
+      const returnUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/";
+      if (typeof window !== "undefined") {
+        window.location.href = `/login?returnUrl=${encodeURIComponent(returnUrl)}`;
+      }
+    }
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(
       (err as { detail?: string }).detail ||
