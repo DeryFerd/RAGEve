@@ -103,6 +103,9 @@ async def chat(
                 cosine_score=s.cosine_score,
                 sparse_score=s.sparse_score,
                 search_type=s.search_type,
+                pages=s.pages,
+                blocks=s.blocks,
+                datasetId=s.datasetId,
             )
             for s in answer.sources
         ],
