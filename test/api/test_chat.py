@@ -12,6 +12,18 @@ from test.api.base import APITestBase
 from backend.services.database import run_db_operation
 from backend.services.dialog_store import get_dialog_store
 from backend.services.knowledge_base_store import get_knowledge_base_store
+from backend.models_peewee import Tenant
+
+
+class _FakeRAGAnswer:
+    answer = "fake answer"
+    sources = []
+    metadata = {}
+
+
+class _FakeRAGPipeline:
+    async def query(self, **kwargs):
+        return _FakeRAGAnswer()
 
 
 class TestChatAPI(APITestBase):
@@ -64,6 +76,51 @@ class TestChatAPI(APITestBase):
         # The answer may be empty or a default message
         # sources should be a list
         assert isinstance(data["sources"], list)
+
+    def test_chat_rejects_dialog_from_unrelated_tenant(self, monkeypatch):
+        """POST /chat/{dialog_id} must enforce dialog tenant access."""
+        other_tenant_id = "otherchattenant000000000000000001"
+        Tenant.create(
+            id=other_tenant_id,
+            name="Other Chat Tenant",
+            llm_id="llama3.2:latest",
+            embd_id="nomic-embed-text:latest",
+            parser_ids="pdf,docx,txt,md,html",
+        )
+
+        kb_store = get_knowledge_base_store()
+        kb = asyncio.run(
+            run_db_operation(
+                kb_store.create_knowledgebase,
+                tenant_id=other_tenant_id,
+                name="Other Tenant KB",
+                created_by=self.test_user_id,
+            )
+        )
+
+        dialog_store = get_dialog_store()
+        dialog = asyncio.run(
+            run_db_operation(
+                dialog_store.create_dialog,
+                tenant_id=other_tenant_id,
+                name="Other Tenant Dialog",
+                llm_id="llama3.2:latest",
+                created_by=self.test_user_id,
+                kb_ids=[kb.id],
+            )
+        )
+
+        monkeypatch.setattr(
+            "backend.api.routes.chat.get_rag_pipeline",
+            lambda **kwargs: _FakeRAGPipeline(),
+        )
+
+        response = self.client.post(
+            f"/chat/{dialog.id}",
+            json={"question": "Should not be allowed.", "stream": False},
+        )
+
+        assert response.status_code == 403
 
     def test_chat_streaming(self):
         """Test POST /chat/{dialog_id}/stream returns SSE stream."""

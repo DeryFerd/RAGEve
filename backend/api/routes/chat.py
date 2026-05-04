@@ -5,10 +5,13 @@ import json as _json
 import logging
 from typing import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
+from backend.api.routes.dialogs import _ensure_tenant_access
+from backend.models_peewee import User
 from backend.schemas.chat import ChatRequest, ChatResponse, SourceChunkSchema
 from backend.services.database import run_db_operation
 from backend.services.dialog_store import get_dialog_store
@@ -20,21 +23,28 @@ _log = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
+async def _get_authorized_dialog(dialog_id: str, user: User):
+    dialog_store = get_dialog_store()
+    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
+    if not dialog:
+        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
+
+    await _ensure_tenant_access(user, dialog.tenant_id)
+    return dialog
+
+
 @router.post("/{dialog_id}", response_model=ChatResponse)
 @limiter.limit("120/minute")
 async def chat(
     dialog_id: str,
     payload: ChatRequest,
     request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),
 ) -> ChatResponse:
     """
     Non-streaming RAG chat endpoint using a dialog (agent).
     """
-    # Fetch dialog
-    dialog_store = get_dialog_store()
-    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
-    if not dialog:
-        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
+    dialog = await _get_authorized_dialog(dialog_id, user)
 
     # Fetch tenant for embedding model
     tenant_store = get_tenant_user_store()
@@ -104,15 +114,9 @@ async def chat(
 
 
 async def _stream_rag(
-    dialog_id: str,
+    dialog,
     payload: ChatRequest,
 ) -> AsyncIterator[str]:
-
-    dialog_store = get_dialog_store()
-    dialog = await run_db_operation(dialog_store.get_dialog, dialog_id)
-    if not dialog:
-        raise HTTPException(status_code=404, detail=f"Dialog '{dialog_id}' not found")
-
     tenant_store = get_tenant_user_store()
     tenant = await run_db_operation(tenant_store.get_tenant, dialog.tenant_id)
     if not tenant:
@@ -186,11 +190,11 @@ async def _stream_rag(
                 }
                 yield f"data: {_json.dumps(payload)}\n\n"
     except asyncio.TimeoutError:
-        _log.warning("Streaming RAG timeout for dialog %s", dialog_id)
+        _log.warning("Streaming RAG timeout for dialog %s", dialog.id)
         yield f"data: {_json.dumps({'event': 'error', 'error': 'Request timed out after 120 seconds'})}\n\n"
         return
     except Exception as e:
-        _log.exception("Streaming RAG failed for dialog %s", dialog_id)
+        _log.exception("Streaming RAG failed for dialog %s", dialog.id)
         yield f"data: {_json.dumps({'event': 'error', 'error': str(e)})}\n\n"
         return
 
@@ -201,13 +205,15 @@ async def chat_stream(
     dialog_id: str,
     payload: ChatRequest,
     request: Request,  # noqa: F841
+    user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Streaming RAG chat endpoint using SSE.
     Each chunk is sent as: {"event": "chunk", "content": "..."}
     Final event: {"event": "end", "sources": [...]}
     """
+    dialog = await _get_authorized_dialog(dialog_id, user)
     return StreamingResponse(
-        _stream_rag(dialog_id, payload),
+        _stream_rag(dialog, payload),
         media_type="text/event-stream",
     )
