@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from rag.retrieval.cross_encoder_reranker import AVAILABLE_RERANKERS
 
 
 class SourceChunkSchema(BaseModel):
@@ -39,6 +41,20 @@ class ChatRequest(BaseModel):
         description="Enable hybrid search: combines dense + sparse retrieval with RRF fusion. "
         "Requires the collection to have been ingested with sparse vectors enabled.",
     )
+
+    @model_validator(mode="after")
+    def validate_reranker_model(self) -> "ChatRequest":
+        if not self.use_reranker:
+            return self
+
+        if not self.reranker_model:
+            raise ValueError("reranker_model is required when use_reranker is true")
+
+        available = {model.id for model in AVAILABLE_RERANKERS}
+        if self.reranker_model not in available:
+            raise ValueError(f"Unknown reranker_model: {self.reranker_model}")
+
+        return self
 
 
 class ChatResponse(BaseModel):
