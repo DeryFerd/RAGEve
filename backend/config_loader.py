@@ -9,6 +9,7 @@ Environment variables take precedence over YAML values.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -22,6 +23,29 @@ try:
     HAS_DOTENV = True
 except ImportError:
     HAS_DOTENV = False
+
+    def load_dotenv(*args, **kwargs) -> bool:  # type: ignore[no-redef]
+        """No-op fallback when python-dotenv is not installed."""
+        return False
+
+
+_log = logging.getLogger(__name__)
+
+
+def _is_running_in_docker() -> bool:
+    """Detect if we're running inside a Docker container."""
+    # Check for /.dockerenv file (Docker creates this)
+    if Path("/.dockerenv").exists():
+        return True
+    # Check cgroup for docker/containerd
+    try:
+        with open("/proc/self/cgroup", "r") as f:
+            cgroup = f.read()
+            if "docker" in cgroup or "containerd" in cgroup:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def _substitute_env_vars(value: str) -> str:
@@ -165,11 +189,16 @@ class Settings:
         self._flat_map: dict[str, Any] = {}
 
         # Load .env file for local development (if present)
+        # Priority: .env in project root, then docker/.env
         if HAS_DOTENV:
             env_path = Path(".env")
+            docker_env_path = Path("docker/.env")
             if env_path.exists():
                 load_dotenv(env_path, override=True)
                 print(f"[config] Loaded environment from {env_path}")
+            elif docker_env_path.exists():
+                load_dotenv(docker_env_path, override=True)
+                print(f"[config] Loaded environment from {docker_env_path}")
 
         self._reload()
 
@@ -199,6 +228,42 @@ class Settings:
 
         # Substitute environment variables
         self._raw = _deep_substitute(self._raw)
+
+        # Auto-override Docker internal hostnames to localhost when running on host
+        if not _is_running_in_docker():
+            # Override simple host fields (mysql.host, redis.host)
+            host_overrides = {
+                "mysql": ("mysql", "localhost"),
+                "redis": ("redis", "localhost"),
+            }
+            for service, (docker_host, localhost) in host_overrides.items():
+                if service in self._raw and "host" in self._raw[service]:
+                    host_val = str(self._raw[service]["host"])
+                    if host_val == docker_host:
+                        self._raw[service]["host"] = localhost
+                        _log.debug(
+                            "Auto-override %s.host '%s' -> 'localhost' (detected: running on host)",
+                            service,
+                            docker_host,
+                        )
+
+            # Override qdrant.url (may include port)
+            if "qdrant" in self._raw and "url" in self._raw["qdrant"]:
+                qdrant_url = str(self._raw["qdrant"]["url"])
+                if qdrant_url.startswith("http://qdrant") or qdrant_url.startswith("https://qdrant"):
+                    self._raw["qdrant"]["url"] = qdrant_url.replace("qdrant", "localhost", 1)
+                    _log.debug(
+                        "Auto-override qdrant.url 'qdrant' -> 'localhost' (detected: running on host)",
+                    )
+
+            # Override minio.host (may be host:port format)
+            if "minio" in self._raw and "host" in self._raw["minio"]:
+                minio_host = str(self._raw["minio"]["host"])
+                if minio_host.startswith("minio"):
+                    self._raw["minio"]["host"] = minio_host.replace("minio", "localhost", 1)
+                    _log.debug(
+                        "Auto-override minio.host 'minio' -> 'localhost' (detected: running on host)",
+                    )
 
         # Build flat map
         self._flat_map = self._flatten_dict(self._raw)

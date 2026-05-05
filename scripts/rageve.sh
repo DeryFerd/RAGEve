@@ -27,7 +27,7 @@ show_banner() {
 ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝    
                                                       
 
-  AI-powered RAG platform — Ollama · Qdrant · FastAPI · Next.js
+  AI-powered RAG platform — Ollama · Qdrant · Redis · MinIO · MySQL
   https://github.com/bazzi24/RAGEve
 
 EOF

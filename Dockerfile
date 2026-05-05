@@ -1,16 +1,12 @@
-# RAGEve Backend - Production-Ready Dockerfile
-# Multi-stage build with Ubuntu 24.04 (noble) base for production
+FROM ubuntu:24.04 AS base
+USER root
+SHELL ["/bin/bash", "-c"]
 
-# ============================================
-# STAGE 1: Dependency Builder
-# ============================================
-FROM ubuntu:24.04 AS builder
-
-# Set non-interactive to avoid prompts during package install
-ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /RAGEve
 
 # Install build dependencies and Python
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -o Acquire::Retries=3 && \
+    apt-get install -y --no-install-recommends \
     python3.12 \
     python3.12-venv \
     python3.12-dev \
@@ -30,7 +26,7 @@ ENV UV_LINK_MODE=copy \
     UV_PYTHON=python3.12
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-WORKDIR /app
+WORKDIR /RAGEve
 
 # Copy dependency manifests and source code for build
 COPY pyproject.toml uv.lock ./
@@ -39,7 +35,7 @@ COPY rag/ ./rag/
 
 # Install only production dependencies (no test, dev, eval)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv /app/.venv && \
+    uv venv /RAGEve/.venv && \
     uv pip install . && \
     # Install gunicorn for production serving
     uv pip install gunicorn==23.0.0
@@ -59,7 +55,8 @@ LABEL org.opencontainers.image.title="RAGEve Backend" \
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime system dependencies including Python
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -o Acquire::Retries=3 && \
+    apt-get install -y --no-install-recommends \
     python3.12 \
     python3.12-venv \
     curl \
@@ -77,18 +74,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create dedicated non-root user for security
 # Use high UID/GID to avoid conflicts with base image's default user (1000)
 RUN groupadd -r -g 1001 rageve && \
-    useradd -r -u 1001 -g rageve -s /bin/bash -d /app -m app && \
-    mkdir -p /app/data /app/conf && \
-    chown -R app:rageve /app
+    useradd -r -u 1001 -g rageve -s /bin/bash -d /RAGEve -m app && \
+    mkdir -p /RAGEve/conf /RAGEve/data /app/conf && \
+    chown -R app:rageve /RAGEve /app
 
-WORKDIR /app
+WORKDIR /RAGEve
 
 # Copy virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /RAGEve/.venv /RAGEve/.venv
 
 # Activate virtual environment
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH=/app \
+ENV PATH="/RAGEve/.venv/bin:$PATH" \
+    PYTHONPATH=/RAGEve \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -97,26 +94,27 @@ COPY backend/ ./backend/
 COPY rag/ ./rag/
 COPY pyproject.toml .
 
-# Copy configuration files
+# Copy configuration files to both locations for compatibility
+COPY docker/conf/service_conf.yaml /RAGEve/conf/
+COPY docker/service_conf.yaml.template /RAGEve/conf/
 COPY docker/conf/service_conf.yaml /app/conf/
-COPY docker/service_conf.yaml.template /app/conf/service_conf.yaml.template
-# Also copy to /app for config_loader.py search path
-RUN cp /app/conf/service_conf.yaml /app/service_conf.yaml
+COPY docker/service_conf.yaml.template /app/conf/
+COPY docker/conf/service_conf.yaml /app/
 
-# Create data directories with proper permissions
-RUN mkdir -p data/uploads data/chunks data/vectors data/logs data/hf && \
-    chown -R app:rageve /app/data && \
-    chmod 755 /app/data
+# Copy entrypoint script
+COPY docker/entrypoint.sh /RAGEve/entrypoint.sh
+RUN chmod +x /RAGEve/entrypoint.sh
 
-# Switch to non-root user
-USER app
+
+# Create data directories with proper permissions (as non-root user)
+RUN mkdir -p data/uploads data/chunks data/vectors data/logs data/hf
 
 # Expose FastAPI port
 EXPOSE 8000
 
 # Health check (lightweight, uses Python)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; r = httpx.get('http://localhost:8000/health', timeout=2); exit(0 if r.status_code == 200 else 1)" || exit 1
+    CMD python -c "import httpx; r = httpx.get('http://localhost:8000/health', timeout=3); exit(0 if r.status_code == 200 else 1)" || exit 1
 
 # Production server configuration with Gunicorn + Uvicorn workers
 ENV GUNICORN_WORKERS=${GUNICORN_WORKERS:-4} \
@@ -124,7 +122,8 @@ ENV GUNICORN_WORKERS=${GUNICORN_WORKERS:-4} \
     GUNICORN_TIMEOUT=${GUNICORN_TIMEOUT:-120} \
     GUNICORN_BACKLOG=${GUNICORN_BACKLOG:-2048}
 
-# Run with Gunicorn (production-grade WSGI server)
+# Run with entrypoint to fix permissions, then Gunicorn
+ENTRYPOINT ["/RAGEve/entrypoint.sh"]
 CMD exec gunicorn backend.main:app \
     --bind 0.0.0.0:8000 \
     --workers ${GUNICORN_WORKERS} \
