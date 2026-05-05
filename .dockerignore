@@ -1,67 +1,125 @@
-# Docker build exclusions
+# RAGEve .dockerignore - Exclude files from Docker build context
 
-# Version control
+# Git files
 .git
 .gitignore
-.gitattributes
+.gitmodules
 
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-venv
-.venv
-*.egg-info
-dist
-build
-*.egg
-.pytest_cache
-.coverage
-htmlcov
+# CI/CD
+.github
+.gitlab
+.travis.yml
+.circleci
 
-# Node.js
-node_modules
-.npm
-.next/cache
-.next/trace
-out
-
-# IDE
+# IDE and editor files
 .vscode
 .idea
 *.swp
 *.swo
-
-# OS
+*~
 .DS_Store
-Thumbs.db
 
-# Docker data (persistent volumes - exclude from build context)
-docker/data/*
-!docker/data/.gitkeep
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Logs
-*.log
+# Virtual environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Project-specific excludes
+test/
+tests/
+test_api.db
+test_data/
+benchmark/
+.data
+
+# Documentation
+docs/_build
+site
+*.md
+!README.md
+!CLAUDE.md
+
+# Frontend build artifacts (if building backend separately)
+frontend/
+frontend/.next
+frontend/out
+frontend/node_modules
+
+# Data files (persisted via volumes)
+data/
+uploads/
+chunks/
+vectors/
 logs/
+hf/
 
-# Temporary files
-tmp
-temp
-*.tmp
-
-# Environment files
+# Local config and secrets
 .env
 .env.local
 .env.*.local
+.secrets/
+credentials.json
+*.pem
+*.key
+*.crt
+ssl/
 
-# Test artifacts
-test_api.db
-test/
-.coverage
-.python-version
+# OS files
+tmp/
+temp/
+*.tmp
 
-# uv
-.uv
+# Docker files
+docker-compose*.yml
+docker-compose.override.yml
+Dockerfile*
+docker/
+!docker/conf/
+!docker/service_conf.yaml.template
+!docker/entrypoint.sh
+
+# Misc
+*.log
+*.sqlite
+*.db
+*.tar
+*.gz
+
+# Ollama models (huge, not needed)
+.ollama/
+
+# Qdrant data (huge, persisted via volume)
+.qdrant/
