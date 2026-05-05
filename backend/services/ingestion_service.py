@@ -297,9 +297,8 @@ class IngestionService:
         )
 
         # Ensure collection exists before streaming upserts
-        if not self.qdrant.collection_exists(dataset_id):
-            self.qdrant.create_collection(dataset_id)
-
+        # Dimension will be detected from first batch; collection creation is deferred
+        collection_created = False
         total_upserted = 0
         # Adaptive batch size based on available VRAM (GPU) or safe CPU default.
         # recommend_embed_batch_size() reads actual CUDA free memory, so on GPU
@@ -352,90 +351,115 @@ class IngestionService:
         }
 
         # Stream over batches: embed → sparse → upsert → cleanup → next
-        async for batch_embs, batch_start, batch_end in self.embedder.embed_batches(
-            chunk_texts, batch_size=embed_batch_size, on_progress=on_embed_progress
-        ):
-            batch_texts = chunk_texts[batch_start:batch_end]
-            batch_blocks = chunk_blocks[batch_start:batch_end]
-            batch_size_actual = len(batch_texts)
-
-            # ── Sparse embed this batch ──────────────────────────────────
-            batch_sparse: list[dict[str, Any] | None] = [None] * batch_size_actual
-            sparse_results = None
-            if self.sparse_embedder is not None:
-                sparse_results = await asyncio.to_thread(
-                    self.sparse_embedder.embed_batch, batch_texts
-                )
-                for idx, sv in enumerate(sparse_results):
-                    if sv.indices:
-                        batch_sparse[idx] = {"indices": sv.indices, "values": sv.values}
-
-            # ── Build ChunkRecords for this batch ─────────────────────────
-            records = []
-            for idx in range(batch_size_actual):
-                block_list = batch_blocks[idx]
-                meta = {
-                    **base_metadata,
-                    "chunk_index": batch_start + idx,
-                }
-                # Include layout-derived metadata if available
-                if block_list:
-                    pages = sorted(set(b.page for b in block_list))
-                    blocks_meta = [
-                        {
-                            "page": b.page,
-                            "bbox": {
-                                "x0": b.bbox.x0,
-                                "y0": b.bbox.y0,
-                                "x1": b.bbox.x1,
-                                "y1": b.bbox.y1,
-                            },
-                            "type": b.block_type.value,
-                        }
-                        for b in block_list
-                    ]
-                    meta["pages"] = pages
-                    meta["blocks"] = blocks_meta
-
-                records.append(
-                    ChunkRecord(
-                        chunk_id=str(uuid.uuid4()),
-                        chunk_text=batch_texts[idx],
-                        metadata=meta,
-                        dense_vector=batch_embs[idx],
-                        sparse_vector=batch_sparse[idx],
+        try:
+            async for batch_embs, batch_start, batch_end in self.embedder.embed_batches(
+                chunk_texts, batch_size=embed_batch_size, on_progress=on_embed_progress
+            ):
+                # On first batch, ensure collection exists with correct dimensions
+                if batch_start == 0 and batch_embs and not collection_created:
+                    actual_dim = len(batch_embs[0])
+                    _log.info(
+                        "Detected embedding dimension: %d for model %s",
+                        actual_dim,
+                        self.embedder.model,
                     )
-                )
+                    if not await asyncio.to_thread(
+                        self.qdrant.collection_exists, dataset_id
+                    ):
+                        await asyncio.to_thread(
+                            self.qdrant.create_collection,
+                            dataset_id,
+                            dense_size=actual_dim,
+                        )
+                    collection_created = True
 
-            # ── Upsert ────────────────────────────────────────────────
-            try:
-                upserted = self.qdrant.upsert_chunks(
-                    collection_name=dataset_id,
-                    chunks=records,
-                )
-                total_upserted += upserted
-            except Exception as exc:
-                _log.error(
-                    "[%s] Upsert failed at batch %d-%d: %s",
-                    dataset_id,
-                    batch_start,
-                    batch_end,
-                    exc,
-                )
-                raise
+                batch_texts = chunk_texts[batch_start:batch_end]
+                batch_blocks = chunk_blocks[batch_start:batch_end]
+                batch_size_actual = len(batch_texts)
 
-            # ── Memory release for this batch ───────────────────────────
-            # Delete all large intermediate objects before the next batch.
-            # `chunk_texts` and `chunk_blocks` lists themselves are kept (referenced by next slice)
-            # but the sliced portions for this batch become eligible for GC.
-            del (
-                batch_embs,
-                batch_sparse,
-                batch_texts,
-                batch_blocks,
-                records,
-                sparse_results,
-            )
+                # ── Sparse embed this batch ──────────────────────────────────
+                batch_sparse: list[dict[str, Any] | None] = [None] * batch_size_actual
+                sparse_results = None
+                if self.sparse_embedder is not None:
+                    sparse_results = await asyncio.to_thread(
+                        self.sparse_embedder.embed_batch, batch_texts
+                    )
+                    for idx, sv in enumerate(sparse_results):
+                        if sv.indices:
+                            batch_sparse[idx] = {"indices": sv.indices, "values": sv.values}
+
+                # ── Build ChunkRecords for this batch ─────────────────────────
+                records = []
+                for idx in range(batch_size_actual):
+                    block_list = batch_blocks[idx]
+                    meta = {
+                        **base_metadata,
+                        "chunk_index": batch_start + idx,
+                    }
+                    # Include layout-derived metadata if available
+                    if block_list:
+                        pages = sorted(set(b.page for b in block_list))
+                        blocks_meta = [
+                            {
+                                "page": b.page,
+                                "bbox": {
+                                    "x0": b.bbox.x0,
+                                    "y0": b.bbox.y0,
+                                    "x1": b.bbox.x1,
+                                    "y1": b.bbox.y1,
+                                },
+                                "type": b.block_type.value,
+                            }
+                            for b in block_list
+                        ]
+                        meta["pages"] = pages
+                        meta["blocks"] = blocks_meta
+
+                    records.append(
+                        ChunkRecord(
+                            chunk_id=str(uuid.uuid4()),
+                            chunk_text=batch_texts[idx],
+                            metadata=meta,
+                            dense_vector=batch_embs[idx],
+                            sparse_vector=batch_sparse[idx],
+                        )
+                    )
+
+                # ── Upsert ────────────────────────────────────────────────
+                try:
+                    upserted = await asyncio.to_thread(
+                        self.qdrant.upsert_chunks,
+                        collection_name=dataset_id,
+                        chunks=records,
+                    )
+                    total_upserted += upserted
+                except Exception as exc:
+                    _log.error(
+                        "[%s] Upsert failed at batch %d-%d: %s",
+                        dataset_id,
+                        batch_start,
+                        batch_end,
+                        exc,
+                    )
+                    raise
+
+                # ── Memory release for this batch ───────────────────────────
+                # Delete all large intermediate objects before the next batch.
+                # `chunk_texts` and `chunk_blocks` lists themselves are kept (referenced by next slice)
+                # but the sliced portions for this batch become eligible for GC.
+                del (
+                    batch_embs,
+                    batch_sparse,
+                    batch_texts,
+                    batch_blocks,
+                    records,
+                    sparse_results,
+                )
+                gc.collect()
+                _clear_cuda_cache()
+        finally:
+            # Cleanup even on error
+            del chunks_with_blocks, chunk_texts, chunk_blocks
             gc.collect()
             _clear_cuda_cache()
 
@@ -456,11 +480,6 @@ class IngestionService:
                 "chunks_total": chunk_count,
             },
         )
-
-        # Final cleanup — the chunk lists can now be freed
-        del chunks_with_blocks, chunk_texts, chunk_blocks
-        gc.collect()
-        _clear_cuda_cache()
 
         elapsed = time.monotonic() - t0
         _log.info(

@@ -158,6 +158,21 @@ class OllamaEmbedder:
         """True when Ollama has a CUDA/ROCm GPU available."""
         return self._is_gpu
 
+    def get_embedding_dimension(self) -> int:
+        """Return the embedding dimension for the current model."""
+        # Known embedding model dimensions
+        DIMENSIONS: dict[str, int] = {
+            "nomic-embed-text": 768,
+            "nomic-embed-text:latest": 768,
+            "qwen3-embedding": 4096,
+            "qwen3-embedding:latest": 4096,
+            "all-minilm": 384,
+            "all-minilm:latest": 384,
+            "mxbai-embed-large": 1024,
+            "mxbai-embed-large:latest": 1024,
+        }
+        return DIMENSIONS.get(self.model, 768)  # Default to 768
+
     def verify_normalization(self, embedding: list[float]) -> bool:
         """
         Verify that an embedding vector is unit-normalized (L2 norm ≈ 1.0).
@@ -287,7 +302,7 @@ class OllamaEmbedder:
             batch = texts[batch_start:batch_end]
 
             # Launch all texts in this batch concurrently, gated by the semaphore.
-            tasks = [self._embed_single_impl(text) for text in batch]
+            tasks = [self.embed_single(text) for text in batch]
             batch_results = await asyncio.gather(*tasks)
 
             # Write results back into the pre-allocated list.
@@ -351,7 +366,7 @@ class OllamaEmbedder:
             batch_end = min(batch_start + batch_size, total)
             batch = texts[batch_start:batch_end]
 
-            tasks = [self._embed_single_impl(text) for text in batch]
+            tasks = [self.embed_single(text) for text in batch]
             batch_embeddings = await asyncio.gather(*tasks)
 
             done += len(batch_embeddings)

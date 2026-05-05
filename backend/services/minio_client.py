@@ -30,8 +30,8 @@ class MinIOClient:
         self.secure = settings.minio.secure
         self.bucket = settings.minio.bucket
         self.prefix = settings.minio.prefix_path or ""
+        self._bucket_checked = False
 
-        # Initialize boto3 client with signature_version='s3v4' for MinIO
         self.client = boto3.client(
             "s3",
             endpoint_url=self.endpoint,
@@ -47,25 +47,32 @@ class MinIOClient:
             use_ssl=self.secure,
         )
 
-        # Ensure bucket exists
-        self._ensure_bucket()
-
     def _ensure_bucket(self) -> None:
-        """Create bucket if it doesn't exist."""
+        """Create bucket if it doesn't exist - fails silently on connection errors."""
+        if self._bucket_checked:
+            return  # Skip repeated checks
+        self._bucket_checked = True
+
         try:
             self.client.head_bucket(Bucket=self.bucket)
             _log.debug("MinIO bucket '%s' exists", self.bucket)
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "")
             if error_code == "404":
-                _log.info("Creating MinIO bucket '%s'", self.bucket)
-                self.client.create_bucket(Bucket=self.bucket)
+                try:
+                    self.client.create_bucket(Bucket=self.bucket)
+                    _log.info("Created MinIO bucket '%s'", self.bucket)
+                except ClientError as create_err:
+                    _log.warning("Could not create MinIO bucket '%s': %s", self.bucket, create_err)
             elif error_code == "403":
                 _log.warning(
-                    "Access denied for MinIO bucket '%s' check credentials", self.bucket
+                    "Access denied for MinIO bucket '%s' - check credentials", self.bucket
                 )
             else:
                 _log.warning("Could not verify MinIO bucket '%s': %s", self.bucket, e)
+        except Exception as e:
+            # Catch any other exceptions (connection errors, timeouts, etc.)
+            _log.warning("Could not connect to MinIO to verify bucket '%s': %s", self.bucket, e)
 
     def _get_key(self, path: str) -> str:
         """Build full object key with prefix."""
@@ -85,6 +92,7 @@ class MinIOClient:
         Returns:
             Full S3 URL to the uploaded object
         """
+        self._ensure_bucket()
         full_key = self._get_key(key)
         extra_args: dict[str, Any] = {}
         if content_type:
@@ -116,6 +124,7 @@ class MinIOClient:
         Returns:
             File content as bytes
         """
+        self._ensure_bucket()
         full_key = self._get_key(key)
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=full_key)
@@ -151,6 +160,7 @@ class MinIOClient:
         Returns:
             List of object keys
         """
+        self._ensure_bucket()
         full_prefix = self._get_key(prefix)
         keys: list[str] = []
         try:

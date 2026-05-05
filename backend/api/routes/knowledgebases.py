@@ -6,6 +6,7 @@ Endpoints for managing knowledgebases, documents, files, and ingestion tasks.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import tempfile
@@ -24,6 +25,9 @@ from fastapi import (
     UploadFile,
     status,
 )
+
+# Global registry to keep background tasks alive
+_background_tasks: set[asyncio.Task] = set()
 
 from backend.api.dependencies import get_current_user
 from backend.api.routes._limiter import limiter
@@ -448,8 +452,7 @@ async def upload_files(
             )
 
             # Kick off background ingestion
-            background_tasks.add_task(
-                run_ingestion_background,
+            task = asyncio.create_task(run_ingestion_background(
                 task_id=task_rec.id,
                 doc_id=doc_rec.id,
                 kb_id=kb_id,
@@ -457,7 +460,17 @@ async def upload_files(
                 parser_id=parser_id,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-            )
+            ))
+            _background_tasks.add(task)
+
+            def handle_task_result(t: asyncio.Task) -> None:
+                try:
+                    _background_tasks.discard(t)
+                    t.result()
+                except Exception as e:
+                    _log.exception("Background ingestion task failed: %s", e)
+
+            task.add_done_callback(handle_task_result)
 
             results.append(
                 FileUploadResponse(
@@ -569,31 +582,33 @@ async def run_ingestion_background(
 
     except Exception as e:
         _log.exception("Ingestion failed for doc %s (task %s)", doc_id, task_id)
-        # Update task and document with failure
-        await run_db_operation(
-            store.update_task_progress,
-            task_id,
-            progress=-1.0,  # negative indicates error
-            msg=f"Error: {str(e)}",
-        )
-        # Also update document progress
-        await run_db_operation(
-            store.update_document_progress,
-            doc_id,
-            progress=-1.0,
-            progress_msg=f"Ingestion failed: {str(e)}",
-        )
+        # Update task and document with failure - wrap each to avoid cascading errors
+        try:
+            await run_db_operation(
+                store.update_task_progress,
+                task_id,
+                progress=-1.0,  # negative indicates error
+                msg=f"Error: {str(e)[:200]}",
+            )
+        except Exception as db_err:
+            _log.error("Failed to update task error status: %s", db_err)
+
+        try:
+            await run_db_operation(
+                store.update_document_progress,
+                doc_id,
+                progress=-1.0,
+                progress_msg=f"Ingestion failed: {str(e)[:200]}",
+            )
+        except Exception as db_err:
+            _log.error("Failed to update document error status: %s", db_err)
     finally:
         # Clean up temp file created during download
-        if (
-            "temp_file_path_local" in dir()
-            and temp_file_path_local
-            and os.path.exists(temp_file_path_local)
-        ):
+        if temp_file_path_local and os.path.exists(temp_file_path_local):
             try:
                 os.unlink(temp_file_path_local)
-            except OSError:
-                pass
+            except OSError as cleanup_err:
+                _log.warning("Failed to clean up temp file %s: %s", temp_file_path_local, cleanup_err)
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentResponse)
@@ -814,8 +829,7 @@ async def upload_file_to_document(
             to_page=100000000,
         )
         # Kick off background ingestion
-        background_tasks.add_task(
-            run_ingestion_background,
+        task = asyncio.create_task(run_ingestion_background(
             task_id=task_rec.id,
             doc_id=doc_id,
             kb_id=kb_id,
@@ -823,7 +837,17 @@ async def upload_file_to_document(
             parser_id=doc.parser_id,
             chunk_size=None,
             chunk_overlap=None,
-        )
+        ))
+        _background_tasks.add(task)
+
+        def handle_task_result(t: asyncio.Task) -> None:
+            try:
+                _background_tasks.discard(t)
+                t.result()
+            except Exception as e:
+                _log.exception("Background ingestion task failed: %s", e)
+
+        task.add_done_callback(handle_task_result)
         temp_file_path = None
 
         return FileUploadResponse(

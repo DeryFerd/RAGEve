@@ -1,6 +1,11 @@
 """
 File processor service for RAGEve.
 
+.. deprecated::
+    This module is deprecated and will be removed in a future version.
+    The active ingestion pipeline now uses :mod:`backend.services.ingestion_service`
+    which handles extraction, chunking, embedding, and Qdrant upsert in a streaming fashion.
+
 Handles document ingestion: saving uploads, processing files into chunks,
 and persisting results to storage.
 """
