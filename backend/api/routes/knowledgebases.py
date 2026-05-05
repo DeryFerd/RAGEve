@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import tempfile
 import time as _time
 from pathlib import Path
@@ -539,9 +540,11 @@ async def run_ingestion_background(
             progress_msg="Downloading file from MinIO",
         )
         file_bytes = await minio_client.download_file(minio_key)
-        filename = Path(minio_key).name
+        # SECURITY: Do not derive local temp-file path components from user-controlled keys.
+        # Use a constant safe suffix for ingestion scratch files.
+        safe_suffix = ".bin"
         # Write to temp file (delete=False so it persists for ingestion)
-        tmp = tempfile.NamedTemporaryFile(suffix=Path(filename).suffix, delete=False)
+        tmp = tempfile.NamedTemporaryFile(suffix=safe_suffix, delete=False)
         tmp.write(file_bytes)
         tmp.close()
         temp_file_path_local = tmp.name
