@@ -421,11 +421,11 @@ async def _download_hf_dataset_to_server(
                         dataset_id,
                         status="completed",
                         progress=100,
-                        message=f"✓ Downloaded successfully — auto-ingest failed: {exc}",
+                        message="✓ Downloaded successfully — auto-ingest failed",
                         rows_downloaded=rows_total,
                         splits_downloaded=downloaded_splits,
                         ingest_status="failed",
-                        ingest_error=str(exc),
+                        ingest_error="An internal error occurred",
                     )
             else:
                 hf_status._set_download_status(
@@ -450,13 +450,13 @@ async def _download_hf_dataset_to_server(
                 status="failed",
                 progress=0,
                 message="Download failed",
-                error=str(exc),
+                error="An internal error occurred",
             )
             if auto_ingest:
                 hf_status._set_download_status(
                     dataset_id,
                     ingest_status="failed",
-                    ingest_error=str(exc),
+                    ingest_error="An internal error occurred",
                 )
 
 

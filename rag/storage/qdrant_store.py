@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 import warnings
 from dataclasses import dataclass, field
@@ -19,6 +20,23 @@ warnings.filterwarnings(
 )
 
 _log = logging.getLogger("rag.storage.qdrant_store")
+
+# Collection name validation: Qdrant requires alphanumeric, underscore, hyphen
+COLLECTION_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+
+
+def validate_collection_name(collection_name: str) -> None:
+    """Validate a Qdrant collection name.
+
+    Raises:
+        ValueError: If the collection name contains invalid characters.
+    """
+    if not COLLECTION_NAME_PATTERN.match(collection_name):
+        raise ValueError(
+            f"Invalid collection name '{collection_name}'. "
+            "Collection names must contain only alphanumeric characters, "
+            "underscores, or hyphens."
+        )
 
 
 # ----------------------------------------------------------------------
@@ -122,6 +140,8 @@ class QdrantStore:
 
         Calling this on an existing collection is a no-op (Qdrant returns early).
         """
+        validate_collection_name(collection_name)
+
         try:
             self.client.get_collection(collection_name=collection_name)
             return True  # Already exists
@@ -153,6 +173,7 @@ class QdrantStore:
         return True
 
     def delete_collection(self, collection_name: str) -> bool:
+        validate_collection_name(collection_name)
         try:
             self.client.delete_collection(collection_name=collection_name)
             _log.info("Collection deleted: %s", collection_name)
@@ -162,6 +183,7 @@ class QdrantStore:
             return False
 
     def collection_exists(self, collection_name: str) -> bool:
+        validate_collection_name(collection_name)
         try:
             self.client.get_collection(collection_name=collection_name)
             return True
@@ -175,6 +197,7 @@ class QdrantStore:
         This is used by HuggingFace UX status checks to determine whether a
         local dataset has already been ingested into Qdrant.
         """
+        validate_collection_name(collection_name)
         info = self.get_collection_info(collection_name)
         if info is None:
             return False
@@ -186,6 +209,7 @@ class QdrantStore:
         return self.collection_has_points(dataset_id)
 
     def get_collection_info(self, collection_name: str) -> dict[str, Any] | None:
+        validate_collection_name(collection_name)
         try:
             info = self.client.get_collection(collection_name=collection_name)
             vectors_count = getattr(info, "vectors_count", None)
@@ -225,6 +249,7 @@ class QdrantStore:
         if not chunks:
             return 0
 
+        validate_collection_name(collection_name)
         self._ensure_collection(collection_name)
         schema_type = self._get_schema_type(collection_name)
 
@@ -320,6 +345,7 @@ class QdrantStore:
         Automatically handles both old (unnamed single-vector) and new
         (Named Vectors with "dense" field) collection schemas.
         """
+        validate_collection_name(collection_name)
         schema_type = self._get_schema_type(collection_name)
 
         if schema_type == "named":
@@ -429,6 +455,7 @@ class QdrantStore:
         list[SearchResult]
             Top-k chunks fused by RRF, sorted descending by RRF score.
         """
+        validate_collection_name(collection_name)
         # Fall back to dense-only if this collection predates the hybrid schema
         schema_type = self._get_schema_type(collection_name)
         if schema_type == "unnamed":
@@ -482,6 +509,7 @@ class QdrantStore:
         top_k: int = 5,
         score_threshold: float | None = None,
     ) -> list[SearchResult]:
+        validate_collection_name(collection_name)
         if not await self.async_collection_exists(collection_name):
             return []
         payload: dict[str, Any] = {
@@ -503,6 +531,7 @@ class QdrantStore:
         return self._hits_to_search_results(hits)
 
     async def async_collection_exists(self, collection_name: str) -> bool:
+        validate_collection_name(collection_name)
         try:
             r = await self._http.get(f"/collections/{collection_name}")
             r.raise_for_status()
@@ -550,6 +579,7 @@ class QdrantStore:
     # ------------------------------------------------------------------
 
     def delete_by_dataset(self, collection_name: str) -> bool:
+        validate_collection_name(collection_name)
         try:
             self.client.delete_collection(collection_name=collection_name)
             return True
@@ -561,6 +591,7 @@ class QdrantStore:
         collection_name: str,
         chunk_ids: list[str],
     ) -> int:
+        validate_collection_name(collection_name)
         try:
             from qdrant_client.http.models import FieldCondition, Filter, MatchAny
 

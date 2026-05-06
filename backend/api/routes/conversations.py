@@ -9,6 +9,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import logging
 import time as _time
 from typing import Any
 
@@ -33,6 +34,7 @@ from backend.services.dialog_store import get_dialog_store
 from backend.services.ingestion_factory import get_rag_pipeline
 from backend.services.tenant_user_store import get_tenant_user_store
 
+_log = logging.getLogger(__name__)
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
@@ -418,10 +420,11 @@ async def chat_stream_with_conversation(
             status_code=504, detail="Request timed out after 120 seconds"
         ) from exc
     except Exception as exc:
+        _log.exception("Streaming chat failed for conversation %s", conversation_id)
         yield _json.dumps(
             {
                 "event": "error",
-                "error": str(exc),
+                "error": "An internal error occurred",
                 "message_id": user_msg.get("message_id") if user_msg else None,
             }
         ) + "\n"

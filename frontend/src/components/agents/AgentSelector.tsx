@@ -1,10 +1,10 @@
 "use client";
 
-import type { AgentResponse } from "@/lib/types";
+import type { DialogResponse } from "@/lib/types";
 import styles from "./AgentSelector.module.css";
 
 interface AgentSelectorProps {
-  agents: AgentResponse[];
+  agents: DialogResponse[];
   selectedId: string | null;
   onChange: (agentId: string) => void;
   disabled?: boolean;
@@ -29,7 +29,7 @@ export function AgentSelector({
         <>
           <option value="">Select an agent…</option>
           {agents.map((agent) => (
-            <option key={agent.agent_id} value={agent.agent_id}>
+            <option key={agent.id} value={agent.id}>
               {agent.name}
             </option>
           ))}

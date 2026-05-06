@@ -28,7 +28,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    href: "/agents",
+    href: "/dialogs",
     label: "Agents",
     icon: <img src="/agent.png" alt="Chat" className={styles.navIcon} />,
   },

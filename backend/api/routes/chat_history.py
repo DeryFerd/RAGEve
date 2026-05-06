@@ -18,6 +18,7 @@ Feedback
 from __future__ import annotations
 
 import json as _json
+import logging
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
@@ -41,6 +42,7 @@ from backend.schemas.chat_history import (
 from backend.services.chat_store import get_chat_store
 from backend.services.ingestion_factory import get_agent_store, get_rag_pipeline
 
+_log = logging.getLogger(__name__)
 router = APIRouter(prefix="/legacy/chat", tags=["chat-history"])
 
 
@@ -329,10 +331,11 @@ async def _stream_with_history(
             status_code=504, detail="Request timed out after 120 seconds"
         ) from exc
     except Exception as exc:
+        _log.exception("Streaming chat failed for session %s", session_id)
         yield _json.dumps(
             {
                 "event": "error",
-                "error": str(exc),
+                "error": "An internal error occurred",
                 "message_id": user_msg.message_id,
             }
         ) + "\n"

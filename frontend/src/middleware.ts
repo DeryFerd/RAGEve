@@ -7,7 +7,7 @@ import type { NextRequest } from "next/server";
  * Public paths (no auth required):
  * - /login
  * - /register
- * - /api/auth/* (auth endpoints are public)
+ * - /auth/* (auth endpoints are public)
  * - /_next (static assets)
  * - any static files
  *
@@ -20,7 +20,7 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/auth/") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
     request.nextUrl.pathname.endsWith(".png") ||
@@ -58,8 +58,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico
      * - public folder
-     * - api/auth (public auth endpoints)
+     * - auth (public auth endpoints)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|txt|json)$|/api/auth).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|txt|json)$|/auth).*)",
   ],
 };

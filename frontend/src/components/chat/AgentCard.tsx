@@ -1,11 +1,11 @@
 "use client";
 
-import type { AgentResponse } from "@/lib/types";
+import type { DialogResponse } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import styles from "./AgentCard.module.css";
 
 interface AgentCardProps {
-  agent: AgentResponse;
+  agent: DialogResponse;
   onClick: () => void;
 }
 
@@ -24,25 +24,27 @@ export function AgentCard({ agent, onClick }: AgentCardProps) {
       <div className={styles.cardBody}>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Dataset</span>
-          <span className={styles.fieldValue}>{agent.config.dataset_id}</span>
+          <span className={styles.fieldValue}>{agent.kb_ids?.[0] || "-"}</span>
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Embed Model</span>
           <span className={styles.fieldValue}>
-            {agent.config.embedding_model}
+            {String((agent.llm_setting as Record<string, unknown>)?.embedding_model || "-")}
           </span>
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Chat Model</span>
-          <span className={styles.fieldValue}>{agent.config.chat_model}</span>
+          <span className={styles.fieldValue}>{agent.llm_id}</span>
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Temperature</span>
-          <span className={styles.fieldValue}>{agent.config.temperature}</span>
+          <span className={styles.fieldValue}>
+            {(agent.llm_setting as Record<string, unknown>)?.temperature ?? 0.7}
+          </span>
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>Top-K</span>
-          <span className={styles.fieldValue}>{agent.config.top_k}</span>
+          <span className={styles.fieldValue}>{agent.top_k}</span>
         </div>
       </div>
 

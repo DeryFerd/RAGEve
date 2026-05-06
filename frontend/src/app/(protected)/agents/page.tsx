@@ -1,18 +1,16 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useDatasetsStore } from "@/stores/useDatasetsStore";
 import { useModelStore } from "@/stores/useModelStore";
 import { useToastStore } from "@/stores/useToastStore";
 import {
-  listAgents,
-  createAgent,
-  updateAgent,
-  deleteAgent,
-} from "@/lib/api/agents";
+  listDialogs,
+  createDialog,
+  updateDialog,
+  deleteDialog,
+} from "@/lib/api/dialogs";
 import { listDatasets } from "@/lib/api/datasets";
-import type { AgentResponse } from "@/lib/types";
+import type { DialogResponse } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -37,7 +35,7 @@ export default function AgentsPage() {
   const { addToast } = useToastStore();
 
   const [showModal, setShowModal] = useState(false);
-  const [editingAgent, setEditingAgent] = useState<AgentResponse | null>(null);
+  const [editingAgent, setEditingAgent] = useState<DialogResponse | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Form state
@@ -53,8 +51,8 @@ export default function AgentsPage() {
   const [topK, setTopK] = useState(5);
 
   useEffect(() => {
-    listAgents()
-      .then((r) => setAgents(r.agents))
+    listDialogs()
+      .then((r) => setAgents(r.dialogs))
       .catch((e) => addToast(`Failed to load agents: ${e.message}`, "error"));
   }, [setAgents, addToast]);
 
@@ -78,16 +76,16 @@ export default function AgentsPage() {
     setShowModal(true);
   };
 
-  const openEdit = (agent: AgentResponse) => {
-    setEditingAgent(agent);
-    setName(agent.name);
-    setDescription(agent.description);
-    setSystemPrompt(agent.config.system_prompt);
-    setDatasetId(agent.config.dataset_id);
-    setEmbedModel(agent.config.embedding_model);
-    setChatModel(agent.config.chat_model);
-    setTemperature(agent.config.temperature);
-    setTopK(agent.config.top_k);
+  const openEdit = (dialog: DialogResponse) => {
+    setEditingAgent(dialog);
+    setName(dialog.name || "");
+    setDescription(dialog.description || "");
+    setSystemPrompt((dialog.prompt_config?.system_prompt as string | undefined) || "You are a helpful AI assistant.");
+    setDatasetId(dialog.kb_ids?.[0] || "");
+    setEmbedModel((dialog.llm_setting?.embedding_model as string | undefined) || defaultEmbed || availableModels[0] || "");
+    setChatModel(dialog.llm_id);
+    setTemperature((dialog.llm_setting?.temperature as number | undefined) ?? 0.7);
+    setTopK(dialog.top_k || 5);
     setShowModal(true);
   };
 
@@ -98,24 +96,33 @@ export default function AgentsPage() {
     }
     setSaving(true);
     try {
-      const payload = {
+      // Base payload - tenant_id should come from auth context
+      const basePayload = {
         name: name.trim(),
-        description: description.trim(),
-        config: {
-          system_prompt: systemPrompt,
-          dataset_id: datasetId,
-          embedding_model: embedModel,
-          chat_model: chatModel,
+        description: description.trim() || null,
+        llm_id: chatModel,
+        llm_setting: {
           temperature,
-          top_k: topK,
+          embedding_model: embedModel,
         },
+        prompt_config: {
+          system_prompt: systemPrompt,
+        },
+        kb_ids: datasetId ? [datasetId] : [],
+        top_k: topK,
       };
+
       if (editingAgent) {
-        const updated = await updateAgent(editingAgent.agent_id, payload);
+        // Update: don't send tenant_id
+        const updatePayload: Record<string, unknown> = { ...basePayload };
+        delete updatePayload.tenant_id;
+        const updated = await updateDialog(editingAgent.id, updatePayload);
         updateAgentInStore(updated);
         addToast(`Agent "${updated.name}" updated`, "success");
       } else {
-        const created = await createAgent(payload);
+        // Create: need tenant_id (will be filled by backend from auth)
+        const createPayload = { ...basePayload, tenant_id: "" };
+        const created = await createDialog(createPayload);
         addAgent(created);
         addToast(`Agent "${created.name}" created`, "success");
       }
@@ -130,11 +137,11 @@ export default function AgentsPage() {
     }
   };
 
-  const handleDelete = async (agent: AgentResponse) => {
+  const handleDelete = async (dialog: DialogResponse) => {
     try {
-      await deleteAgent(agent.agent_id);
-      removeAgent(agent.agent_id);
-      addToast(`Agent "${agent.name}" deleted`, "info");
+      await deleteDialog(dialog.id);
+      removeAgent(dialog.id);
+      addToast(`Agent "${dialog.name}" deleted`, "info");
     } catch {
       addToast(`Delete failed`, "error");
     }
@@ -159,27 +166,27 @@ export default function AgentsPage() {
         </div>
       ) : (
         <div className={styles.list}>
-          {agents.map((agent) => (
-            <div key={agent.agent_id} className={styles.card}>
+          {agents.map((dialog) => (
+            <div key={dialog.id} className={styles.card}>
               <div className={styles.cardTop}>
                 <div>
-                  <div className={styles.cardTitle}>{agent.name}</div>
-                  {agent.description && (
-                    <div className={styles.cardDesc}>{agent.description}</div>
+                  <div className={styles.cardTitle}>{dialog.name}</div>
+                  {dialog.description && (
+                    <div className={styles.cardDesc}>{dialog.description}</div>
                   )}
                 </div>
                 <div className={styles.cardActions}>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => openEdit(agent)}
+                    onClick={() => openEdit(dialog)}
                   >
                     Edit
                   </Button>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDelete(agent)}
+                    onClick={() => handleDelete(dialog)}
                   >
                     Delete
                   </Button>
@@ -189,31 +196,31 @@ export default function AgentsPage() {
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Dataset</span>
                   <span className={styles.fieldValue}>
-                    {agent.config.dataset_id}
+                    {dialog.kb_ids?.[0] || "-"}
                   </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Embed Model</span>
                   <span className={styles.fieldValue}>
-                    {agent.config.embedding_model}
+                    {String(dialog.llm_setting?.embedding_model || "-")}
                   </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Chat Model</span>
                   <span className={styles.fieldValue}>
-                    {agent.config.chat_model}
+                    {dialog.llm_id}
                   </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Temperature</span>
                   <span className={styles.fieldValue}>
-                    {agent.config.temperature}
+                    {(dialog.llm_setting as Record<string, unknown>)?.temperature ?? 0.7}
                   </span>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Top-K</span>
                   <span className={styles.fieldValue}>
-                    {agent.config.top_k}
+                    {dialog.top_k}
                   </span>
                 </div>
               </div>

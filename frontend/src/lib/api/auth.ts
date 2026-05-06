@@ -44,7 +44,7 @@ export async function register(data: RegisterPayload) {
     user_id: string;
     email: string;
     username: string;
-  }>("/api/auth/register", {
+  }>("/auth/register", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -56,7 +56,7 @@ export async function register(data: RegisterPayload) {
  */
 export async function verifyEmail(token: string): Promise<string> {
   const base = process.env.NEXT_PUBLIC_API_URL || "";
-  const url = `${base}/api/auth/verify?token=${encodeURIComponent(token)}`;
+  const url = `${base}/auth/verify?token=${encodeURIComponent(token)}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
   const response = await fetch(url, {
@@ -76,7 +76,7 @@ export async function verifyEmail(token: string): Promise<string> {
  * Sets HttpOnly cookie on success.
  */
 export async function login(data: LoginPayload) {
-  return apiFetch<AuthMeResponse>("/api/auth/login", {
+  return apiFetch<AuthMeResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -86,7 +86,7 @@ export async function login(data: LoginPayload) {
  * Log out by clearing the access token cookie.
  */
 export async function logout(): Promise<void> {
-  return apiFetch<void>("/api/auth/logout", {
+  return apiFetch<void>("/auth/logout", {
     method: "POST",
   });
 }
@@ -95,7 +95,7 @@ export async function logout(): Promise<void> {
  * Get current authenticated user's profile.
  */
 export async function getMe(): Promise<AuthMeResponse> {
-  return apiFetch<AuthMeResponse>("/api/auth/me", {
+  return apiFetch<AuthMeResponse>("/auth/me", {
     method: "GET",
   });
 }
@@ -104,7 +104,7 @@ export async function getMe(): Promise<AuthMeResponse> {
  * Update current user's profile (full_name, email).
  */
 export async function updateProfile(data: UpdateProfilePayload) {
-  return apiFetch<AuthMeResponse>("/api/auth/me", {
+  return apiFetch<AuthMeResponse>("/auth/me", {
     method: "PUT",
     body: JSON.stringify(data),
   });
@@ -116,7 +116,7 @@ export async function updateProfile(data: UpdateProfilePayload) {
 export async function changePassword(
   data: ChangePasswordPayload,
 ): Promise<void> {
-  return apiFetch<void>("/api/auth/me/password", {
+  return apiFetch<void>("/auth/me/password", {
     method: "PUT",
     body: JSON.stringify(data),
   });

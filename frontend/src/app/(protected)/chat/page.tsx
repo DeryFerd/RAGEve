@@ -6,16 +6,17 @@ import { useCallback, useEffect, useRef } from "react";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useModelStore } from "@/stores/useModelStore";
-import { listAgents } from "@/lib/api/agents";
+import { listDialogs } from "@/lib/api/dialogs";
 import { getRerankers } from "@/lib/api/rerank";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { AgentCard } from "@/components/chat/AgentCard";
-import { useToastStore } from "@/stores/useToastStore";
 import { SessionPanel } from "@/components/chat/SessionPanel";
+import { useToastStore } from "@/stores/useToastStore";
 import { getSessionWithMessages, createSession } from "@/lib/api/chat";
 import { Button } from "@/components/ui/Button";
+import type { DialogResponse } from "@/lib/types";
 import styles from "./ChatPage.module.css";
 
 let msgCounter = 0;
@@ -39,10 +40,10 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMsgLen = useRef(0);
 
-  // Load agents on mount
+  // Load agents (dialogs) on mount
   useEffect(() => {
-    listAgents()
-      .then((res) => setAgents(res.agents))
+    listDialogs()
+      .then((res) => setAgents(res.dialogs as DialogResponse[]))
       .catch((err) =>
         addToast(`Failed to load agents: ${err.message}`, "error"),
       );
@@ -215,11 +216,11 @@ export default function ChatPage() {
           </div>
         ) : (
           <div className={styles.agentGrid}>
-            {agents.map((agent) => (
+            {agents.map((dialog) => (
               <AgentCard
-                key={agent.agent_id}
-                agent={agent}
-                onClick={() => handleAgentChange(agent.agent_id)}
+                key={dialog.id}
+                agent={dialog}
+                onClick={() => handleAgentChange(dialog.id)}
               />
             ))}
           </div>

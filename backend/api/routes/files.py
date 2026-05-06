@@ -46,11 +46,11 @@ async def upload_files_only(
             results.append(ProcessedFileResponse(**payload))
         except ValueError as exc:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file"
             ) from exc
         except Exception as exc:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             ) from exc
 
     return UploadSummaryResponse(dataset_id=dataset_id, files=results)

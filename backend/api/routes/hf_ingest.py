@@ -196,8 +196,8 @@ async def _run_hf_background_ingest(
             ingest_id,
             status="failed",
             progress=0,
-            error=str(exc),
-            message=f"Failed: {exc}",
+            error="An internal error occurred",
+            message="HuggingFace ingestion failed",
             completed_at=_utc_now_iso(),
         )
 

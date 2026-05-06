@@ -26,7 +26,7 @@ from backend.services.tenant_user_store import get_tenant_user_store
 
 _log = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Account lockout settings
 LOGIN_ATTEMPTS_THRESHOLD = 5

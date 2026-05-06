@@ -347,7 +347,7 @@ async def _run_background_ingest(
                     ingest_id,
                     status="failed",
                     current_stage="failed",
-                    error=str(exc),
+                    error="An internal error occurred",
                     completed_at=datetime.now(timezone.utc).isoformat(),
                 )
                 return  # bail — first file failure aborts the whole ingest job
@@ -370,7 +370,7 @@ async def _run_background_ingest(
             ingest_id,
             status="failed",
             current_stage="failed",
-            error=str(exc),
+            error="An internal error occurred",
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
 
